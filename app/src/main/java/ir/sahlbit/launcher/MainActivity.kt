@@ -9,19 +9,31 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.provider.ContactsContract
+import android.net.Uri
+import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,292 +42,353 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import ir.sahlbit.launcher.ui.AnalogClock
-import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+import java.time.LocalDate
+
+private val Forest = Color(0xFF244B3D)
+private val Cream = Color(0xFFF6F2E8)
+private val Ink = Color(0xFF26352F)
+private val Teal = Color(0xFF397B70)
 
 class MainActivity : ComponentActivity() {
-    private val batteryLevel = mutableIntStateOf(100)
-    private val batteryReceiver = object : BroadcastReceiver() {
+    private val battery = mutableIntStateOf(100)
+    private val charging = mutableStateOf(false)
+    private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level >= 0 && scale > 0) batteryLevel.intValue = (level * 100) / scale
+            intent ?: return
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level >= 0 && scale > 0) battery.intValue = (level * 100 / scale).coerceIn(0, 100)
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            charging.value = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
         }
     }
-
-    private val homeRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        // Android owns the HOME role decision. Returning from the system screen is sufficient;
-        // the app never attempts to override the user's selected launcher.
-    }
+    private val homeRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-
-        val recoveryPrefs = getSharedPreferences(SahlBitApplication.PREFS_NAME, MODE_PRIVATE)
-        val crashRecoveryPending = recoveryPrefs.getBoolean(
-            SahlBitApplication.KEY_CRASH_RECOVERY_PENDING,
-            false
-        )
-        // Consume the marker once. If the app crashes again, the Application handler
-        // records a fresh marker and the recovery screen is offered on the next launch.
-        recoveryPrefs.edit()
-            .remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING)
-            .apply()
-
+        registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val prefs = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
+        val pending = prefs.getBoolean("crash_pending", false)
+        prefs.edit().remove("crash_pending").apply()
         setContent {
-            SahlBitHome(
-                batteryPercent = batteryLevel.intValue,
-                showCrashRecovery = crashRecoveryPending,
-                onRequestSahlBitDefault = { requestHomeRole() },
-                onOpenHomeSettings = { openHomeSettings() }
-            )
+            MaterialTheme(colorScheme = lightColorScheme(primary = Forest, secondary = Teal, background = Cream)) {
+                SahlBitApp(
+                    prefs = prefs,
+                    battery = battery.intValue,
+                    charging = charging.value,
+                    crashRecovery = pending,
+                    onSelectLauncher = { selectLauncher() },
+                    onAndroidSettings = { openAndroidSettings() },
+                    onImmersiveChange = { enabled -> setImmersive(enabled) }
+                )
+            }
         }
     }
 
-    private fun requestHomeRole() {
+    private fun setImmersive(enabled: Boolean) {
+        @Suppress("DEPRECATION")
+        if (enabled) {
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+        } else { window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE }
+    }
+
+    private fun selectLauncher() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val roleManager = getSystemService(RoleManager::class.java)
-            if (roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME)) {
-                if (roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-                    openHomeSettings()
-                } else {
-                    homeRoleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
-                }
+            val manager = getSystemService(RoleManager::class.java)
+            if (manager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
+                if (manager.isRoleHeld(RoleManager.ROLE_HOME)) openHomeSettings()
+                else homeRoleLauncher.launch(manager.createRequestRoleIntent(RoleManager.ROLE_HOME))
                 return
             }
         }
         openHomeSettings()
     }
+    private fun openHomeSettings() { runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { openAndroidSettings() } }
+    private fun openAndroidSettings() { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+    override fun onDestroy() { runCatching { unregisterReceiver(receiver) }; super.onDestroy() }
+}
 
-    private fun openHomeSettings() {
-        val intent = Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            startActivity(intent)
-        } catch (_: Exception) {
-            startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+@Composable
+private fun SahlBitApp(
+    prefs: android.content.SharedPreferences,
+    battery: Int,
+    charging: Boolean,
+    crashRecovery: Boolean,
+    onSelectLauncher: () -> Unit,
+    onAndroidSettings: () -> Unit,
+    onImmersiveChange: (Boolean) -> Unit
+) {
+    var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
+    var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
+    var route by remember { mutableStateOf(if (!initialized || pinHash == null) "welcome" else if (crashRecovery) "recovery" else "home") }
+    var pinInput by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf("") }
+    var immersive by remember { mutableStateOf(prefs.getBoolean("immersive", true)) }
+    var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "forest") ?: "forest") }
+    var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5)) }
+    var cardsPerPage by remember { mutableIntStateOf(prefs.getInt("cards_per_page", 5)) }
+    var adminAuthenticated by remember { mutableStateOf(false) }
+    var entries by remember { mutableStateOf(LauncherEntryStore.load(prefs)) }
+    var selectedPage by remember { mutableIntStateOf(0) }
+    var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 4)) }
+    var gridAlignment by remember { mutableStateOf(prefs.getString("grid_alignment", "center") ?: "center") }
+    var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
+    val context = LocalContext.current
+    val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
+            runCatching {
+                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val name = c.getString(0) ?: "مخاطب"
+                        val number = c.getString(1) ?: ""
+                        val photoSource = c.getString(2)
+                        val photo = photoSource?.let { source -> runCatching {
+                            context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
+                                val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+                                target.outputStream().use { output -> input.copyTo(output) }
+                                Uri.fromFile(target).toString()
+                            }
+                        }.getOrNull() }
+                        val item = LauncherEntry(kind = "contact", title = name, page = selectedPage, contactUri = uri.toString(), phoneNumber = number, photoUri = photo)
+                        entries = entries + item
+                        LauncherEntryStore.save(prefs, entries)
+                    }
+                }
+            }
         }
     }
 
-    override fun onDestroy() {
-        runCatching { unregisterReceiver(batteryReceiver) }
-        super.onDestroy()
+    LaunchedEffect(immersive) { onImmersiveChange(immersive) }
+    BackHandler(enabled = route != "home" && route != "welcome") {
+        route = when (route) { "dashboard" -> "home"; "pinchange" -> "dashboard"; "login" -> "home"; "setpin" -> "welcome"; else -> "dashboard" }
+    }
+
+    when (route) {
+        "welcome" -> WelcomeScreen(
+            onContinue = { route = "setpin" }
+        )
+        "setpin" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
+            if (newPin.length < 4) error = "PIN باید حداقل ۴ رقم داشته باشد."
+            else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
+            else {
+                val salt = createSalt()
+                val hash = hashPin(newPin, salt)
+                prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash).putBoolean("initialized", true).apply()
+                pinHash = hash; initialized = true; route = "dashboard"; adminAuthenticated = true
+                newPin = ""; confirmPin = ""; error = ""
+            }
+        }
+        "home" -> HomeScreen(
+            battery = battery, charging = charging, background = backgroundChoice,
+            onAdminEntry = { pinInput = ""; error = ""; route = "login" },
+            pageCount = pageCount, cardsPerPage = cardsPerPage,
+            entries = entries, gridColumns = gridColumns, gridAlignment = gridAlignment,
+            onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
+            onConfirmCall = { entry -> entry.phoneNumber?.let { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }; pendingCall = null },
+            pendingCall = pendingCall, onCancelCall = { pendingCall = null }, gridAlignment = gridAlignment
+        )
+        "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error) {
+            if (pinHash != null && constantTimeEquals(hashPin(pinInput, prefs.getString("admin_pin_salt", "") ?: ""), pinHash!!)) {
+                error = ""; pinInput = ""; adminAuthenticated = true; route = "dashboard"
+            } else { error = "PIN صحیح نیست."; pinInput = "" }
+        }
+        "dashboard" -> DashboardScreen(
+            onExit = { adminAuthenticated = false; route = "home" },
+            onPages = { route = "pages" }, onContacts = { route = "contacts" },
+            onAppearance = { route = "appearance" }, onSecurity = { route = "security" },
+            onPermissions = { route = "permissions" }, onAbout = { route = "about" }
+        )
+        "pages" -> SettingsPage("مدیریت صفحات", "در این مرحله ساختار تنظیمات محلی آماده شده است. ویرایشگر کامل صفحات و چیدمان مخاطبان در مرحله بعدی توسعه اضافه می‌شود.", { route = "dashboard" }) {
+            NumberSetting("تعداد صفحات", pageCount, 1, 12) { pageCount = it; prefs.edit().putInt("page_count", it).apply() }
+            NumberSetting("کارت در هر صفحه (حداکثر نمایشی)", cardsPerPage, 1, 12) { cardsPerPage = it; prefs.edit().putInt("cards_per_page", it).apply() }
+            NumberSetting("تعداد ستون‌های چیدمان", gridColumns, 1, 4) { gridColumns = it; prefs.edit().putInt("grid_columns", it).apply() }
+            Text("تراز چیدمان", color = Ink, fontWeight = FontWeight.Bold)
+            listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
+                Row(Modifier.fillMaxWidth().clickable { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(gridAlignment == key, { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }); Text(label, color = Ink) }
+            }
+        }
+        "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
+            NumberSetting("صفحه مقصد برای موارد جدید", selectedPage + 1, 1, pageCount.coerceAtLeast(1)) { selectedPage = it - 1 }
+            Button(onClick = { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب از دفترچه تلفن") }
+            Spacer(Modifier.height(8.dp))
+            val pm = context.packageManager
+            val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val installedApps = remember { runCatching { pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
+            Text("افزودن برنامه به صفحه اصلی", color = Ink, fontWeight = FontWeight.Bold)
+            LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(installedApps) { resolve ->
+                    val pkg = resolve.activityInfo.packageName
+                    val label = resolve.loadLabel(pm).toString()
+                    Row(Modifier.fillMaxWidth().clickable {
+                        if (entries.none { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }) {
+                            entries = entries + LauncherEntry(kind = "app", title = label, page = selectedPage, packageName = pkg)
+                            LauncherEntryStore.save(prefs, entries)
+                        }
+                    }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, color = Ink, modifier = Modifier.weight(1f)); Text("افزودن +", color = Teal)
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
+            entries.forEach { entry ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${entry.title}  •  صفحه ${entry.page + 1}", color = Ink, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries) }) { Text("حذف", color = Color(0xFFB3261E)) }
+                }
+            }
+        }
+        "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
+            Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
+            listOf("forest" to "سبز جنگلی", "white" to "سفید", "cream" to "کِرِم", "gray" to "طوسی", "blue" to "آبی ملایم").forEach { (key, label) ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = backgroundChoice == key, onClick = { backgroundChoice = key; prefs.edit().putString("background", key).apply() }); Text(label, color = Ink)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
+        }
+        "security" -> SettingsPage("امنیت مدیر", "PIN با مشتق‌سازی PBKDF2 و نمک تصادفی در حافظه محلی ذخیره می‌شود. محدودیت تلاش ناموفق و کد بازیابی در مرحله امنیت تکمیلی اضافه می‌شوند.", { route = "dashboard" }) {
+            Button(onClick = { newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر PIN مدیر") }
+        }
+        "pinchange" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
+            if (newPin.length < 4) error = "PIN باید حداقل ۴ رقم داشته باشد."
+            else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
+            else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
+        }
+        "permissions" -> SettingsPage("مجوزها و دسترسی‌ها", "این نسخه برای ساعت، باتری، تنظیمات محلی و درخواست نقش لانچر به مجوز حساس مخاطبین یا تماس نیاز ندارد. مجوزها هنگام اضافه‌شدن قابلیت واقعی درخواست خواهند شد.", { route = "dashboard" }) {
+            Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
+        }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۲٫۰ (مرحله پایه مدیریت)\nتوسعه‌دهنده: Amirali Pashae fard\nPashaeF.ir", { route = "dashboard" }) { }
+        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
+            Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
+        }
     }
 }
 
-private data class HomePage(val title: String, val contacts: List<String>)
-
-@Composable
-private fun SahlBitHome(
-    batteryPercent: Int,
-    showCrashRecovery: Boolean,
-    onRequestSahlBitDefault: () -> Unit,
-    onOpenHomeSettings: () -> Unit
-) {
-    val pages = remember {
-        listOf(
-            HomePage("خانه فرزندان", listOf("فرزند اول", "فرزند دوم", "فرزند سوم", "فرزند چهارم", "فرزند پنجم")),
-            HomePage("موبایل فرزندان", listOf("فرزند اول", "فرزند دوم", "فرزند سوم", "فرزند چهارم", "فرزند پنجم")),
-            HomePage("نوه‌ها · صفحه اول", listOf("نوه اول", "نوه دوم", "نوه سوم", "نوه چهارم")),
-            HomePage("نوه‌ها · صفحه دوم", listOf("نوه پنجم", "نوه ششم", "نوه هفتم")),
-            HomePage("همسران فرزندان", listOf("همسر اول", "همسر دوم", "همسر سوم"))
-        )
+@Composable private fun WelcomeScreen(onContinue: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Cream).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("به سهل‌بیت خوش آمدید", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Spacer(Modifier.height(16.dp)); Text("برای شروع، مدیر دستگاه باید PIN اختصاصی خود را تعیین کند. تنظیمات و اطلاعات این نسخه روی خود گوشی ذخیره می‌شوند.", color = Ink, fontSize = 18.sp, lineHeight = 29.sp)
+        Spacer(Modifier.height(28.dp)); Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("شروع راه‌اندازی", fontSize = 18.sp) }
     }
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+}
+
+@Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
+        Text("تنظیم PIN مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Spacer(Modifier.height(12.dp)); Text("یک PIN عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 17.sp)
+        Spacer(Modifier.height(18.dp)); PinField("PIN جدید", pin, onPin); Spacer(Modifier.height(12.dp)); PinField("تکرار PIN", confirm, onConfirm)
+        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
+        Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره PIN") }
+    }
+}
+@Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onLogin: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
+        Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest); Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
+        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
+        Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پنل مدیریت") }
+    }
+}
+@Composable private fun PinField(label: String, value: String, onValue: (String) -> Unit) {
+    OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
+}
+
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAppearance: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); TextButton(onClick = onExit) { Icon(Icons.Default.Settings, null); Text("تحویل به سالمند") } }
+        Text("داشبورد مدیر", color = Teal, fontSize = 15.sp); Spacer(Modifier.height(18.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { DashboardCard("مدیریت صفحات و چیدمان", "تعداد صفحات و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
+            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Settings, onContacts) }
+            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
+            item { DashboardCard("امنیت و PIN مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
+            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
+            item { DashboardCard("درباره لانچر", "نسخه، توسعه‌دهنده و وب‌سایت", Icons.Default.Info, onAbout) }
+        }
+    }
+}
+@Composable private fun DashboardCard(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = Teal, modifier = Modifier.size(32.dp)); Spacer(Modifier.width(16.dp)); Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }; Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal) }
+    }
+}
+@Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxSize().background(Cream).padding(20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(12.dp)); Text(description, color = Ink, lineHeight = 24.sp); Spacer(Modifier.height(18.dp)); content()
+    }
+}
+@Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Icon(Icons.Default.Remove, null) }; Text(value.toString(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
+}
+
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String) {
     var settingsTaps by remember { mutableIntStateOf(0) }
-    var showSettings by remember { mutableStateOf(false) }
-    var showRecovery by remember { mutableStateOf(showCrashRecovery) }
-
-    BackHandler(enabled = showSettings || showRecovery) {
-        if (showRecovery) showRecovery = false else showSettings = false
-    }
-
-    if (showRecovery) {
-        CrashRecoveryScreen(
-            onOpenHomeSettings = onOpenHomeSettings,
-            onContinue = { showRecovery = false }
-        )
-        return
-    }
-
-    if (showSettings) {
-        LauncherSettingsScreen(
-            onBack = { showSettings = false },
-            onRequestSahlBitDefault = onRequestSahlBitDefault,
-            onOpenHomeSettings = onOpenHomeSettings
-        )
-        return
-    }
-
-    Box(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(Color(0xFF203D35), Color(0xFF55745C), Color(0xFF263F36)))
-        )
-    ) {
-        Box(Modifier.fillMaxWidth().fillMaxHeight(0.34f).align(Alignment.BottomCenter).background(
-            Brush.verticalGradient(listOf(Color.Transparent, Color(0x553A573D), Color(0xAA172A26)))
-        ))
-
-        Column(
-            modifier = Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 18.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = {
-                    settingsTaps++
-                    if (settingsTaps >= 7) { showSettings = true; settingsTaps = 0 }
-                }) {
-                    Icon(Icons.Default.Settings, contentDescription = "ورود مدیر", tint = Color.White.copy(alpha = 0.82f))
-                }
-            }
-
-            AnalogClock(modifier = Modifier.size(174.dp))
-            Spacer(Modifier.height(10.dp))
-            Text("${batteryPercent.coerceIn(0, 100)}٪", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(14.dp))
-
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) { pageIndex ->
-                val page = pages[pageIndex]
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(page.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(18.dp))
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        page.contacts.chunked(2).forEach { rowContacts ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally)) {
-                                rowContacts.forEach { contact ->
-                                    ContactTile(contact = contact, modifier = Modifier.weight(1f).aspectRatio(1f))
+    val context = LocalContext.current
+    val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
+    val fg = if (background == "forest") Color.White else Ink
+    val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
+    val dayText = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[day - 1]
+    val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
+    val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
+    Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            if (charging) Text("⚡", color = if (battery > 95) Color(0xFF168A45) else Color(0xFF1689D4), fontSize = 36.sp, fontWeight = FontWeight.Bold)
+            IconButton(onClick = { settingsTaps++; if (settingsTaps >= 7) { settingsTaps = 0; onAdminEntry() } }) { Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .42f), modifier = Modifier.size(20.dp)) }
+        }
+        AnalogClock(Modifier.size(184.dp))
+        Spacer(Modifier.height(8.dp))
+        Text("$battery٪", color = batteryColor, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+        Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
+        Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
+        HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                val pageEntries = entries.filter { it.page == index }.take(cardsPerPage.coerceAtLeast(1))
+                if (pageEntries.isEmpty()) {
+                    Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
+                } else {
+                    LazyVerticalGrid(columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)), modifier = Modifier.fillMaxWidth(), horizontalArrangement = when (gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }, verticalArrangement = Arrangement.spacedBy(12.dp), userScrollEnabled = true) {
+                        items(pageEntries, key = { it.id }) { entry ->
+                            Card(onClick = { onEntryClick(entry) }, colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val photo = entry.photoUri
+                                    val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
+                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(68.dp).clip(CircleShape))
+                                    else Icon(if (entry.kind == "app") Icons.Default.Apps else Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
+                                    Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                 }
-                                if (rowContacts.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Text("برای جابه‌جایی، صفحه را به چپ یا راست بکشید", color = Color.White.copy(alpha = 0.72f), fontSize = 11.sp)
+        }
+        Text("برای جابه‌جایی بین صفحه‌ها، صفحه را به چپ یا راست بکشید", color = fg.copy(alpha = .75f), fontSize = 12.sp)
+        Text("${pager.currentPage + 1} از ${pageCount.coerceIn(1, 12)}", color = fg.copy(alpha = .65f), fontSize = 11.sp)
+        if (pendingCall != null) {
+            AlertDialog(onDismissRequest = onCancelCall, title = { Text("تماس با ${pendingCall.title}؟") }, text = { Text("آیا می‌خواهید با این مخاطب تماس بگیرید؟\n${pendingCall.phoneNumber ?: ""}") }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر") } }, dismissButton = { OutlinedButton(onClick = onCancelCall) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
     }
 }
 
-@Composable
-private fun CrashRecoveryScreen(
-    onOpenHomeSettings: () -> Unit,
-    onContinue: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-            .background(Color(0xFFF4F5F2))
-            .systemBarsPadding()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.height(24.dp))
-        Text(
-            "بازیابی سهل‌بیت",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF203D35)
-        )
-        Text(
-            "به نظر می‌رسد سهل‌بیت در اجرای قبلی با خطای غیرمنتظره بسته شده است. اگر صفحه اصلی درست کار نمی‌کند، می‌توانی لانچر گوشی را از تنظیمات اندروید به One UI Home تغییر بدهی.",
-            color = Color(0xFF45534B),
-            lineHeight = 25.sp
-        )
-        Button(
-            onClick = onOpenHomeSettings,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text("باز کردن تنظیمات انتخاب لانچر سامسونگ")
-        }
-        OutlinedButton(
-            onClick = onContinue,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) {
-            Text("ادامه استفاده از سهل‌بیت")
-        }
-        Text(
-            "سهل‌بیت به‌صورت خودکار لانچر پیش‌فرض را تغییر نمی‌دهد؛ انتخاب نهایی با کاربر و سیستم‌عامل است.",
-            color = Color(0xFF8A4B16),
-            style = MaterialTheme.typography.bodySmall,
-            lineHeight = 20.sp
-        )
-    }
+private fun createSalt(): String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
+private fun hashPin(pin: String, saltHex: String): String {
+    val salt = saltHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    val spec = PBEKeySpec(pin.toCharArray(), salt, 120_000, 256)
+    return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.joinToString("") { "%02x".format(it) }.also { spec.clearPassword() }
 }
-
-@Composable
-private fun LauncherSettingsScreen(
-    onBack: () -> Unit,
-    onRequestSahlBitDefault: () -> Unit,
-    onOpenHomeSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().background(Color(0xFFF4F5F2)).systemBarsPadding().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "بازگشت", tint = Color(0xFF203D35))
-            }
-            Text("تنظیمات سهل‌بیت", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF203D35))
-        }
-
-        Text("مدیریت لانچر پیش‌فرض", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF203D35))
-        Text(
-            "می‌توانی سهل‌بیت را به‌عنوان صفحه اصلی گوشی انتخاب کنی. هر زمان هم خواستی، از تنظیمات اندروید لانچر سامسونگ (One UI Home) را دوباره انتخاب کن.",
-            color = Color(0xFF45534B), lineHeight = 23.sp
-        )
-
-        Button(
-            onClick = onRequestSahlBitDefault,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) { Text("انتخاب سهل‌بیت به‌عنوان لانچر اصلی") }
-
-        OutlinedButton(
-            onClick = onOpenHomeSettings,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-            shape = RoundedCornerShape(14.dp)
-        ) { Text("انتخاب لانچر سامسونگ (One UI Home)") }
-
-        HorizontalDivider()
-        Text("بازیابی در صورت بروز خطا", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF203D35))
-        Text(
-            "اگر سهل‌بیت درست اجرا نشد، صفحه انتخاب لانچر اندروید را باز کن و One UI Home را انتخاب کن. همچنین می‌توانی از مسیر تنظیمات گوشی ← برنامه‌ها ← برنامه‌های پیش‌فرض ← برنامه صفحه اصلی، لانچر سامسونگ را فعال کنی.",
-            color = Color(0xFF45534B), lineHeight = 23.sp
-        )
-        Text(
-            "نکته: اندروید اجازه نمی‌دهد یک لانچر معمولی بدون تأیید کاربر، خودش را با One UI جایگزین کند. این روش عمداً از تغییر خودکار و غیرمجاز لانچر جلوگیری می‌کند.",
-            color = Color(0xFF8A4B16), lineHeight = 21.sp,
-            style = MaterialTheme.typography.bodySmall
-        )
-
-        Spacer(Modifier.weight(1f))
-        Text("نسخه آزمایشی ۰.۱.۱ · سهل‌بیت هنوز محدودیت‌های سیستمی یا حالت کیوسک را فعال نمی‌کند.", color = Color(0xFF68756D), style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-private fun ContactTile(contact: String, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(
-            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFFE8E4D7), Color(0xFFB8C7B5)))),
-            contentAlignment = Alignment.Center
-        ) {
-            Box(Modifier.size(52.dp).clip(CircleShape).background(Color(0xFF718B78)), contentAlignment = Alignment.Center) {
-                Text(contact.take(1), color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        Spacer(Modifier.height(5.dp))
-        Text(contact, color = Color.White, fontSize = 12.sp, maxLines = 1)
-    }
-}
+private fun constantTimeEquals(a: String, b: String): Boolean = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())

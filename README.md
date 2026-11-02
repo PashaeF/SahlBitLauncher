@@ -50,3 +50,15 @@ gradle assembleDebug
 - Device Owner و محدودیت برنامه‌ها
 - پشتیبان‌گیری و تنظیمات پیشرفته
 - بازیابی خودکارِ تغییر لانچر پیش‌فرض (اندروید این تغییر را بدون تأیید کاربر مجاز نمی‌کند)
+
+
+## Version 0.2.1 — contacts and app selection foundation
+
+- Adds the Android phone-contact picker (no broad READ_CONTACTS permission).
+- Stores selected contact name/number and copies an available contact photo into app-private storage.
+- Adds an installed-launcher-app picker using a narrow package visibility query.
+- Adds local launcher entries and page assignment.
+- Home cards now render selected contacts/apps; contact taps show a confirmation dialog and open the system dialer with ACTION_DIAL (no direct-call permission).
+- Adds configurable grid column count and horizontal alignment.
+
+Limitations: this milestone does not implement InCallService/custom call UI, true per-card drag-and-drop placement, full page CRUD, Device Owner/kiosk restrictions, or reliable app blocking.
