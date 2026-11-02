@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
+        android:name=".SahlBitApplication"
         android:allowBackup="false"
         android:label="سهل‌بیت"
         android:supportsRtl="true"

@@ -53,9 +53,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+
+        val recoveryPrefs = getSharedPreferences(SahlBitApplication.PREFS_NAME, MODE_PRIVATE)
+        val crashRecoveryPending = recoveryPrefs.getBoolean(
+            SahlBitApplication.KEY_CRASH_RECOVERY_PENDING,
+            false
+        )
+        // Consume the marker once. If the app crashes again, the Application handler
+        // records a fresh marker and the recovery screen is offered on the next launch.
+        recoveryPrefs.edit()
+            .remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING)
+            .apply()
+
         setContent {
             SahlBitHome(
                 batteryPercent = batteryLevel.intValue,
+                showCrashRecovery = crashRecoveryPending,
                 onRequestSahlBitDefault = { requestHomeRole() },
                 onOpenHomeSettings = { openHomeSettings() }
             )
@@ -97,6 +110,7 @@ private data class HomePage(val title: String, val contacts: List<String>)
 @Composable
 private fun SahlBitHome(
     batteryPercent: Int,
+    showCrashRecovery: Boolean,
     onRequestSahlBitDefault: () -> Unit,
     onOpenHomeSettings: () -> Unit
 ) {
@@ -112,8 +126,19 @@ private fun SahlBitHome(
     val pagerState = rememberPagerState(pageCount = { pages.size })
     var settingsTaps by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
+    var showRecovery by remember { mutableStateOf(showCrashRecovery) }
 
-    BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = showSettings || showRecovery) {
+        if (showRecovery) showRecovery = false else showSettings = false
+    }
+
+    if (showRecovery) {
+        CrashRecoveryScreen(
+            onOpenHomeSettings = onOpenHomeSettings,
+            onContinue = { showRecovery = false }
+        )
+        return
+    }
 
     if (showSettings) {
         LauncherSettingsScreen(
@@ -175,6 +200,54 @@ private fun SahlBitHome(
             Spacer(Modifier.height(8.dp))
             Text("برای جابه‌جایی، صفحه را به چپ یا راست بکشید", color = Color.White.copy(alpha = 0.72f), fontSize = 11.sp)
         }
+    }
+}
+
+@Composable
+private fun CrashRecoveryScreen(
+    onOpenHomeSettings: () -> Unit,
+    onContinue: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+            .background(Color(0xFFF4F5F2))
+            .systemBarsPadding()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "بازیابی سهل‌بیت",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF203D35)
+        )
+        Text(
+            "به نظر می‌رسد سهل‌بیت در اجرای قبلی با خطای غیرمنتظره بسته شده است. اگر صفحه اصلی درست کار نمی‌کند، می‌توانی لانچر گوشی را از تنظیمات اندروید به One UI Home تغییر بدهی.",
+            color = Color(0xFF45534B),
+            lineHeight = 25.sp
+        )
+        Button(
+            onClick = onOpenHomeSettings,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("باز کردن تنظیمات انتخاب لانچر سامسونگ")
+        }
+        OutlinedButton(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+            shape = RoundedCornerShape(14.dp)
+        ) {
+            Text("ادامه استفاده از سهل‌بیت")
+        }
+        Text(
+            "سهل‌بیت به‌صورت خودکار لانچر پیش‌فرض را تغییر نمی‌دهد؛ انتخاب نهایی با کاربر و سیستم‌عامل است.",
+            color = Color(0xFF8A4B16),
+            style = MaterialTheme.typography.bodySmall,
+            lineHeight = 20.sp
+        )
     }
 }
 
