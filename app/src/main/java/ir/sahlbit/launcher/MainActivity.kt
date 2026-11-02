@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -89,13 +90,13 @@ class MainActivity : ComponentActivity() {
                     crashRecovery = pending,
                     onSelectLauncher = { selectLauncher() },
                     onAndroidSettings = { openAndroidSettings() },
-                    onImmersiveChange = { enabled -> setImmersive(enabled) }
+                    onImmersiveChange = { enabled -> applyImmersiveMode(enabled) }
                 )
             }
         }
     }
 
-    private fun setImmersive(enabled: Boolean) {
+    private fun applyImmersiveMode(enabled: Boolean) {
         @Suppress("DEPRECATION")
         if (enabled) {
             window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
@@ -198,7 +199,7 @@ private fun SahlBitApp(
             entries = entries, gridColumns = gridColumns, gridAlignment = gridAlignment,
             onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
             onConfirmCall = { entry -> entry.phoneNumber?.let { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }; pendingCall = null },
-            pendingCall = pendingCall, onCancelCall = { pendingCall = null }, gridAlignment = gridAlignment
+            pendingCall = pendingCall, onCancelCall = { pendingCall = null }
         )
         "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error) {
             if (pinHash != null && constantTimeEquals(hashPin(pinInput, prefs.getString("admin_pin_salt", "") ?: ""), pinHash!!)) {
@@ -331,7 +332,7 @@ private fun SahlBitApp(
     }
 }
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Icon(Icons.Default.Remove, null) }; Text(value.toString(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toString(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
 }
 
 @Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String) {
@@ -368,7 +369,8 @@ private fun SahlBitApp(
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
                                     if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(68.dp).clip(CircleShape))
-                                    else Icon(if (entry.kind == "app") Icons.Default.Apps else Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
+                                    else if (entry.kind == "app") Text("▦", color = if (background == "forest") Color.White else Teal, fontSize = 48.sp)
+                                     else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
                                     Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                 }
                             }
