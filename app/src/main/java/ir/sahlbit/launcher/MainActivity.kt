@@ -453,20 +453,31 @@ private fun SahlBitApp(
                 items(installedApps) { resolve ->
                     val pkg = resolve.activityInfo.packageName
                     val label = resolve.loadLabel(pm).toString()
+                    val alreadyAdded = entries.any { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }
                     Row(Modifier.fillMaxWidth().clickable {
-                        if (entries.none { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }) {
+                        if (!alreadyAdded) {
                             entries = entries + LauncherEntry(kind = "app", title = label, page = selectedPage, packageName = pkg)
                             LauncherEntryStore.save(prefs, entries)
                         }
                     }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(label, color = Ink, modifier = Modifier.weight(1f)); Text("افزودن +", color = Teal)
+                        Text(label, color = Ink, modifier = Modifier.weight(1f))
+                        if (alreadyAdded) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "افزوده شده", tint = Color(0xFF168A45))
+                            Spacer(Modifier.width(6.dp)); Text("افزوده شده", color = Color(0xFF168A45), fontSize = 12.sp)
+                        } else Text("افزودن +", color = Teal)
                     }
                 }
             }
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
             entries.forEach { entry ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${entry.title}  •  صفحه ${entry.page + 1}", color = Ink, modifier = Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text(entry.title, color = Ink)
+                        if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) {
+                            Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
+                        }
+                        Text("صفحه ${entry.page + 1}", color = Color(0xFF64748B), fontSize = 11.sp)
+                    }
                     if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
                     if (entry.kind == "contact") TextButton(onClick = {
                         val lookup = entry.contactLookupUri?.let(Uri::parse)
