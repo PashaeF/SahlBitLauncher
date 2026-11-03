@@ -338,6 +338,7 @@ private fun SahlBitApp(
             pendingCall = pendingCall, onCancelCall = { pendingCall = null }
         )
         "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error,
+            onBack = { pinInput = ""; error = ""; route = "home" },
             onForgot = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) {
             val now = System.currentTimeMillis()
             if (now < lockUntil) {
@@ -622,9 +623,15 @@ private fun SahlBitApp(
         Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره PIN") }
     }
 }
-@Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onForgot: () -> Unit, onLogin: () -> Unit) {
+@Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest); Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f))
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626))
+            }
+        }
+        Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
         Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پنل مدیریت") }
         TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("PIN را فراموش کرده‌ام") }
