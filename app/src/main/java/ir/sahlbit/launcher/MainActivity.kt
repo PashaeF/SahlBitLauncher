@@ -499,6 +499,9 @@ private fun SahlBitApp(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
+            NumberSetting("تعداد ضربه برای ورود مدیر", prefs.getInt("settings_taps_threshold", 7), 3, 15) { value ->
+                prefs.edit().putInt("settings_taps_threshold", value).apply()
+            }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
             Text("پس از ${screenTimeoutSeconds / 60} دقیقه و ${screenTimeoutSeconds % 60} ثانیه بی‌استفاده‌ماندن", color = Teal)
@@ -640,6 +643,8 @@ private fun SahlBitApp(
 @Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, lastRowAlignment: String, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+    val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
+    val adminTapThreshold = remember { launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15) }
     val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
@@ -649,13 +654,20 @@ private fun SahlBitApp(
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (charging) Text("⚡", color = if (battery > 95) Color(0xFF168A45) else Color(0xFF1689D4), fontSize = 36.sp, fontWeight = FontWeight.Bold)
-            IconButton(onClick = { settingsTaps++; if (settingsTaps >= 7) { settingsTaps = 0; onAdminEntry() } }) { Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .42f), modifier = Modifier.size(20.dp)) }
+            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } }) { Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .42f), modifier = Modifier.size(20.dp)) }
         }
-        AnalogClock(Modifier.size(184.dp))
+        AnalogClock(Modifier.size(212.dp))
         Spacer(Modifier.height(8.dp))
-        Text("$battery٪", color = batteryColor, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Box(Modifier.width(76.dp).height(30.dp).border(2.dp, batteryColor, RoundedCornerShape(7.dp)).padding(3.dp), contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor))
+            }
+            Box(Modifier.padding(start = 2.dp).width(5.dp).height(12.dp).background(batteryColor, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)))
+            Spacer(Modifier.width(10.dp))
+            Text("$battery٪", color = batteryColor, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+        }
         Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
-        Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
