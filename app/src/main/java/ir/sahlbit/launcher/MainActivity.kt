@@ -63,10 +63,10 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import java.time.LocalDate
 
-private val Forest = Color(0xFF244B3D)
-private val Cream = Color(0xFFF6F2E8)
-private val Ink = Color(0xFF26352F)
-private val Teal = Color(0xFF397B70)
+private val Forest = Color(0xFF2563EB)
+private val Cream = Color(0xFFF8FAFC)
+private val Ink = Color(0xFF172033)
+private val Teal = Color(0xFF1D4ED8)
 
 class MainActivity : ComponentActivity() {
     private val battery = mutableIntStateOf(100)
