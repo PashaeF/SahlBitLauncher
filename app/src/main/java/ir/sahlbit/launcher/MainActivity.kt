@@ -63,6 +63,11 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import java.time.LocalDate
 
+
+private fun Int.toPersianDigits(): String = toString().map { ch ->
+    if (ch in '0'..'9') ('۰'.code + (ch.code - '0'.code)).toChar() else ch
+}.joinToString("" )
+
 private val Forest = Color(0xFF2563EB)
 private val Cream = Color(0xFFF8FAFC)
 private val Ink = Color(0xFF172033)
@@ -162,7 +167,7 @@ private fun SahlBitApp(
     var immersive by remember { mutableStateOf(prefs.getBoolean("immersive", true)) }
     var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "forest") ?: "forest") }
     var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
-    var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${it + 1}" } ?: "صفحه ${it + 1}" } }) }
+    var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
     var cardsPerPage by remember { mutableIntStateOf(prefs.getInt("cards_per_page", 5)) }
     var adminAuthenticated by remember { mutableStateOf(false) }
     var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
@@ -366,7 +371,7 @@ private fun SahlBitApp(
             NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
                 if (next < pageCount) entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
-                if (next > pageCount) pageNames = pageNames + (pageCount until next).map { "صفحه ${it + 1}" }
+                if (next > pageCount) pageNames = pageNames + (pageCount until next).map { "صفحه ${(it + 1).toPersianDigits()}" }
                 pageNames = pageNames.take(next)
                 pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1)
                 LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
@@ -384,7 +389,7 @@ private fun SahlBitApp(
                 OutlinedButton(onClick = { confirmPageDeletion = true }, enabled = pageCount > 1) { Text("حذف صفحه") }
             }
             Text("نام صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${selectedPage + 1}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${(selectedPage + 1).toPersianDigits()}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { if (selectedPage > 0) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage - 1]; names[selectedPage - 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage - 1); selectedPage - 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage--; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage > 0) { Text("انتقال صفحه به بالا") }
                 OutlinedButton(onClick = { if (selectedPage < pageCount - 1) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage + 1]; names[selectedPage + 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage + 1); selectedPage + 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage++; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage < pageCount - 1) { Text("انتقال صفحه به پایین") }
@@ -392,7 +397,7 @@ private fun SahlBitApp(
             if (confirmPageDeletion) {
                 AlertDialog(
                     onDismissRequest = { confirmPageDeletion = false },
-                    title = { Text("حذف صفحهٔ ${selectedPage + 1}؟") },
+                    title = { Text("حذف صفحهٔ ${(selectedPage + 1).toPersianDigits()}؟") },
                     text = { Text("کارت‌های این صفحه حذف نمی‌شوند و به صفحهٔ قبلی منتقل خواهند شد. اگر صفحهٔ اول را حذف کنید، کارت‌ها در صفحهٔ اولِ باقی‌مانده می‌مانند.") },
                     confirmButton = { Button(onClick = {
                         entries = entries.map { e ->
@@ -418,7 +423,7 @@ private fun SahlBitApp(
             }
             Text("تعداد کارت در هر ردیف این صفحه", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
-                NumberSetting("ردیف ${row + 1}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+                NumberSetting("ردیف ${(row + 1).toPersianDigits()}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
             }
             Text("تراز ردیف آخر", color = Ink, fontWeight = FontWeight.Bold)
             listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
@@ -431,7 +436,7 @@ private fun SahlBitApp(
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (if (row == rowCardCounts.lastIndex) lastRowAlignment else gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
                             repeat(count) {
-                                Box(Modifier.weight(1f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${n++}", color = Forest, fontSize = 12.sp) }
+                                Box(Modifier.weight(1f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -477,7 +482,7 @@ private fun SahlBitApp(
                         if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) {
                             Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                         }
-                        Text("صفحه ${entry.page + 1}", color = Color(0xFF64748B), fontSize = 11.sp)
+                        Text("صفحه ${(entry.page + 1).toPersianDigits()}", color = Color(0xFF64748B), fontSize = 11.sp)
                     }
                     if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
                     if (entry.kind == "contact") TextButton(onClick = {
@@ -530,7 +535,7 @@ private fun SahlBitApp(
             }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
-            Text("پس از ${screenTimeoutSeconds / 60} دقیقه و ${screenTimeoutSeconds % 60} ثانیه بی‌استفاده‌ماندن", color = Teal)
+            Text("پس از ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه بی‌استفاده‌ماندن", color = Teal)
             Slider(value = screenTimeoutSeconds.toFloat(), onValueChange = { screenTimeoutSeconds = it.toInt() }, valueRange = 15f..1800f, onValueChangeFinished = {
                 prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
                 if (android.provider.Settings.System.canWrite(context)) {
@@ -569,7 +574,7 @@ private fun SahlBitApp(
         }
         "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازنشانی PIN، مسئلهٔ سادهٔ زیر را حل کن. این روش امنیت محدودی دارد و هر فردی که به گوشی دسترسی داشته باشد ممکن است آن را حل کند.", { route = "login" }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
-            Text("$mathA $mathOperation $mathB = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
@@ -698,10 +703,10 @@ private fun SahlBitApp(
             }
             Box(Modifier.padding(start = 2.dp).width(5.dp).height(12.dp).background(batteryColor, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)))
             Spacer(Modifier.width(10.dp))
-            Text("$battery٪", color = batteryColor, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
+            Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
         }
         Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
-        Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp)); Text("$dayText   ${marks.toPersianDigits()}", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
