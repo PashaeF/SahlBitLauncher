@@ -361,7 +361,7 @@ private fun SahlBitApp(
             onPermissions = { route = "permissions" }, onAbout = { route = "about" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
-        "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. حذف صفحه، کارت‌های آن را به صفحهٔ قبلی منتقل می‌کند تا اطلاعات از بین نرود.", { route = "dashboard" }) {
+        "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
                 if (next < pageCount) entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
@@ -392,11 +392,15 @@ private fun SahlBitApp(
                 AlertDialog(
                     onDismissRequest = { confirmPageDeletion = false },
                     title = { Text("حذف صفحهٔ ${selectedPage + 1}؟") },
-                    text = { Text("تمام کارت‌های این صفحه نیز حذف می‌شوند. این کار قابل بازگشت نیست.") },
+                    text = { Text("کارت‌های این صفحه حذف نمی‌شوند و به صفحهٔ قبلی منتقل خواهند شد. اگر صفحهٔ اول را حذف کنید، کارت‌ها در صفحهٔ اولِ باقی‌مانده می‌مانند.") },
                     confirmButton = { Button(onClick = {
-                        val removedPhotos = entries.filter { it.page == selectedPage }.mapNotNull { it.photoUri }.toSet()
-                        entries = entries.mapNotNull { e -> when { e.page == selectedPage -> null; e.page > selectedPage -> e.copy(page = e.page - 1); else -> e } }
-                        removedPhotos.filter { photo -> entries.none { it.photoUri == photo } }.forEach { deleteOwnedContactPhoto(context, it) }
+                        entries = entries.map { e ->
+                            when {
+                                selectedPage > 0 && e.page == selectedPage -> e.copy(page = selectedPage - 1)
+                                e.page > selectedPage -> e.copy(page = e.page - 1)
+                                else -> e
+                            }
+                        }
                         pageNames = pageNames.filterIndexed { index, _ -> index != selectedPage }
                         pageCount -= 1; selectedPage = selectedPage.coerceAtMost(pageCount - 1)
                         LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
