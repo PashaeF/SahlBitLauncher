@@ -10,8 +10,12 @@ data class LauncherEntry(
     val title: String,
     val page: Int,
     val contactUri: String? = null,
+    val contactLookupUri: String? = null,
     val phoneNumber: String? = null,
     val photoUri: String? = null,
+    val photoSource: String = "contact",
+    val photoSourceUri: String? = null,
+    val manualEdit: Boolean = false,
     val packageName: String? = null
 )
 
@@ -29,8 +33,12 @@ object LauncherEntryStore {
                     title = o.optString("title"),
                     page = o.optInt("page", 0),
                     contactUri = o.optString("contactUri").takeIf(String::isNotBlank),
+                    contactLookupUri = o.optString("contactLookupUri").takeIf(String::isNotBlank),
                     phoneNumber = o.optString("phoneNumber").takeIf(String::isNotBlank),
                     photoUri = o.optString("photoUri").takeIf(String::isNotBlank),
+                    photoSource = o.optString("photoSource", "contact"),
+                    photoSourceUri = o.optString("photoSourceUri").takeIf(String::isNotBlank),
+                    manualEdit = o.optBoolean("manualEdit", false),
                     packageName = o.optString("packageName").takeIf(String::isNotBlank)
                 ))
             }
@@ -42,8 +50,8 @@ object LauncherEntryStore {
         entries.forEach { e ->
             array.put(JSONObject().apply {
                 put("id", e.id); put("kind", e.kind); put("title", e.title); put("page", e.page)
-                put("contactUri", e.contactUri ?: ""); put("phoneNumber", e.phoneNumber ?: "")
-                put("photoUri", e.photoUri ?: ""); put("packageName", e.packageName ?: "")
+                put("contactUri", e.contactUri ?: ""); put("contactLookupUri", e.contactLookupUri ?: ""); put("phoneNumber", e.phoneNumber ?: "")
+                put("photoUri", e.photoUri ?: ""); put("photoSource", e.photoSource); put("photoSourceUri", e.photoSourceUri ?: ""); put("manualEdit", e.manualEdit); put("packageName", e.packageName ?: "")
             })
         }
         prefs.edit().putString(KEY, array.toString()).apply()

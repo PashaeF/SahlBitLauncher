@@ -1,185 +1,143 @@
-# سهل‌بیت (SahlBit Launcher) --- نسخه 0.2.1
+# SahlBit Launcher 0.3.0 — Build Candidate
 
-نسخه آزمایشی لانچر اندرویدی سهل‌بیت با تمرکز بر ساده‌سازی صفحه اصلی گوشی.
-در این نسخه، امکان انتخاب مخاطب از دفترچه تلفن و افزودن برنامه‌های نصب‌شده
-به صفحه اصلی فراهم شده است. اطلاعات انتخاب‌شده و تنظیمات لانچر به‌صورت
-محلی روی دستگاه ذخیره می‌شوند.
+A Persian RTL Android launcher designed for older adults and children, with simplified navigation, configurable contact pages, and an accessible call interface.
 
-> **وضعیت انتشار:** این نسخه یک نمونه توسعه‌ای است. موفقیت اجرای GitHub
-> Actions فقط ساخت APK را تأیید می‌کند و به‌معنای تأیید عملکرد کامل برنامه
-> روی همه گوشی‌ها نیست. پیش از استفاده روزمره یا انتخاب سهل‌بیت به‌عنوان
-> لانچر اصلی، باید آن را روی دستگاه آزمایشی بررسی کرد.
+## Build Configuration
 
-## مشخصات فنی
+- **Application ID:** `ir.sahlbit.launcher`
+- **Version:** `0.3.0`
+- **Version Code:** `14`
+- **Minimum Android:** API 29 (Android 10)
+- **Compile SDK:** 35
+- **Target SDK:** 35
+- **JDK:** 17
+- **Kotlin:** 2.0.21
+- **Android Gradle Plugin:** 8.9.2
+- **Gradle:** 8.11.1
 
--   نام برنامه: سهل‌بیت (SahlBit Launcher)
--   شناسه برنامه: `ir.sahlbit.launcher`
--   نسخه: `0.2.1`
--   `versionCode`: `5`
--   حداقل نسخه اندروید: Android 10 (API 29)
--   نسخه هدف و نسخه کامپایل: API 35
--   زبان برنامه‌نویسی: Kotlin
--   رابط کاربری: Jetpack Compose و Material 3
--   ذخیره‌سازی تنظیمات و موارد انتخاب‌شده: SharedPreferences محلی
--   ساخت APK خودکار: GitHub Actions
--   نسخه JDK در فرایند ساخت: 17
--   نسخه Gradle در فرایند ساخت: 8.11.1
+## Features
 
-## قابلیت‌های پیاده‌سازی‌شده در نسخه 0.2.1
+### Launcher
+- Persian RTL interface.
+- Simplified home screen designed for older adults and children.
+- Large analog clock.
+- Battery percentage and charging status.
+- Local PIN-protected management dashboard.
+- Multiple home pages with swipe navigation.
+- Local storage of launcher settings and card configurations.
+- Screen timeout configuration, subject to Android special access permissions.
 
-### صفحه اصلی
+### Contact Management
+- Add contacts from the Android Contacts provider.
+- Support for multiple phone numbers.
+- Custom contact photos.
+- Contact card management and ordering.
+- Open the Android system Contacts editor to modify actual contact information.
+- Refresh contact information when returning to SahlBit.
 
--   نمایش ساعت آنالوگ.
--   نمایش درصد باتری با رنگ‌بندی متناسب با سطح شارژ.
--   نمایش وضعیت شارژشدن دستگاه.
--   نمایش نام روز هفته و نشانگر مخصوص آن.
--   جابه‌جایی افقی میان صفحات صفحه اصلی.
--   نمایش کارت‌های مخاطبان و برنامه‌های انتخاب‌شده.
--   امکان انتخاب پس‌زمینه از میان گزینه‌های سبز جنگلی، سفید، کرم، طوسی و
-    آبی ملایم.
+### Page and Layout Management
+- Create, delete, rename, duplicate, and reorder pages.
+- Configure the number of rows on each page.
+- Configure the number of cards independently for each row (1–4 cards).
+- Configure the final row alignment:
+  - Left
+  - Center
+  - Right
+- Persist row layout settings independently for each page.
+- Preview the configured row counts and final-row alignment.
+- Home screen rendering uses the saved row layout configuration.
 
-### ورود و تنظیمات مدیر
+### Drag and Drop
+- Card positions are measured on screen.
+- Pointer hit-testing identifies the card under the dragged item.
+- Cards can be moved to the selected drop target.
+- Drag-and-drop still requires physical-device testing, particularly on dense grids and during page navigation.
 
--   راه‌اندازی اولیه و تعیین PIN عددی مدیر.
--   ذخیره PIN به‌صورت هش مشتق‌شده با PBKDF2 و نمک تصادفی؛ PIN خام در
-    تنظیمات ذخیره نمی‌شود.
--   ورود به بخش مدیریت با هفت بار لمس آیکون تنظیمات در صفحه اصلی.
--   امکان تغییر PIN از بخش امنیت مدیر.
--   داشبورد جداگانه برای مدیریت صفحات، مخاطبان و برنامه‌ها، ظاهر، امنیت،
-    دسترسی‌ها و اطلاعات برنامه.
--   امکان خروج از پنل مدیریت و بازگشت به صفحه اصلی.
+### Calling and Telecom Integration
+- Android Telecom `InCallService` integration.
+- Dedicated call interface.
+- Call control through Android Telecom APIs:
+  - `Call.answer()`
+  - `Call.reject()`
+  - `Call.disconnect()`
 
-### مدیریت مخاطبان
+#### Call Screen Colors
 
--   انتخاب مخاطب از انتخاب‌گر شماره تلفن اندروید.
--   دریافت نام و شماره تلفن مخاطب انتخاب‌شده.
--   کپی عکس مخاطبِ در دسترس در فضای خصوصی برنامه، در صورت ارائه عکس توسط
-    دفترچه تلفن.
--   ذخیره محلی مخاطبان انتخاب‌شده و صفحه مقصد آن‌ها.
--   نمایش مخاطب در کارت صفحه اصلی.
--   نمایش پنجره تأیید پیش از رفتن به شماره‌گیر سیستم.
--   استفاده از `ACTION_DIAL`؛ برنامه مستقیماً تماس برقرار نمی‌کند و مجوز
-    تماس مستقیم درخواست نمی‌کند.
+| Call state | Background |
+|---|---|
+| Incoming ringing | Blue (`#1976D2`) |
+| Outgoing dialing / connecting | Yellow (`#FFC107`) |
+| Connected call | Green (`#2E7D32`) |
 
-### افزودن برنامه‌ها
+- Incoming calls provide answer and decline controls.
+- Outgoing calls provide a cancel control.
+- Connected calls provide a hang-up control.
+- Contact information and available contact photos are displayed during calls.
+- Proximity sensor integration is intended to turn off the display while the phone is held near the user's ear.
+- The InCallService tracks multiple Call objects and selects a foreground call when call states change.
 
--   نمایش برنامه‌های قابل‌اجرا که از طریق فهرست لانچر اندروید قابل شناسایی
-    هستند.
--   انتخاب برنامه و افزودن آن به صفحه مشخص.
--   جلوگیری از افزودن تکراری یک برنامه به همان صفحه.
--   اجرای برنامه انتخاب‌شده با Intent لانچر اندروید.
--   استفاده از اعلان محدودِ قابلیت مشاهده بسته‌ها در Manifest؛ این نسخه از
-    مجوز عمومی `QUERY_ALL_PACKAGES` استفاده نمی‌کند.
+**Note:** Multi-call tracking is preliminary groundwork. Full call-waiting behavior and multi-call controls are not certified.
 
-### صفحات و چیدمان
+### Permissions and Privacy
+- Launcher settings and card configurations are stored locally.
+- Contact access requires the relevant Android permissions or system selection flow.
+- Screen timeout modification requires the user to grant Android's `WRITE_SETTINGS` special access.
+- Telecom functionality depends on Android's default Dialer role and system permissions.
+- No server-side account or synchronization service is included in this source.
 
--   تنظیم تعداد صفحات در بازه ۱ تا ۱۲.
--   تنظیم حداکثر تعداد کارت‌های نمایشی هر صفحه.
--   تنظیم تعداد ستون‌های شبکه از ۱ تا ۴.
--   تنظیم تراز افقی کارت‌ها به راست، وسط یا چپ.
--   ذخیره محلی انتخاب‌ها و تنظیمات.
+## Build with GitHub Actions
 
-### تنظیمات اندروید و نمایش تمام‌صفحه
+The repository includes a GitHub Actions workflow that:
 
--   درخواست انتخاب سهل‌بیت به‌عنوان برنامه Home از طریق `RoleManager` در
-    نسخه‌های پشتیبانی‌شده اندروید.
--   دسترسی به تنظیمات استاندارد انتخاب برنامه Home.
--   میان‌بر برای بازکردن تنظیمات اندروید.
--   گزینه مخفی‌کردن موقت نوار وضعیت و نوار پیمایش با قابلیت Immersive
-    Mode.
+1. Checks out the source code.
+2. Configures JDK 17.
+3. Configures Gradle 8.11.1.
+4. Runs `gradle assembleDebug`.
+5. Uploads the debug APK as an artifact named `sahlbit-debug-apk`.
 
-## محدودیت‌ها و موارد پیاده‌سازی‌نشده
-
-قابلیت‌های زیر در نسخه 0.2.1 پیاده‌سازی نشده‌اند یا هنوز کامل نیستند:
-
--   ساخت، حذف، تغییر نام، مرتب‌سازی و تکثیر کامل صفحات.
--   ویرایشگر کشیدن‌و‌رهاکردن کارت‌ها و تعیین جایگاه دقیق و مستقل هر کارت.
--   انتخاب و مدیریت چند شماره متفاوت برای یک شخص.
--   رابط اختصاصی تماس ورودی و خروجی، `InCallService` و صفحه تماس
-    اختصاصی.
--   برقراری تماس مستقیم از داخل برنامه.
--   محدودکردن واقعی اجرای برنامه‌های دیگر یا بستن اجباری برنامه‌های خارج
-    از فهرست.
--   حالت مدیریتی قدرتمند با `Device Owner`، `Lock Task` یا کیوسک.
--   کد بازیابی PIN، محدودیت تعداد تلاش‌های ناموفق و سازوکار کامل بازیابی
-    حساب مدیر.
--   پشتیبان‌گیری و بازیابی تنظیمات.
--   همگام‌سازی ابری یا انتقال اطلاعات به سرور.
--   تضمین مخفی‌ماندن دائمی نوارهای سیستم؛ رفتار Immersive Mode به نسخه
-    اندروید و سازنده دستگاه وابسته است.
--   تضمین بازیابی خودکار لانچر پیش‌فرض پس از هر نوع خطا.
-
-## نکات امنیتی و حریم خصوصی
-
--   اطلاعات مخاطبان انتخاب‌شده، شماره‌ها، عکس‌های کپی‌شده و تنظیمات در حافظه
-    محلی برنامه نگهداری می‌شوند.
--   در این نسخه قابلیت ارسال این اطلاعات به سرور یا همگام‌سازی ابری وجود
-    ندارد.
--   انتخاب مخاطب از انتخاب‌گر خود اندروید انجام می‌شود و برنامه برای این
-    مسیر مجوز عمومی `READ_CONTACTS` درخواست نمی‌کند.
--   برای اجرای تماس از `ACTION_DIAL` استفاده می‌شود؛ برقراری تماس نهایی
-    در اختیار شماره‌گیر سیستم و کاربر است.
--   فهرست برنامه‌ها با یک Query محدود در Manifest درخواست می‌شود و از
-    `QUERY_ALL_PACKAGES` استفاده نشده است.
--   PIN با PBKDF2 و نمک تصادفی هش می‌شود؛ با این حال، امکانات تکمیلی
-    مقابله با حدس PIN و بازیابی آن هنوز در این نسخه وجود ندارد.
-
-## انتخاب لانچر و بازگشت به لانچر قبلی
-
-سهل‌بیت یک برنامه اندرویدی عادی است و برای انتخاب‌شدن به‌عنوان لانچر اصلی،
-تأیید کاربر و سازوکار استاندارد اندروید را به‌کار می‌گیرد. این برنامه One
-UI Home یا لانچرهای دیگر را حذف یا غیرفعال نمی‌کند.
-
-برای بازگشت به لانچر قبلی، از تنظیمات اندروید وارد بخش انتخاب برنامه
-Home شوید و لانچر موردنظر، برای نمونه One UI Home در گوشی‌های سامسونگ، را
-انتخاب کنید. نام و مسیر دقیق منو ممکن است با نسخه اندروید و رابط سازنده
-متفاوت باشد.
-
-Immersive Mode قفل امنیتی نیست و مانع قطعی دسترسی به نوار اعلان‌ها یا
-کنترل‌های سیستمی نمی‌شود. برای محدودسازی جدی دستگاه به معماری مدیریتی
-جداگانه و پیکربندی مجاز اندروید نیاز است؛ چنین قابلیتی در این نسخه فعال
-نیست.
-
-## ساخت APK با GitHub Actions
-
-فایل گردش‌کار ساخت در مسیر زیر قرار دارد:
-
-`.github/workflows/android.yml`
-
-با Push کردن تغییرات به شاخه `main`، گردش‌کار به‌صورت خودکار اجرا می‌شود.
-همچنین می‌توان آن را از بخش **Actions** مخزن و با گزینه **Run workflow**
-به‌صورت دستی اجرا کرد.
-
-پس از موفقیت مرحله ساخت:
-
-1.  اجرای موفق را در بخش **Actions** باز کنید.
-2.  در قسمت **Artifacts**، فایل `sahlbit-debug-apk` را دریافت کنید.
-3.  فایل ZIP دریافت‌شده را استخراج کنید تا APK آزمایشی در دسترس باشد.
-
-نام فایل APK خروجی:
-
-`app-debug.apk`
-
-این خروجی، APK نوع **debug** است و برای انتشار عمومی یا انتشار در
-فروشگاه‌ها آماده‌سازی و امضای release جداگانه لازم دارد.
-
-## ساخت محلی
-
-پیش‌نیازها: - JDK 17 - Gradle 8.11.1 - Android SDK و ابزارهای لازم برای
-Android Gradle Plugin
-
-از ریشه پروژه دستور زیر را اجرا کنید:
-
-``` bash
-gradle assembleDebug
-```
-
-مسیر APK خروجی:
+The expected APK output is:
 
 `app/build/outputs/apk/debug/app-debug.apk`
 
-## اطلاعات توسعه
+The workflow can be triggered by pushing to the `main` branch or manually through GitHub Actions.
 
--   پروژه: SahlBit Launcher
--   توسعه‌دهنده: Amirali Pashae fard
--   وب‌سایت: https://PashaeF.ir
+## Verification Status
+
+**This is a build candidate, not a verified production release.**
+
+The source has not been confirmed through a successful Android Gradle Plugin build or comprehensive physical-device testing.
+
+The following areas require additional verification:
+
+- Compilation and runtime behavior on Android 10–15.
+- Row layout behavior on different screen sizes and densities.
+- Drag-and-drop reliability.
+- Incoming calls while the screen is locked.
+- Default Dialer role eligibility.
+- Ringtone and call notification behavior.
+- Bluetooth and audio routing.
+- Dual-SIM selection and call waiting.
+- Proximity sensor behavior across device manufacturers.
+- Contact photo availability and permission handling.
+- Samsung One UI and other OEM-specific Telecom behavior.
+
+## Security and Device Restrictions
+
+- Secure Mode / Device Owner kiosk locking is not included.
+- Immersive mode alone cannot guarantee permanent system navigation-bar or status-bar suppression.
+- Android's default launcher and default phone application should not be replaced until the APK has been built, tested, and a recovery path has been confirmed.
+- Keep Samsung One UI Home available during testing.
+
+## Version 0.3.0 Changelog
+
+### Added
+- Per-page row layout configuration.
+- Independent card counts for individual rows (1–4).
+- Independent final-row alignment (left, center, right).
+- Home screen rendering based on persisted row layout settings.
+- Layout preview reflecting row counts and final-row alignment.
+
+### Build and Testing
+- Updated application version to `0.3.0`.
+- Updated version code to `14`.
+- Android Gradle build and physical-device verification remain pending.

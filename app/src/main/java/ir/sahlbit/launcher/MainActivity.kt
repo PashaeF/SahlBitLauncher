@@ -18,6 +18,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,6 +27,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -79,8 +87,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val prefs = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
-        val pending = prefs.getBoolean("crash_pending", false)
-        prefs.edit().remove("crash_pending").apply()
+        val recoveryPrefs = getSharedPreferences(SahlBitApplication.PREFS_NAME, MODE_PRIVATE)
+        val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
+        if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = Forest, secondary = Teal, background = Cream)) {
                 SahlBitApp(
@@ -89,6 +98,7 @@ class MainActivity : ComponentActivity() {
                     charging = charging.value,
                     crashRecovery = pending,
                     onSelectLauncher = { selectLauncher() },
+                    onSelectDialer = { selectDialer() },
                     onAndroidSettings = { openAndroidSettings() },
                     onImmersiveChange = { enabled -> applyImmersiveMode(enabled) }
                 )
@@ -114,6 +124,18 @@ class MainActivity : ComponentActivity() {
         }
         openHomeSettings()
     }
+    private val dialerRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private fun selectDialer() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val manager = getSystemService(RoleManager::class.java)
+            if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) {
+                if (!manager.isRoleHeld(RoleManager.ROLE_DIALER)) dialerRoleLauncher.launch(manager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
+                else openAndroidSettings()
+                return
+            }
+        }
+        openAndroidSettings()
+    }
     private fun openHomeSettings() { runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { openAndroidSettings() } }
     private fun openAndroidSettings() { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
     override fun onDestroy() { runCatching { unregisterReceiver(receiver) }; super.onDestroy() }
@@ -126,6 +148,7 @@ private fun SahlBitApp(
     charging: Boolean,
     crashRecovery: Boolean,
     onSelectLauncher: () -> Unit,
+    onSelectDialer: () -> Unit,
     onAndroidSettings: () -> Unit,
     onImmersiveChange: (Boolean) -> Unit
 ) {
@@ -138,24 +161,55 @@ private fun SahlBitApp(
     var error by remember { mutableStateOf("") }
     var immersive by remember { mutableStateOf(prefs.getBoolean("immersive", true)) }
     var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "forest") ?: "forest") }
-    var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5)) }
+    var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
+    var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${it + 1}" } ?: "صفحه ${it + 1}" } }) }
     var cardsPerPage by remember { mutableIntStateOf(prefs.getInt("cards_per_page", 5)) }
     var adminAuthenticated by remember { mutableStateOf(false) }
+    var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
+    var lockUntil by remember { mutableLongStateOf(prefs.getLong("pin_lock_until", 0L)) }
+    var mathA by remember { mutableIntStateOf(0) }
+    var mathB by remember { mutableIntStateOf(0) }
+    var mathAnswer by remember { mutableStateOf("") }
+    var mathOperation by remember { mutableStateOf("+") }
+    var selectedPhotoEntryId by remember { mutableStateOf<String?>(null) }
+    var editingContactId by remember { mutableStateOf<String?>(null) }
+    var editContactName by remember { mutableStateOf("") }
+    var editContactPhone by remember { mutableStateOf("") }
+    var oldPinInput by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(LauncherEntryStore.load(prefs)) }
     var selectedPage by remember { mutableIntStateOf(0) }
+    var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 4)) }
+    var gridRows by remember { mutableIntStateOf(prefs.getInt("grid_rows", 3).coerceIn(1, 6)) }
     var gridAlignment by remember { mutableStateOf(prefs.getString("grid_alignment", "center") ?: "center") }
+    fun loadRowCounts(page: Int): List<Int> = runCatching {
+        val root = org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}")
+        val a = root.optJSONArray(page.toString()) ?: org.json.JSONArray()
+        (0 until a.length()).map { a.optInt(it, gridColumns).coerceIn(1, 4) }
+    }.getOrDefault(emptyList()).ifEmpty { List(gridRows) { gridColumns } }
+    var rowCardCounts by remember(selectedPage) { mutableStateOf(loadRowCounts(selectedPage).take(gridRows).let { it + List((gridRows - it.size).coerceAtLeast(0)) { gridColumns } }) }
+    var lastRowAlignment by remember(selectedPage) { mutableStateOf(runCatching { org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}").optString(selectedPage.toString(), gridAlignment) }.getOrDefault(gridAlignment)) }
+    fun persistRowLayout() {
+        val root = runCatching { org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        root.put(selectedPage.toString(), org.json.JSONArray(rowCardCounts))
+        val aligns = runCatching { org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        aligns.put(selectedPage.toString(), lastRowAlignment)
+        prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
+    }
+    var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     val context = LocalContext.current
     val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
             runCatching {
-                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c ->
+                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI, ContactsContract.CommonDataKinds.Phone.CONTACT_ID), null, null, null)?.use { c ->
                     if (c.moveToFirst()) {
                         val name = c.getString(0) ?: "مخاطب"
                         val number = c.getString(1) ?: ""
                         val photoSource = c.getString(2)
+                        val contactId = c.getLong(3)
+                        val lookupUri = ContactsContract.Contacts.getLookupUri(context.contentResolver, contactId)
                         val photo = photoSource?.let { source -> runCatching {
                             context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
                                 val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
@@ -163,7 +217,7 @@ private fun SahlBitApp(
                                 Uri.fromFile(target).toString()
                             }
                         }.getOrNull() }
-                        val item = LauncherEntry(kind = "contact", title = name, page = selectedPage, contactUri = uri.toString(), phoneNumber = number, photoUri = photo)
+                        val item = LauncherEntry(kind = "contact", title = name, page = selectedPage, contactUri = uri.toString(), contactLookupUri = lookupUri?.toString(), phoneNumber = number, photoUri = photo, photoSource = "contact", photoSourceUri = photoSource)
                         entries = entries + item
                         LauncherEntryStore.save(prefs, entries)
                     }
@@ -172,9 +226,79 @@ private fun SahlBitApp(
         }
     }
 
+    val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val targetId = selectedPhotoEntryId
+        if (uri != null && targetId != null) {
+            val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+            val copied = runCatching {
+                val input = context.contentResolver.openInputStream(uri) ?: error("تصویر قابل خواندن نیست")
+                input.use { source -> target.outputStream().use { output -> source.copyTo(output) } }
+                check(target.exists() && target.length() > 0L) { "فایل تصویر خالی است" }
+                true
+            }.getOrDefault(false)
+            if (copied) {
+                val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
+                entries = entries.map { if (it.id == targetId) it.copy(photoUri = Uri.fromFile(target).toString(), photoSource = "gallery", photoSourceUri = null) else it }
+                LauncherEntryStore.save(prefs, entries)
+                oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
+            } else target.delete()
+        }
+        selectedPhotoEntryId = null
+    }
+
+    var resumeRevision by remember { mutableIntStateOf(0) }
+    val hostActivity = context as? ComponentActivity
+    DisposableEffect(hostActivity) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) resumeRevision++ }
+        hostActivity?.lifecycle?.addObserver(observer)
+        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
+    }
+    LaunchedEffect(resumeRevision) {
+        if (resumeRevision > 0) {
+            val refreshed = entries.map { entry ->
+                if (entry.kind != "contact" || entry.contactUri.isNullOrBlank()) entry
+                else runCatching {
+                    context.contentResolver.query(Uri.parse(entry.contactUri), arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c ->
+                        if (c.moveToFirst()) {
+                            val currentSourceUri = c.getString(2)
+                            val photoChanged = entry.photoSource == "contact" && currentSourceUri != entry.photoSourceUri
+                            val freshPhoto = if (entry.photoSource == "gallery" || !photoChanged) entry.photoUri else currentSourceUri?.let { src ->
+                                runCatching {
+                                    val file = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+                                    val input = context.contentResolver.openInputStream(Uri.parse(src)) ?: error("عکس مخاطب در دسترس نیست")
+                                    input.use { source -> file.outputStream().use { output -> source.copyTo(output) } }
+                                    if (file.exists() && file.length() > 0) Uri.fromFile(file).toString() else { file.delete(); null }
+                                }.getOrNull()
+                            }
+                            entry.copy(title = if (entry.manualEdit) entry.title else (c.getString(0) ?: entry.title), phoneNumber = if (entry.manualEdit) entry.phoneNumber else (c.getString(1) ?: entry.phoneNumber), photoUri = freshPhoto, photoSourceUri = if (entry.photoSource == "contact") currentSourceUri else null)
+                        } else entry
+                    } ?: entry
+                }.getOrDefault(entry)
+            }
+            if (refreshed != entries) {
+                val oldPhotos = entries.mapNotNull { it.photoUri }.toSet()
+                entries = refreshed
+                LauncherEntryStore.save(prefs, entries)
+                oldPhotos.filter { old -> entries.none { it.photoUri == old } }.forEach { deleteOwnedContactPhoto(context, it) }
+            }
+        }
+    }
+
     LaunchedEffect(immersive) { onImmersiveChange(immersive) }
     BackHandler(enabled = route != "home" && route != "welcome") {
-        route = when (route) { "dashboard" -> "home"; "pinchange" -> "dashboard"; "login" -> "home"; "setpin" -> "welcome"; else -> "dashboard" }
+        route = when (route) {
+            "dashboard" -> { adminAuthenticated = false; "home" }
+            "pinchange", "pinverify" -> "security"
+            "mathrecovery" -> "login"
+            "login" -> "home"
+            "setpin" -> "welcome"
+            else -> "dashboard"
+        }
+    }
+
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "appearance", "security", "permissions", "about", "pinchange", "pinverify")
+    LaunchedEffect(route, adminAuthenticated) {
+        if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
 
     when (route) {
@@ -187,7 +311,9 @@ private fun SahlBitApp(
             else {
                 val salt = createSalt()
                 val hash = hashPin(newPin, salt)
-                prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash).putBoolean("initialized", true).apply()
+                prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash)
+                    .remove("recovery_salt").remove("recovery_hash")
+                    .putBoolean("initialized", true).putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply()
                 pinHash = hash; initialized = true; route = "dashboard"; adminAuthenticated = true
                 newPin = ""; confirmPin = ""; error = ""
             }
@@ -195,27 +321,114 @@ private fun SahlBitApp(
         "home" -> HomeScreen(
             battery = battery, charging = charging, background = backgroundChoice,
             onAdminEntry = { pinInput = ""; error = ""; route = "login" },
-            pageCount = pageCount, cardsPerPage = cardsPerPage,
-            entries = entries, gridColumns = gridColumns, gridAlignment = gridAlignment,
+            pageCount = pageCount, pageNames = pageNames, cardsPerPage = cardsPerPage,
+            entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, lastRowAlignment = lastRowAlignment,
+            onReorder = { fromId, toId ->
+                val from = entries.indexOfFirst { it.id == fromId }; val to = entries.indexOfFirst { it.id == toId }
+                if (from >= 0 && to >= 0 && entries[from].page == entries[to].page) {
+                    val mutable = entries.toMutableList(); val moving = mutable.removeAt(from); mutable.add(to.coerceIn(0, mutable.size), moving)
+                    entries = mutable; LauncherEntryStore.save(prefs, entries)
+                }
+            },
             onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
-            onConfirmCall = { entry -> entry.phoneNumber?.let { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }; pendingCall = null },
+            onConfirmCall = { entry -> entry.phoneNumber?.let { number -> runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }; pendingCall = null },
             pendingCall = pendingCall, onCancelCall = { pendingCall = null }
         )
-        "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error) {
-            if (pinHash != null && constantTimeEquals(hashPin(pinInput, prefs.getString("admin_pin_salt", "") ?: ""), pinHash!!)) {
+        "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error,
+            onForgot = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) {
+            val now = System.currentTimeMillis()
+            if (now < lockUntil) {
+                error = "ورود موقتاً قفل است؛ کمی بعد دوباره تلاش کنید."; pinInput = ""
+            } else if (pinHash != null && constantTimeEquals(hashPin(pinInput, prefs.getString("admin_pin_salt", "") ?: ""), pinHash!!)) {
+                failedPins = 0; lockUntil = 0L
+                prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply()
                 error = ""; pinInput = ""; adminAuthenticated = true; route = "dashboard"
-            } else { error = "PIN صحیح نیست."; pinInput = "" }
+            } else {
+                failedPins += 1
+                if (failedPins >= 5) { lockUntil = now + 30_000L; failedPins = 0 }
+                prefs.edit().putInt("pin_failed_attempts", failedPins).putLong("pin_lock_until", lockUntil).apply()
+                error = if (lockUntil > now) "۵ تلاش ناموفق؛ ورود برای ۳۰ ثانیه قفل شد." else "PIN صحیح نیست."
+                pinInput = ""
+            }
         }
         "dashboard" -> DashboardScreen(
             onExit = { adminAuthenticated = false; route = "home" },
             onPages = { route = "pages" }, onContacts = { route = "contacts" },
             onAppearance = { route = "appearance" }, onSecurity = { route = "security" },
-            onPermissions = { route = "permissions" }, onAbout = { route = "about" }
+            onPermissions = { route = "permissions" }, onAbout = { route = "about" },
+            onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
-        "pages" -> SettingsPage("مدیریت صفحات", "در این مرحله ساختار تنظیمات محلی آماده شده است. ویرایشگر کامل صفحات و چیدمان مخاطبان در مرحله بعدی توسعه اضافه می‌شود.", { route = "dashboard" }) {
-            NumberSetting("تعداد صفحات", pageCount, 1, 12) { pageCount = it; prefs.edit().putInt("page_count", it).apply() }
+        "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. حذف صفحه، کارت‌های آن را به صفحهٔ قبلی منتقل می‌کند تا اطلاعات از بین نرود.", { route = "dashboard" }) {
+            NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
+                val next = requested.coerceIn(1, 12)
+                if (next < pageCount) entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
+                if (next > pageCount) pageNames = pageNames + (pageCount until next).map { "صفحه ${it + 1}" }
+                pageNames = pageNames.take(next)
+                pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1)
+                LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    if (pageCount < 12) {
+                        val copyItems = entries.filter { it.page == selectedPage }.map { it.copy(id = java.util.UUID.randomUUID().toString(), page = pageCount) }
+                        entries = entries + copyItems
+                        pageNames = pageNames + "${pageNames[selectedPage]} - کپی"
+                        pageCount += 1; selectedPage = pageCount - 1
+                        LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
+                    }
+                }, enabled = pageCount < 12) { Text("تکثیر صفحه") }
+                OutlinedButton(onClick = { confirmPageDeletion = true }, enabled = pageCount > 1) { Text("حذف صفحه") }
+            }
+            Text("نام صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
+            OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${selectedPage + 1}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { if (selectedPage > 0) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage - 1]; names[selectedPage - 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage - 1); selectedPage - 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage--; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage > 0) { Text("انتقال صفحه به بالا") }
+                OutlinedButton(onClick = { if (selectedPage < pageCount - 1) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage + 1]; names[selectedPage + 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage + 1); selectedPage + 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage++; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage < pageCount - 1) { Text("انتقال صفحه به پایین") }
+            }
+            if (confirmPageDeletion) {
+                AlertDialog(
+                    onDismissRequest = { confirmPageDeletion = false },
+                    title = { Text("حذف صفحهٔ ${selectedPage + 1}؟") },
+                    text = { Text("تمام کارت‌های این صفحه نیز حذف می‌شوند. این کار قابل بازگشت نیست.") },
+                    confirmButton = { Button(onClick = {
+                        val removedPhotos = entries.filter { it.page == selectedPage }.mapNotNull { it.photoUri }.toSet()
+                        entries = entries.mapNotNull { e -> when { e.page == selectedPage -> null; e.page > selectedPage -> e.copy(page = e.page - 1); else -> e } }
+                        removedPhotos.filter { photo -> entries.none { it.photoUri == photo } }.forEach { deleteOwnedContactPhoto(context, it) }
+                        pageNames = pageNames.filterIndexed { index, _ -> index != selectedPage }
+                        pageCount -= 1; selectedPage = selectedPage.coerceAtMost(pageCount - 1)
+                        LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
+                        confirmPageDeletion = false
+                    }) { Text("حذف قطعی") } },
+                    dismissButton = { TextButton(onClick = { confirmPageDeletion = false }) { Text("انصراف") } }
+                )
+            }
             NumberSetting("کارت در هر صفحه (حداکثر نمایشی)", cardsPerPage, 1, 12) { cardsPerPage = it; prefs.edit().putInt("cards_per_page", it).apply() }
-            NumberSetting("تعداد ستون‌های چیدمان", gridColumns, 1, 4) { gridColumns = it; prefs.edit().putInt("grid_columns", it).apply() }
+            NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6) { value ->
+                gridRows = value; prefs.edit().putInt("grid_rows", value).apply()
+                rowCardCounts = (rowCardCounts.take(value) + List((value - rowCardCounts.size).coerceAtLeast(0)) { gridColumns })
+                persistRowLayout()
+            }
+            Text("تعداد کارت در هر ردیف این صفحه", color = Ink, fontWeight = FontWeight.Bold)
+            rowCardCounts.forEachIndexed { row, count ->
+                NumberSetting("ردیف ${row + 1}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+            }
+            Text("تراز ردیف آخر", color = Ink, fontWeight = FontWeight.Bold)
+            listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
+                Row(Modifier.fillMaxWidth().clickable { lastRowAlignment = key; persistRowLayout() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(lastRowAlignment == key, { lastRowAlignment = key; persistRowLayout() }); Text(label, color = Ink) }
+            }
+            Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    var n = 1
+                    rowCardCounts.forEachIndexed { row, count ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (if (row == rowCardCounts.lastIndex) lastRowAlignment else gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                            repeat(count) {
+                                Box(Modifier.weight(1f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${n++}", color = Forest, fontSize = 12.sp) }
+                            }
+                        }
+                    }
+                }
+            }
             Text("تراز چیدمان", color = Ink, fontWeight = FontWeight.Bold)
             listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clickable { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(gridAlignment == key, { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }); Text(label, color = Ink) }
@@ -227,7 +440,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val installedApps = remember { runCatching { pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
+            val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
             Text("افزودن برنامه به صفحه اصلی", color = Ink, fontWeight = FontWeight.Bold)
             LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(installedApps) { resolve ->
@@ -247,7 +460,31 @@ private fun SahlBitApp(
             entries.forEach { entry ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("${entry.title}  •  صفحه ${entry.page + 1}", color = Ink, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries) }) { Text("حذف", color = Color(0xFFB3261E)) }
+                    if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
+                    if (entry.kind == "contact") TextButton(onClick = {
+                        val lookup = entry.contactLookupUri?.let(Uri::parse)
+                        if (lookup != null) runCatching {
+                            context.startActivity(Intent(Intent.ACTION_EDIT).setDataAndType(lookup, ContactsContract.Contacts.CONTENT_ITEM_TYPE))
+                        }.onFailure { android.widget.Toast.makeText(context, "ویرایش مخاطب در دسترس نیست", android.widget.Toast.LENGTH_LONG).show() }
+                        else android.widget.Toast.makeText(context, "این کارت به مخاطب دفترچه تلفن متصل نیست؛ دوباره مخاطب را انتخاب کنید", android.widget.Toast.LENGTH_LONG).show()
+                    }) { Text("ویرایش دفترچه تلفن") }
+                    IconButton(onClick = { val indices = entries.indices.filter { entries[it].page == entry.page }; val position = indices.indexOfFirst { entries[it].id == entry.id }; if (position > 0) { val mutable = entries.toMutableList(); val a = indices[position]; val b = indices[position - 1]; val temp = mutable[a]; mutable[a] = mutable[b]; mutable[b] = temp; entries = mutable; LauncherEntryStore.save(prefs, entries) } }) { Text("↑", color = Forest, fontSize = 20.sp) }
+                    IconButton(onClick = { val indices = entries.indices.filter { entries[it].page == entry.page }; val position = indices.indexOfFirst { entries[it].id == entry.id }; if (position >= 0 && position < indices.lastIndex) { val mutable = entries.toMutableList(); val a = indices[position]; val b = indices[position + 1]; val temp = mutable[a]; mutable[a] = mutable[b]; mutable[b] = temp; entries = mutable; LauncherEntryStore.save(prefs, entries) } }) { Text("↓", color = Forest, fontSize = 20.sp) }
+                    TextButton(onClick = {
+                        val removed = entries.firstOrNull { it.id == entry.id }
+                        entries = entries.filterNot { it.id == entry.id }
+                        LauncherEntryStore.save(prefs, entries)
+                        removed?.photoUri?.let { photo ->
+                            if (entries.none { it.photoUri == photo }) runCatching {
+                                val uri = Uri.parse(photo)
+                                if (uri.scheme == "file") {
+                                    val file = java.io.File(uri.path ?: "")
+                                    val base = context.filesDir.canonicalFile
+                                    if (file.canonicalFile.parentFile == base && file.name.startsWith("contact_")) file.delete()
+                                }
+                            }
+                        }
+                    }) { Text("حذف", color = Color(0xFFB3261E)) }
                 }
             }
         }
@@ -259,23 +496,82 @@ private fun SahlBitApp(
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
+            Divider()
+            Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
+            Text("پس از ${screenTimeoutSeconds / 60} دقیقه و ${screenTimeoutSeconds % 60} ثانیه بی‌استفاده‌ماندن", color = Teal)
+            Slider(value = screenTimeoutSeconds.toFloat(), onValueChange = { screenTimeoutSeconds = it.toInt() }, valueRange = 15f..1800f, onValueChangeFinished = {
+                prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
+                if (android.provider.Settings.System.canWrite(context)) {
+                    val applied = runCatching {
+                        android.provider.Settings.System.putInt(
+                            context.contentResolver,
+                            android.provider.Settings.System.SCREEN_OFF_TIMEOUT,
+                            screenTimeoutSeconds * 1000
+                        )
+                    }.getOrDefault(false)
+                    if (!applied) android.widget.Toast.makeText(context, "تنظیم زمان خاموشی نمایشگر اعمال نشد", android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    android.widget.Toast.makeText(context, "برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی لازم است", android.widget.Toast.LENGTH_LONG).show()
+                    runCatching {
+                        context.startActivity(
+                            Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+            })
+            Text("برای اعمال این تنظیم، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کن.", color = Ink, fontSize = 13.sp)
+            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
         }
-        "security" -> SettingsPage("امنیت مدیر", "PIN با مشتق‌سازی PBKDF2 و نمک تصادفی در حافظه محلی ذخیره می‌شود. محدودیت تلاش ناموفق و کد بازیابی در مرحله امنیت تکمیلی اضافه می‌شوند.", { route = "dashboard" }) {
-            Button(onClick = { newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر PIN مدیر") }
+        "security" -> SettingsPage("امنیت مدیر", "PIN با PBKDF2 و نمک تصادفی ذخیره می‌شود. پس از پنج تلاش ناموفق، ورود برای ۳۰ ثانیه قفل می‌شود. اگر PIN فراموش شد، امکان بازنشانی با یک پرسش ریاضی ساده وجود دارد؛ این روش امنیت محدودی دارد.", { route = "dashboard" }) {
+            Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر PIN مدیر") }
+        }
+        "pinverify" -> SettingsPage("تأیید PIN فعلی", "برای تغییر PIN، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
+            PinField("PIN فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
+            if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
+            Button(onClick = {
+                val salt = prefs.getString("admin_pin_salt", "") ?: ""
+                if (pinHash != null && constantTimeEquals(hashPin(oldPinInput, salt), pinHash!!)) { oldPinInput = ""; error = ""; route = "pinchange" }
+                else { oldPinInput = ""; error = "PIN فعلی نادرست است." }
+            }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و ادامه") }
+        }
+        "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازنشانی PIN، مسئلهٔ سادهٔ زیر را حل کن. این روش امنیت محدودی دارد و هر فردی که به گوشی دسترسی داشته باشد ممکن است آن را حل کند.", { route = "login" }) {
+            val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
+            Text("$mathA $mathOperation $mathB = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+            if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
+            Button(onClick = {
+                if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }
+                else { error = "پاسخ درست نیست. دوباره تلاش کن."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
+            }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین PIN جدید") }
         }
         "pinchange" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
             if (newPin.length < 4) error = "PIN باید حداقل ۴ رقم داشته باشد."
             else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و دسترسی‌ها", "این نسخه برای ساعت، باتری، تنظیمات محلی و درخواست نقش لانچر به مجوز حساس مخاطبین یا تماس نیاز ندارد. مجوزها هنگام اضافه‌شدن قابلیت واقعی درخواست خواهند شد.", { route = "dashboard" }) {
+        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای مدیریت تماس‌ها، سهل‌بیت باید با تأیید کاربر به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب شود. اندروید این دسترسی را از طریق نقش رسمی Dialer واگذار می‌کند.", { route = "dashboard" }) {
+            Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان برنامه تلفن پیش‌فرض") }
+            Spacer(Modifier.height(10.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۲٫۰ (مرحله پایه مدیریت)\nتوسعه‌دهنده: Amirali Pashae fard\nPashaeF.ir", { route = "dashboard" }) { }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۲٫۵ (آزمایشی)\nتوسعه‌دهنده: Amirali Pashae fard\nPashaeF.ir", { route = "dashboard" }) { }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
     }
+    if (editingContactId != null) {
+            AlertDialog(onDismissRequest = { editingContactId = null }, title = { Text("ویرایش کارت مخاطب") }, text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = editContactName, onValueChange = { editContactName = it }, label = { Text("نام مخاطب") }, singleLine = true)
+                    OutlinedTextField(value = editContactPhone, onValueChange = { editContactPhone = it }, label = { Text("شماره تلفن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    Text("این تغییرات روی کارت سهل‌بیت ذخیره می‌شوند و دفترچه تلفن اندروید را تغییر نمی‌دهند.", color = Teal, fontSize = 12.sp)
+                }
+            }, confirmButton = { Button(onClick = {
+                entries = entries.map { e -> if (e.id == editingContactId) e.copy(title = editContactName.trim().ifBlank { e.title }, phoneNumber = editContactPhone.trim(), manualEdit = true) else e }
+                LauncherEntryStore.save(prefs, entries); editingContactId = null
+            }) { Text("ذخیره") } }, dismissButton = { TextButton(onClick = { editingContactId = null }) { Text("انصراف") } })
+        }
 }
 
 @Composable private fun WelcomeScreen(onContinue: () -> Unit) {
@@ -295,18 +591,19 @@ private fun SahlBitApp(
         Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره PIN") }
     }
 }
-@Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onLogin: () -> Unit) {
+@Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest); Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
         Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پنل مدیریت") }
+        TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("PIN را فراموش کرده‌ام") }
     }
 }
 @Composable private fun PinField(label: String, value: String, onValue: (String) -> Unit) {
     OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAppearance: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit) {
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAppearance: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); TextButton(onClick = onExit) { Icon(Icons.Default.Settings, null); Text("تحویل به سالمند") } }
         Text("داشبورد مدیر", color = Teal, fontSize = 15.sp); Spacer(Modifier.height(18.dp))
@@ -317,6 +614,8 @@ private fun SahlBitApp(
             item { DashboardCard("امنیت و PIN مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
             item { DashboardCard("درباره لانچر", "نسخه، توسعه‌دهنده و وب‌سایت", Icons.Default.Info, onAbout) }
+            item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
+            item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", Icons.Default.Settings, onAndroidSettings) }
         }
     }
 }
@@ -335,7 +634,7 @@ private fun SahlBitApp(
     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toString(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, lastRowAlignment: String, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
@@ -358,20 +657,72 @@ private fun SahlBitApp(
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                val pageEntries = entries.filter { it.page == index }.take(cardsPerPage.coerceAtLeast(1))
+                val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
+                val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
+                val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
+                val storedRows = rowRoot.optJSONArray(index.toString())
+                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) }.take(gridRows) else List(gridRows) { gridColumns }
+                val pageLastAlignment = alignRoot.optString(index.toString(), gridAlignment)
+                val pageEntries = entries.filter { it.page == index }.take(minOf(cardsPerPage.coerceAtLeast(1), pageRowCounts.sum()))
                 if (pageEntries.isEmpty()) {
                     Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
                 } else {
-                    LazyVerticalGrid(columns = GridCells.Fixed(gridColumns.coerceIn(1, 4)), modifier = Modifier.fillMaxWidth(), horizontalArrangement = when (gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }, verticalArrangement = Arrangement.spacedBy(12.dp), userScrollEnabled = true) {
-                        items(pageEntries, key = { it.id }) { entry ->
-                            Card(onClick = { onEntryClick(entry) }, colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
+                    val cardBounds = remember(index) { mutableStateMapOf<String, Rect>() }
+                    var draggingEntryId by remember(index) { mutableStateOf<String?>(null) }
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        var entryOffset = 0
+                        pageRowCounts.take(gridRows).forEachIndexed { rowIndex, rowCount ->
+                            val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
+                            entryOffset += rowCount
+                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (if (rowIndex == pageRowCounts.take(gridRows).lastIndex) pageLastAlignment else gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                                rowEntries.forEach { entry ->
+                                    Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                            var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
+                            Card(onClick = { if (draggingEntryId == null) onEntryClick(entry) }, modifier = Modifier
+                                .onGloballyPositioned { cardBounds[entry.id] = it.boundsInWindow() }
+                                .pointerInput(entry.id, pageEntries, cardBounds) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { draggingEntryId = entry.id; lastDropTarget = null },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val origin = cardBounds[entry.id]?.topLeft ?: return@detectDragGesturesAfterLongPress
+                                            val pointer = origin + change.position
+                                            // Track the current drop target without mutating the backing list mid-gesture.
+                                            // Reordering during pointer movement invalidates LazyGrid coordinates and
+                                            // can cause repeated swaps or a dropped gesture on slower devices.
+                                            lastDropTarget = cardBounds.entries.firstOrNull { (id, rect) ->
+                                                id != entry.id && rect.contains(pointer)
+                                            }?.key
+                                        },
+                                        onDragEnd = {
+                                            val target = lastDropTarget
+                                            draggingEntryId = null
+                                            lastDropTarget = null
+                                            if (target != null) onReorder(entry.id, target)
+                                        },
+                                        onDragCancel = { draggingEntryId = null; lastDropTarget = null }
+                                    )
+                                }
+                                .alpha(if (draggingEntryId == entry.id) .55f else 1f),
+                                colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
-                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(68.dp).clip(CircleShape))
-                                    else if (entry.kind == "app") Text("▦", color = if (background == "forest") Color.White else Teal, fontSize = 48.sp)
+                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(68.dp).clip(RoundedCornerShape(12.dp)))
+                                    else if (entry.kind == "app") {
+                                        val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
+                                            val drawable = context.packageManager.getApplicationIcon(pkg)
+                                            val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                                            val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
+                                        }.getOrNull() } }
+                                        if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(58.dp))
+                                        else Icon(Icons.Default.Settings, null, tint = Teal, modifier = Modifier.size(54.dp))
+                                    }
                                      else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
                                     Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                }
+                            }
+                                    }
                                 }
                             }
                         }
@@ -380,7 +731,7 @@ private fun SahlBitApp(
             }
         }
         Text("برای جابه‌جایی بین صفحه‌ها، صفحه را به چپ یا راست بکشید", color = fg.copy(alpha = .75f), fontSize = 12.sp)
-        Text("${pager.currentPage + 1} از ${pageCount.coerceIn(1, 12)}", color = fg.copy(alpha = .65f), fontSize = 11.sp)
+        Text("${pageNames.getOrElse(pager.currentPage) { "صفحه ${pager.currentPage + 1}" }}  •  ${pager.currentPage + 1} از ${pageCount.coerceIn(1, 12)}", color = fg.copy(alpha = .65f), fontSize = 12.sp)
         if (pendingCall != null) {
             AlertDialog(onDismissRequest = onCancelCall, title = { Text("تماس با ${pendingCall.title}؟") }, text = { Text("آیا می‌خواهید با این مخاطب تماس بگیرید؟\n${pendingCall.phoneNumber ?: ""}") }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر") } }, dismissButton = { OutlinedButton(onClick = onCancelCall) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
@@ -394,3 +745,14 @@ private fun hashPin(pin: String, saltHex: String): String {
     return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.joinToString("") { "%02x".format(it) }.also { spec.clearPassword() }
 }
 private fun constantTimeEquals(a: String, b: String): Boolean = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
+
+private fun deleteOwnedContactPhoto(context: Context, photo: String) {
+    runCatching {
+        val uri = Uri.parse(photo)
+        if (uri.scheme == "file") {
+            val file = java.io.File(uri.path ?: "")
+            val base = context.filesDir.canonicalFile
+            if (file.canonicalFile.parentFile == base && file.name.startsWith("contact_")) file.delete()
+        }
+    }
+}
