@@ -209,7 +209,10 @@ private fun SahlBitApp(
                         val number = c.getString(1) ?: ""
                         val photoSource = c.getString(2)
                         val contactId = c.getLong(3)
-                        val lookupUri = ContactsContract.Contacts.getLookupUri(context.contentResolver, contactId)
+                        val lookupUri = ContactsContract.Contacts.getLookupUri(
+                            context.contentResolver,
+                            android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
+                        )
                         val photo = photoSource?.let { source -> runCatching {
                             context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
                                 val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")

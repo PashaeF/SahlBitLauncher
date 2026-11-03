@@ -9,7 +9,7 @@ import android.telecom.VideoProfile
 class SahlBitInCallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
-        calls[call] = call
+        trackedCalls[call] = call
         call.registerCallback(callback)
         selectForegroundCall()
         publish(call)
@@ -21,7 +21,7 @@ class SahlBitInCallService : InCallService() {
 
     override fun onCallRemoved(call: Call) {
         runCatching { call.unregisterCallback(callback) }
-        calls.remove(call)
+        trackedCalls.remove(call)
         if (activeCall === call) selectForegroundCall()
         val current = activeCall
         if (current == null) {
@@ -46,7 +46,7 @@ class SahlBitInCallService : InCallService() {
     }
 
     private fun selectForegroundCall() {
-        val all = calls.keys.toList()
+        val all: List<Call> = trackedCalls.keys.toList()
         activeCall = all.firstOrNull { it.state == Call.STATE_ACTIVE }
             ?: all.firstOrNull { it.state == Call.STATE_RINGING }
             ?: all.firstOrNull { it.state == Call.STATE_DIALING || it.state == Call.STATE_CONNECTING }
@@ -65,7 +65,7 @@ class SahlBitInCallService : InCallService() {
     }
 
     companion object {
-        private val calls = LinkedHashMap<Call, Call>()
+        private val trackedCalls = LinkedHashMap<Call, Call>()
         @Volatile var activeCall: Call? = null
             private set
         fun answer() { activeCall?.takeIf { it.state == Call.STATE_RINGING }?.answer(VideoProfile.STATE_AUDIO_ONLY) }
