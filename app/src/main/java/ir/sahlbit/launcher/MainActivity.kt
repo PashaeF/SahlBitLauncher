@@ -81,7 +81,6 @@ private val Vazirmatn = FontFamily(
     Font(R.font.vazirmatn_medium, FontWeight.Medium),
     Font(R.font.vazirmatn_bold, FontWeight.Bold)
 )
-private val SahlBitTypography = Typography(defaultFontFamily = Vazirmatn)
 
 class MainActivity : ComponentActivity() {
     private val battery = mutableIntStateOf(100)
@@ -106,17 +105,21 @@ class MainActivity : ComponentActivity() {
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
         if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
         setContent {
-            MaterialTheme(typography = SahlBitTypography, colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
-                SahlBitApp(
-                    prefs = prefs,
-                    battery = battery.intValue,
-                    charging = charging.value,
-                    crashRecovery = pending,
-                    onSelectLauncher = { selectLauncher() },
-                    onSelectDialer = { selectDialer() },
-                    onAndroidSettings = { openAndroidSettings() },
-                    onImmersiveChange = { enabled -> applyImmersiveMode(enabled) }
-                )
+            MaterialTheme(colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
+                CompositionLocalProvider(
+                    LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = Vazirmatn)
+                ) {
+                    SahlBitApp(
+                        prefs = prefs,
+                        battery = battery.intValue,
+                        charging = charging.value,
+                        crashRecovery = pending,
+                        onSelectLauncher = { selectLauncher() },
+                        onSelectDialer = { selectDialer() },
+                        onAndroidSettings = { openAndroidSettings() },
+                        onImmersiveChange = { enabled -> applyImmersiveMode(enabled) }
+                    )
+                }
             }
         }
     }
