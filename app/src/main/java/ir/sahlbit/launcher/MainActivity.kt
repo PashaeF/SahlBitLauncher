@@ -21,6 +21,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -715,7 +716,7 @@ private fun SahlBitApp(
             Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
         }
         Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
-        Spacer(Modifier.height(6.dp)); Text("$dayText   ${marks.toPersianDigits()}", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
