@@ -502,6 +502,16 @@ private fun SahlBitApp(
             NumberSetting("تعداد ضربه برای ورود مدیر", prefs.getInt("settings_taps_threshold", 7), 3, 15) { value ->
                 prefs.edit().putInt("settings_taps_threshold", value).apply()
             }
+            var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", true)) }
+            var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", true)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("نمایش نام برنامه‌ها", modifier = Modifier.weight(1f), color = Ink)
+                Switch(showAppNames, { showAppNames = it; prefs.edit().putBoolean("show_app_names", it).apply() })
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("نمایش نام مخاطبان", modifier = Modifier.weight(1f), color = Ink)
+                Switch(showContactNames, { showContactNames = it; prefs.edit().putBoolean("show_contact_names", it).apply() })
+            }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
             Text("پس از ${screenTimeoutSeconds / 60} دقیقه و ${screenTimeoutSeconds % 60} ثانیه بی‌استفاده‌ماندن", color = Teal)
@@ -645,6 +655,8 @@ private fun SahlBitApp(
     val context = LocalContext.current
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
     val adminTapThreshold = remember { launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15) }
+    val showAppNames = remember { launcherPrefs.getBoolean("show_app_names", true) }
+    val showContactNames = remember { launcherPrefs.getBoolean("show_contact_names", true) }
     val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
@@ -734,7 +746,9 @@ private fun SahlBitApp(
                                         else Icon(Icons.Default.Settings, null, tint = Teal, modifier = Modifier.size(54.dp))
                                     }
                                      else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
-                                    Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                    if ((entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames)) {
+                                        Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                    }
                                 }
                             }
                                     }
