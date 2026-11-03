@@ -15,7 +15,7 @@
     <application
         android:name=".SahlBitApplication"
         android:allowBackup="false"
-        android:label="سهل‌بیت"
+        android:label="سهل بیت"
         android:supportsRtl="true"
         android:theme="@style/Theme.SahlBit">
         <activity
