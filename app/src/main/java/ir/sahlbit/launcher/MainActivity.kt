@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
         if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = Forest, secondary = Teal, background = Cream)) {
+            MaterialTheme(colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
                 SahlBitApp(
                     prefs = prefs,
                     battery = battery.intValue,
@@ -558,7 +558,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(10.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۲٫۵ (آزمایشی)\nتوسعه‌دهنده: Amirali Pashae fard\nPashaeF.ir", { route = "dashboard" }) { }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۳٫۰ (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
@@ -608,7 +608,7 @@ private fun SahlBitApp(
 
 @Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAppearance: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); TextButton(onClick = onExit) { Icon(Icons.Default.Settings, null); Text("تحویل به سالمند") } }
+        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Text("داشبورد مدیر", color = Teal, fontSize = 15.sp); Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("مدیریت صفحات و چیدمان", "تعداد صفحات و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
@@ -616,9 +616,9 @@ private fun SahlBitApp(
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
             item { DashboardCard("امنیت و PIN مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
-            item { DashboardCard("درباره لانچر", "نسخه، توسعه‌دهنده و وب‌سایت", Icons.Default.Info, onAbout) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
             item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", Icons.Default.Settings, onAndroidSettings) }
+            item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", Icons.Default.Info, onAbout) }
         }
     }
 }
@@ -733,8 +733,11 @@ private fun SahlBitApp(
                 }
             }
         }
-        Text("برای جابه‌جایی بین صفحه‌ها، صفحه را به چپ یا راست بکشید", color = fg.copy(alpha = .75f), fontSize = 12.sp)
-        Text("${pageNames.getOrElse(pager.currentPage) { "صفحه ${pager.currentPage + 1}" }}  •  ${pager.currentPage + 1} از ${pageCount.coerceIn(1, 12)}", color = fg.copy(alpha = .65f), fontSize = 12.sp)
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            repeat(pageCount.coerceIn(1, 12)) { index ->
+                Box(Modifier.padding(horizontal = 4.dp).size(if (pager.currentPage == index) 9.dp else 7.dp).clip(CircleShape).background(if (pager.currentPage == index) fg else fg.copy(alpha = .28f)))
+            }
+        }
         if (pendingCall != null) {
             AlertDialog(onDismissRequest = onCancelCall, title = { Text("تماس با ${pendingCall.title}؟") }, text = { Text("آیا می‌خواهید با این مخاطب تماس بگیرید؟\n${pendingCall.phoneNumber ?: ""}") }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر") } }, dismissButton = { OutlinedButton(onClick = onCancelCall) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
