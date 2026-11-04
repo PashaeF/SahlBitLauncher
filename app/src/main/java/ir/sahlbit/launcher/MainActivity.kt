@@ -846,12 +846,38 @@ private fun SahlBitApp(
 private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val context = LocalContext.current
     val pm = context.packageManager
-    val apps = remember { runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString().lowercase() } }.getOrDefault(emptyList()) }
+    val usageAccessGranted = remember {
+        runCatching {
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
+        }.getOrDefault(false)
+    }
+    val apps = remember(usageAccessGranted) {
+        val usageByPackage = if (usageAccessGranted) runCatching {
+            val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+            manager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000, System.currentTimeMillis())
+                .groupBy { it.packageName }.mapValues { (_, rows) -> rows.sumOf { it.totalTimeInForeground } }
+        }.getOrDefault(emptyMap()) else emptyMap()
+        runCatching {
+            pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0)
+                .distinctBy { it.activityInfo.packageName }
+                .sortedWith(compareByDescending<android.content.pm.ResolveInfo> { (it.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 }
+                    .thenByDescending { usageByPackage[it.activityInfo.packageName] ?: 0L }
+                    .thenBy { it.loadLabel(pm).toString().lowercase() })
+        }.getOrDefault(emptyList())
+    }
+    var search by remember { mutableStateOf("") }
+    val filteredApps = apps.filter { it.loadLabel(pm).toString().contains(search, ignoreCase = true) }
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-        Text("برای اجرای هر برنامه، آن را انتخاب کنید.", color = Ink, modifier = Modifier.padding(bottom = 12.dp))
+        Text("برنامه‌های سیستمی ابتدا نمایش داده می‌شوند؛ سایر برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر مرتب شده‌اند.", color = Ink, modifier = Modifier.padding(bottom = 8.dp))
+        if (!usageAccessGranted) {
+            Text("برای مرتب‌سازی دقیق بر اساس میزان استفاده، دسترسی آمار مصرف برنامه‌ها را فعال کنید.", color = Teal, fontSize = 13.sp)
+            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
+        }
+        OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) })
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(apps, key = { it.activityInfo.packageName }) { item ->
+            items(filteredApps, key = { it.activityInfo.packageName }) { item ->
                 val pkg = item.activityInfo.packageName
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onLaunch(pkg) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(item.loadLabel(pm).toString(), color = Ink, modifier = Modifier.weight(1f))
@@ -902,13 +928,13 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
-            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Settings, onContacts) }
-            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Settings, onAllApps) }
-            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
-            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.Settings, onClock) }
-            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
-            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
+            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", Icons.Default.ViewModule, onPages) }
+            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Contacts, onContacts) }
+            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Apps, onAllApps) }
+            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Palette, onAppearance) }
+            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.AccessTime, onClock) }
+            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", Icons.Default.Lock, onSecurity) }
+            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.VerifiedUser, onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
             item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", Icons.Default.Settings, onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", Icons.Default.Info, onAbout) }
