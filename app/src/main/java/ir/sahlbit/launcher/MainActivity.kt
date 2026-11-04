@@ -207,7 +207,14 @@ private fun SahlBitApp(
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 4)) }
     fun loadRowsPerPage(page: Int): Int = runCatching {
-        org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}").optInt(page.toString(), prefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+        val configured = org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}").opt(page.toString())
+        when (configured) {
+            is Number -> configured.toInt().coerceIn(1, 6)
+            else -> {
+                val legacyRows = org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}").optJSONArray(page.toString())
+                (legacyRows?.length() ?: prefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+            }
+        }
     }.getOrDefault(3)
     fun saveRowsPerPage(page: Int, count: Int) {
         val root = runCatching { org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
@@ -910,8 +917,8 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                 val rowCountRoot = remember(layoutPrefs.getString("row_counts_per_page", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
-                val fallbackRows = rowCountRoot.optInt(index.toString(), layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
-                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) } else List(fallbackRows) { gridColumns }
+                val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+                val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 4) }
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
