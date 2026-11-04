@@ -259,12 +259,7 @@ private fun SahlBitApp(
     var pendingContactPhotoSource by remember { mutableStateOf<String?>(null) }
     var pendingContactOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     fun addPickedContact(name: String, number: String, phoneUri: String, lookupUri: String?, photoSource: String?) {
-        val photo = photoSource?.let { source -> runCatching {
-            val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
-            val input = context.contentResolver.openInputStream(Uri.parse(source)) ?: error("عکس مخاطب در دسترس نیست")
-            input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
-            if (target.exists() && target.length() > 0L) Uri.fromFile(target).toString() else { target.delete(); null }
-        }.getOrNull() }
+        val photo = photoSource?.let { source -> copyContactPhoto(context, source) }
         val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = "contact", photoSourceUri = photoSource)
         entries = entries + item
         LauncherEntryStore.save(prefs, entries)
@@ -363,12 +358,7 @@ private fun SahlBitApp(
                             val currentSourceUri = c.getString(2)
                             val photoChanged = entry.photoSource == "contact" && currentSourceUri != entry.photoSourceUri
                             val freshPhoto = if (entry.photoSource == "gallery" || !photoChanged) entry.photoUri else currentSourceUri?.let { src ->
-                                runCatching {
-                                    val file = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
-                                    val input = context.contentResolver.openInputStream(Uri.parse(src)) ?: error("عکس مخاطب در دسترس نیست")
-                                    input.use { source -> file.outputStream().use { output -> source.copyTo(output) } }
-                                    if (file.exists() && file.length() > 0) Uri.fromFile(file).toString() else { file.delete(); null }
-                                }.getOrNull()
+                                copyContactPhoto(context, src)
                             }
                             entry.copy(title = if (entry.manualEdit) entry.title else (c.getString(0) ?: entry.title), phoneNumber = if (entry.manualEdit) entry.phoneNumber else (c.getString(1) ?: entry.phoneNumber), photoUri = freshPhoto, photoSourceUri = if (entry.photoSource == "contact") currentSourceUri else null)
                         } else entry
@@ -1020,6 +1010,19 @@ private fun hashPin(pin: String, saltHex: String): String {
     return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded.joinToString("") { "%02x".format(it) }.also { spec.clearPassword() }
 }
 private fun constantTimeEquals(a: String, b: String): Boolean = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
+
+private fun copyContactPhoto(context: Context, sourceUri: String): String? {
+    val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+    return try {
+        val input = context.contentResolver.openInputStream(Uri.parse(sourceUri)) ?: return null
+        input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
+        if (target.exists() && target.length() > 0L) Uri.fromFile(target).toString() else null
+    } catch (_: Exception) {
+        null
+    } finally {
+        if (!target.exists() || target.length() <= 0L) target.delete()
+    }
+}
 
 private fun deleteOwnedContactPhoto(context: Context, photo: String) {
     runCatching {
