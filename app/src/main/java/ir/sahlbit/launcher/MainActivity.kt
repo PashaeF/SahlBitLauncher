@@ -512,7 +512,10 @@ private fun SahlBitApp(
                         if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) {
                             Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                         }
-                        Text("صفحه ${(entry.page + 1).toPersianDigits()}", color = Color(0xFF64748B), fontSize = 11.sp)
+                        PageDropdown("صفحهٔ مقصد", entry.page, pageNames) { destination ->
+                            entries = entries.map { if (it.id == entry.id) it.copy(page = destination) else it }
+                            LauncherEntryStore.save(prefs, entries)
+                        }
                     }
                     if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
                     if (entry.kind == "contact") TextButton(onClick = {
