@@ -116,7 +116,7 @@ class SahlBitInCallService : InCallService() {
         val text = if (incoming) "تماس ورودی؛ برای پاسخ لمس کنید" else "تماس در حال انجام"
         val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CALL_CHANNEL_ID) else Notification.Builder(this)
         val notification = builder
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(android.R.drawable.sym_action_call)
             .setContentTitle(title)
             .setContentText(text)
             .setCategory(Notification.CATEGORY_CALL)
