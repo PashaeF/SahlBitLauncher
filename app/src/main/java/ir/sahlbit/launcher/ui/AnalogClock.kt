@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import ir.sahlbit.launcher.R
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -30,11 +31,11 @@ fun AnalogClock(modifier: Modifier = Modifier) {
         val cy = size.height / 2f
         val radius = size.minDimension * 0.47f
         drawCircle(Color.White.copy(alpha = 0.16f), radius = radius + 5f)
-        drawCircle(Color(0xFFF7F4E9), radius = radius)
-        drawCircle(Color(0xFF344D3E), radius = radius, style = Stroke(width = 3f))
+        drawCircle(Color(0xFFF8FAFC), radius = radius)
+        drawCircle(Color(0xFF2563EB), radius = radius, style = Stroke(width = 3f))
 
         val textPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.rgb(43, 61, 49)
+            color = android.graphics.Color.rgb(23, 32, 51)
             textSize = radius * 0.15f
             textAlign = android.graphics.Paint.Align.CENTER
             isAntiAlias = true
@@ -44,14 +45,14 @@ fun AnalogClock(modifier: Modifier = Modifier) {
             val angle = Math.toRadians((number * 30 - 90).toDouble())
             val x = cx + cos(angle).toFloat() * radius * 0.78f
             val y = cy + sin(angle).toFloat() * radius * 0.78f + textPaint.textSize * 0.34f
-            drawContext.canvas.nativeCanvas.drawText(number.toString(), x, y, textPaint)
+            drawContext.canvas.nativeCanvas.drawText(number.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }.joinToString(""), x, y, textPaint)
         }
         for (tick in 0 until 60) {
             val angle = Math.toRadians((tick * 6 - 90).toDouble())
             val outer = radius * 0.91f
             val inner = if (tick % 5 == 0) radius * 0.84f else radius * 0.88f
             drawLine(
-                color = Color(0xFF647566),
+                color = Color(0xFF94A3B8),
                 start = Offset(cx + cos(angle).toFloat() * inner, cy + sin(angle).toFloat() * inner),
                 end = Offset(cx + cos(angle).toFloat() * outer, cy + sin(angle).toFloat() * outer),
                 strokeWidth = if (tick % 5 == 0) 2.5f else 1f
@@ -61,7 +62,7 @@ fun AnalogClock(modifier: Modifier = Modifier) {
         val minuteAngle = (time.minute + time.second / 60f) * 6f
         val secondAngle = time.second * 6f
         rotate(hourAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFF263B2D), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.48f), strokeWidth = 6f)
+            drawLine(Color(0xFF172033), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.48f), strokeWidth = 6f)
         }
         rotate(minuteAngle, pivot = Offset(cx, cy)) {
             drawLine(Color(0xFF344D3E), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.69f), strokeWidth = 4f)
