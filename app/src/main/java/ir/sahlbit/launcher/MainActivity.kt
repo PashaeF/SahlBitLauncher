@@ -79,6 +79,15 @@ private val Vazirmatn = FontFamily(
     Font(R.font.vazirmatn_medium, FontWeight.Medium),
     Font(R.font.vazirmatn_bold, FontWeight.Bold)
 )
+private val SahlBitTypography: Typography = Typography().let { t ->
+    t.copy(
+        displayLarge=t.displayLarge.copy(fontFamily=Vazirmatn), displayMedium=t.displayMedium.copy(fontFamily=Vazirmatn), displaySmall=t.displaySmall.copy(fontFamily=Vazirmatn),
+        headlineLarge=t.headlineLarge.copy(fontFamily=Vazirmatn), headlineMedium=t.headlineMedium.copy(fontFamily=Vazirmatn), headlineSmall=t.headlineSmall.copy(fontFamily=Vazirmatn),
+        titleLarge=t.titleLarge.copy(fontFamily=Vazirmatn), titleMedium=t.titleMedium.copy(fontFamily=Vazirmatn), titleSmall=t.titleSmall.copy(fontFamily=Vazirmatn),
+        bodyLarge=t.bodyLarge.copy(fontFamily=Vazirmatn), bodyMedium=t.bodyMedium.copy(fontFamily=Vazirmatn), bodySmall=t.bodySmall.copy(fontFamily=Vazirmatn),
+        labelLarge=t.labelLarge.copy(fontFamily=Vazirmatn), labelMedium=t.labelMedium.copy(fontFamily=Vazirmatn), labelSmall=t.labelSmall.copy(fontFamily=Vazirmatn)
+    )
+}
 
 class MainActivity : ComponentActivity() {
     private val battery = mutableIntStateOf(100)
@@ -103,7 +112,7 @@ class MainActivity : ComponentActivity() {
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
         if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
+            MaterialTheme(typography = SahlBitTypography, colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
                 CompositionLocalProvider(
                     LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = Vazirmatn)
                 ) {
@@ -192,7 +201,7 @@ private fun SahlBitApp(
     var clockSizeDp by remember { mutableIntStateOf(prefs.getInt("clock_size_dp", 300).coerceIn(180, 360)) }
     var clockDigitSizeSp by remember { mutableIntStateOf(prefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)) }
     var clockDigitLanguage by remember { mutableStateOf(prefs.getString("clock_digit_language", "english") ?: "english") }
-    var showSecondHand by remember { mutableStateOf(prefs.getBoolean("clock_show_seconds", true)) }
+    var showSecondHand by remember { mutableStateOf(prefs.getBoolean("clock_show_seconds", false)) }
     var adminAuthenticated by remember { mutableStateOf(false) }
     var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
     var lockUntil by remember { mutableLongStateOf(prefs.getLong("pin_lock_until", 0L)) }
@@ -471,9 +480,9 @@ private fun SahlBitApp(
             listOf("english" to "انگلیسی (123)", "persian" to "فارسی (۱۲۳)").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(clockDigitLanguage == key, { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }); Text(label, color = Ink) } }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش ثانیه‌شمار", modifier = Modifier.weight(1f), color = Ink); Switch(showSecondHand, { showSecondHand = it; prefs.edit().putBoolean("clock_show_seconds", it).apply() }) }
         }
-        "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
+        "pages" -> SettingsPage("مدیریت صفحه‌ها", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
-            NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
+            NumberSetting("تعداد صفحه‌ها", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
                 if (next < pageCount) {
                     entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
@@ -644,8 +653,8 @@ private fun SahlBitApp(
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
             NumberSetting("تعداد ضربه برای ورود مدیر", settingsTapThreshold, 3, 15) { value -> settingsTapThreshold = value; prefs.edit().putInt("settings_taps_threshold", value).apply() }
-            var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", true)) }
-            var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", true)) }
+            var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", false)) }
+            var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", false)) }
             var numericBattery by remember { mutableStateOf(prefs.getBoolean("numeric_battery", false)) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("نمایش درصد عددی باتری به‌جای نشانگر گرافیکی", modifier = Modifier.weight(1f), color = Ink)
@@ -789,7 +798,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val pm = context.packageManager
     val apps = remember { runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString().lowercase() } }.getOrDefault(emptyList()) }
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Text("برای اجرای هر برنامه، آن را انتخاب کنید.", color = Ink, modifier = Modifier.padding(bottom = 12.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(apps, key = { it.activityInfo.packageName }) { item ->
@@ -843,7 +852,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { DashboardCard("مدیریت صفحات و چیدمان", "تعداد صفحات و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
+            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
             item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Settings, onContacts) }
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Settings, onAllApps) }
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
@@ -897,8 +906,8 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val contentWidth = (screenWidth - 32.dp).coerceAtLeast(240.dp)
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
-    val showAppNames = launcherPrefs.getBoolean("show_app_names", true)
-    val showContactNames = launcherPrefs.getBoolean("show_contact_names", true)
+    val showAppNames = launcherPrefs.getBoolean("show_app_names", false)
+    val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
     val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Color(0xFF2563EB) }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
@@ -915,7 +924,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         val effectiveClockSize = minOf(clockSize, (screenWidth.value.toInt() - 32).coerceAtLeast(120))
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
-        val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", true)
+        val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", false)
         AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
