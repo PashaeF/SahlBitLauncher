@@ -205,13 +205,21 @@ private fun SahlBitApp(
     var selectedPage by remember { mutableIntStateOf(0) }
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 4)) }
-    var gridRows by remember { mutableIntStateOf(prefs.getInt("grid_rows", 3).coerceIn(1, 6)) }
+    fun loadRowsPerPage(page: Int): Int = runCatching {
+        org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}").optInt(page.toString(), prefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+    }.getOrDefault(3)
+    fun saveRowsPerPage(page: Int, count: Int) {
+        val root = runCatching { org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        root.put(page.toString(), count.coerceIn(1, 6))
+        prefs.edit().putString("row_counts_per_page", root.toString()).apply()
+    }
+    var gridRows by remember(selectedPage) { mutableIntStateOf(loadRowsPerPage(selectedPage)) }
     var gridAlignment by remember { mutableStateOf(prefs.getString("grid_alignment", "center") ?: "center") }
     fun loadRowCounts(page: Int): List<Int> = runCatching {
         val root = org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}")
         val a = root.optJSONArray(page.toString()) ?: org.json.JSONArray()
         (0 until a.length()).map { a.optInt(it, gridColumns).coerceIn(1, 4) }
-    }.getOrDefault(emptyList()).ifEmpty { List(gridRows) { gridColumns } }
+    }.getOrDefault(emptyList()).ifEmpty { List(loadRowsPerPage(page)) { gridColumns } }
     var rowCardCounts by remember(selectedPage) { mutableStateOf(loadRowCounts(selectedPage).take(gridRows).let { it + List((gridRows - it.size).coerceAtLeast(0)) { gridColumns } }) }
     fun loadRowAlignments(page: Int): List<String> = runCatching {
         val root = org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}")
@@ -349,7 +357,7 @@ private fun SahlBitApp(
         )
         "setpin" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
             if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
-            else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
+            else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else {
                 val salt = createSalt()
                 val hash = hashPin(newPin, salt)
@@ -390,7 +398,7 @@ private fun SahlBitApp(
                 failedPins += 1
                 if (failedPins >= 5) { lockUntil = now + 30_000L; failedPins = 0 }
                 prefs.edit().putInt("pin_failed_attempts", failedPins).putLong("pin_lock_until", lockUntil).apply()
-                error = if (lockUntil > now) "۵ تلاش ناموفق؛ ورود برای ۳۰ ثانیه قفل شد." else "PIN صحیح نیست."
+                error = if (lockUntil > now) "۵ تلاش ناموفق؛ ورود برای ۳۰ ثانیه قفل شد." else "پین صحیح نیست."
                 pinInput = ""
             }
         }
@@ -459,7 +467,7 @@ private fun SahlBitApp(
                 )
             }
             NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6) { value ->
-                gridRows = value; prefs.edit().putInt("grid_rows", value).apply()
+                gridRows = value; saveRowsPerPage(selectedPage, value)
                 rowCardCounts = (rowCardCounts.take(value) + List((value - rowCardCounts.size).coerceAtLeast(0)) { gridColumns })
                 rowAlignments = (rowAlignments.take(value) + List((value - rowAlignments.size).coerceAtLeast(0)) { "center" })
                 persistRowLayout()
@@ -623,15 +631,15 @@ private fun SahlBitApp(
             OutlinedButton(onClick = { runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
         }
         "security" -> SettingsPage("امنیت مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
-            Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر PIN مدیر") }
+            Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
         }
-        "pinverify" -> SettingsPage("تأیید PIN فعلی", "برای تغییر PIN، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
-            PinField("PIN فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
+        "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
+            PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 val salt = prefs.getString("admin_pin_salt", "") ?: ""
                 if (pinHash != null && constantTimeEquals(hashPin(oldPinInput, salt), pinHash!!)) { oldPinInput = ""; error = ""; route = "pinchange" }
-                else { oldPinInput = ""; error = "PIN فعلی نادرست است." }
+                else { oldPinInput = ""; error = "پین فعلی نادرست است." }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و ادامه") }
         }
         "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { route = "login" }) {
@@ -642,11 +650,11 @@ private fun SahlBitApp(
             Button(onClick = {
                 if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }
                 else { error = "پاسخ درست نیست. دوباره تلاش کن."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
-            }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین PIN جدید") }
+            }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین پین جدید") }
         }
         "pinchange" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
-            if (newPin.length < 4) error = "PIN باید حداقل ۴ رقم داشته باشد."
-            else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
+            if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
+            else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
         "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای استفاده از سهل‌بیت به‌عنوان صفحهٔ اصلی، نقش Home را انتخاب کنید. نقش تلفن (Dialer) مستقل و فقط برای قابلیت‌های تماس لازم است.", { route = "dashboard" }) {
@@ -700,18 +708,18 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
 @Composable private fun WelcomeScreen(onContinue: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("به سهل‌بیت خوش آمدید", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Forest)
-        Spacer(Modifier.height(16.dp)); Text("برای شروع، مدیر دستگاه باید PIN اختصاصی خود را تعیین کند. تنظیمات و اطلاعات این نسخه روی خود گوشی ذخیره می‌شوند.", color = Ink, fontSize = 18.sp, lineHeight = 29.sp)
+        Spacer(Modifier.height(16.dp)); Text("برای شروع، مدیر دستگاه باید پین اختصاصی خود را تعیین کند. تنظیمات و اطلاعات این نسخه روی خود گوشی ذخیره می‌شوند.", color = Ink, fontSize = 18.sp, lineHeight = 29.sp)
         Spacer(Modifier.height(28.dp)); Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("شروع راه‌اندازی", fontSize = 18.sp) }
     }
 }
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Text("تنظیم PIN مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
-        Spacer(Modifier.height(12.dp)); Text("یک PIN عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 17.sp)
-        Spacer(Modifier.height(18.dp)); PinField("PIN جدید", pin, onPin); Spacer(Modifier.height(12.dp)); PinField("تکرار PIN", confirm, onConfirm)
+        Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Spacer(Modifier.height(12.dp)); Text("یک پین عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 17.sp)
+        Spacer(Modifier.height(18.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(12.dp)); PinField("تکرار پین", confirm, onConfirm)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
-        Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره PIN") }
+        Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره پین") }
     }
 }
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
@@ -722,10 +730,10 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
             IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopEnd).size(112.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(88.dp)) }
         }
         }
-        Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
+        Spacer(Modifier.height(20.dp)); PinField("پین مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
         Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پیشخان مدیریت") }
-        TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("PIN را فراموش کرده‌ام") }
+        TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("پین را فراموش کرده‌ام") }
     }
 }
 @Composable private fun PinField(label: String, value: String, onValue: (String) -> Unit) {
@@ -742,7 +750,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Apps, onAllApps) }
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
             item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.AccessTime, onClock) }
-            item { DashboardCard("امنیت و PIN مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
+            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
             item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", Icons.Default.Settings, onAndroidSettings) }
@@ -830,9 +838,9 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
-                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) }.take(gridRows) else List(gridRows) { gridColumns }
+                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) } else List(gridRows) { gridColumns }
                 val savedAlignments = alignRoot.opt(index.toString())
-                val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until gridRows).map { savedAlignments.optString(it, "center") }; is String -> List(gridRows) { savedAlignments }; else -> List(gridRows) { gridAlignment } }
+                val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
                     Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
