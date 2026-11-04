@@ -12,13 +12,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import java.time.LocalTime
 import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun AnalogClock(modifier: Modifier = Modifier) {
+fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true) {
     var time by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -26,6 +27,8 @@ fun AnalogClock(modifier: Modifier = Modifier) {
             delay(1000)
         }
     }
+    val density = LocalDensity.current
+    val digitSizePx = with(density) { digitSizeSp.sp.toPx() }
     Canvas(modifier = modifier.aspectRatio(1f)) {
         val cx = size.width / 2f
         val cy = size.height / 2f
@@ -45,7 +48,7 @@ fun AnalogClock(modifier: Modifier = Modifier) {
             val angle = Math.toRadians((number * 30 - 90).toDouble())
             val x = cx + cos(angle).toFloat() * radius * 0.78f
             val y = cy + sin(angle).toFloat() * radius * 0.78f + textPaint.textSize * 0.34f
-            drawContext.canvas.nativeCanvas.drawText(number.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }.joinToString(""), x, y, textPaint)
+            drawContext.canvas.nativeCanvas.drawText(if (digitLanguage == "persian") number.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }.joinToString("") else number.toString(), x, y, textPaint)
         }
         for (tick in 0 until 60) {
             val angle = Math.toRadians((tick * 6 - 90).toDouble())
@@ -67,7 +70,7 @@ fun AnalogClock(modifier: Modifier = Modifier) {
         rotate(minuteAngle, pivot = Offset(cx, cy)) {
             drawLine(Color(0xFF2563EB), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.69f), strokeWidth = 4f)
         }
-        rotate(secondAngle, pivot = Offset(cx, cy)) {
+        if (showSecondHand) rotate(secondAngle, pivot = Offset(cx, cy)) {
             drawLine(Color(0xFF1D4ED8), Offset(cx, cy + radius * 0.18f), Offset(cx, cy - radius * 0.76f), strokeWidth = 1.8f)
         }
         drawCircle(Color(0xFFB35B45), radius = 5f, center = Offset(cx, cy))
