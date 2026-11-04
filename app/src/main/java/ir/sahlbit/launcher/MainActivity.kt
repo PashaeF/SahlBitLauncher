@@ -776,12 +776,17 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای استفاده از سهل‌بیت به‌عنوان صفحهٔ اصلی، نقش Home را انتخاب کنید. رابط تماس اختصاصی سهل‌بیت از اندروید ۶ به بعد قابل فعال‌سازی است؛ در اندروید ۵ برنامهٔ تلفن سیستم تماس‌ها را مدیریت می‌کند.", { route = "dashboard" }) {
+        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای نمایش رابط تماس اختصاصی، سهل‌بیت باید برنامهٔ تلفن پیش‌فرض باشد. این قابلیت از اندروید ۶ به بعد فعال است؛ در اندروید ۵ برنامهٔ تلفن سیستم تماس‌ها را مدیریت می‌کند.", { route = "dashboard" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان صفحهٔ اصلی (Home)") }
             Spacer(Modifier.height(8.dp))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب اختیاری به‌عنوان برنامهٔ تلفن (Dialer)") }
+                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض (Dialer)") }
                 Spacer(Modifier.height(8.dp))
+            }
+            if (Build.VERSION.SDK_INT >= 34) {
+                OutlinedButton(onClick = {
+                    runCatching { context.startActivity(Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", Uri.parse("package:" + context.packageName))) }
+                }, modifier = Modifier.fillMaxWidth()) { Text("بررسی اجازهٔ نمایش تمام‌صفحهٔ تماس") }
             }
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
@@ -977,7 +982,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-        Spacer(Modifier.height(12.dp)); Text(description, color = Ink, lineHeight = 24.sp); Spacer(Modifier.height(18.dp)); content()
+        Spacer(Modifier.height(12.dp)); Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
 }
 @Composable private fun PageDropdown(label: String, selectedPage: Int, pageNames: List<String>, onChange: (Int) -> Unit) {
