@@ -67,6 +67,7 @@ import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import java.time.LocalDate
+import kotlinx.coroutines.delay
 
 
 private fun Int.toPersianDigits(): String = toString().map { ch ->
@@ -181,9 +182,13 @@ private fun SahlBitApp(
     var error by remember { mutableStateOf("") }
     var immersive by remember { mutableStateOf(prefs.getBoolean("immersive", true)) }
     var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "forest") ?: "forest") }
+    var settingsTapThreshold by remember { mutableIntStateOf(prefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)) }
     var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
     var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
-    var cardsPerPage by remember { mutableIntStateOf(prefs.getInt("cards_per_page", 5)) }
+    var clockSizeDp by remember { mutableIntStateOf(prefs.getInt("clock_size_dp", 300).coerceIn(180, 360)) }
+    var clockDigitSizeSp by remember { mutableIntStateOf(prefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)) }
+    var clockDigitLanguage by remember { mutableStateOf(prefs.getString("clock_digit_language", "english") ?: "english") }
+    var showSecondHand by remember { mutableStateOf(prefs.getBoolean("clock_show_seconds", true)) }
     var adminAuthenticated by remember { mutableStateOf(false) }
     var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
     var lockUntil by remember { mutableLongStateOf(prefs.getLong("pin_lock_until", 0L)) }
@@ -208,12 +213,20 @@ private fun SahlBitApp(
         (0 until a.length()).map { a.optInt(it, gridColumns).coerceIn(1, 4) }
     }.getOrDefault(emptyList()).ifEmpty { List(gridRows) { gridColumns } }
     var rowCardCounts by remember(selectedPage) { mutableStateOf(loadRowCounts(selectedPage).take(gridRows).let { it + List((gridRows - it.size).coerceAtLeast(0)) { gridColumns } }) }
-    var lastRowAlignment by remember(selectedPage) { mutableStateOf(runCatching { org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}").optString(selectedPage.toString(), gridAlignment) }.getOrDefault(gridAlignment)) }
+    fun loadRowAlignments(page: Int): List<String> = runCatching {
+        val root = org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}")
+        when (val saved = root.opt(page.toString())) {
+            is org.json.JSONArray -> (0 until saved.length()).map { saved.optString(it, "center") }
+            is String -> List(gridRows) { saved }
+            else -> emptyList()
+        }
+    }.getOrDefault(emptyList())
+    var rowAlignments by remember(selectedPage) { mutableStateOf(loadRowAlignments(selectedPage).take(gridRows).let { it + List((gridRows - it.size).coerceAtLeast(0)) { "center" } }) }
     fun persistRowLayout() {
         val root = runCatching { org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
         root.put(selectedPage.toString(), org.json.JSONArray(rowCardCounts))
         val aligns = runCatching { org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
-        aligns.put(selectedPage.toString(), lastRowAlignment)
+        aligns.put(selectedPage.toString(), org.json.JSONArray(rowAlignments))
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
@@ -325,7 +338,7 @@ private fun SahlBitApp(
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "appearance", "security", "permissions", "about", "pinchange", "pinverify")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "security", "permissions", "about", "pinchange", "pinverify")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -335,7 +348,7 @@ private fun SahlBitApp(
             onContinue = { route = "setpin" }
         )
         "setpin" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
-            if (newPin.length < 4) error = "PIN باید حداقل ۴ رقم داشته باشد."
+            if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
             else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
             else {
                 val salt = createSalt()
@@ -350,8 +363,8 @@ private fun SahlBitApp(
         "home" -> HomeScreen(
             battery = battery, charging = charging, background = backgroundChoice,
             onAdminEntry = { pinInput = ""; error = ""; route = "login" },
-            pageCount = pageCount, pageNames = pageNames, cardsPerPage = cardsPerPage,
-            entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, lastRowAlignment = lastRowAlignment,
+            pageCount = pageCount, pageNames = pageNames,
+            entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, rowAlignments = rowAlignments,
             onReorder = { fromId, toId ->
                 val from = entries.indexOfFirst { it.id == fromId }; val to = entries.indexOfFirst { it.id == toId }
                 if (from >= 0 && to >= 0 && entries[from].page == entries[to].page) {
@@ -383,11 +396,19 @@ private fun SahlBitApp(
         }
         "dashboard" -> DashboardScreen(
             onExit = { adminAuthenticated = false; route = "home" },
-            onPages = { route = "pages" }, onContacts = { route = "contacts" },
-            onAppearance = { route = "appearance" }, onSecurity = { route = "security" },
+            onPages = { route = "pages" }, onContacts = { route = "contacts" }, onAllApps = { route = "allapps" },
+            onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
             onPermissions = { route = "permissions" }, onAbout = { route = "about" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
+        "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
+        "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
+            NumberSetting("اندازهٔ ساعت (dp)", clockSizeDp, 180, 360) { v -> clockSizeDp = v; prefs.edit().putInt("clock_size_dp", v).apply() }
+            NumberSetting("اندازهٔ اعداد ساعت (sp)", clockDigitSizeSp, 20, 56) { v -> clockDigitSizeSp = v; prefs.edit().putInt("clock_digit_size_sp", v).apply() }
+            Text("زبان اعداد ساعت", color = Ink, fontWeight = FontWeight.Bold)
+            listOf("english" to "انگلیسی (123)", "persian" to "فارسی (۱۲۳)").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(clockDigitLanguage == key, { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }); Text(label, color = Ink) } }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش ثانیه‌شمار", modifier = Modifier.weight(1f), color = Ink); Switch(showSecondHand, { showSecondHand = it; prefs.edit().putBoolean("clock_show_seconds", it).apply() }) }
+        }
         "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
@@ -437,26 +458,28 @@ private fun SahlBitApp(
                     dismissButton = { TextButton(onClick = { confirmPageDeletion = false }) { Text("انصراف") } }
                 )
             }
-            NumberSetting("کارت در هر صفحه (حداکثر نمایشی)", cardsPerPage, 1, 12) { cardsPerPage = it; prefs.edit().putInt("cards_per_page", it).apply() }
             NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6) { value ->
                 gridRows = value; prefs.edit().putInt("grid_rows", value).apply()
                 rowCardCounts = (rowCardCounts.take(value) + List((value - rowCardCounts.size).coerceAtLeast(0)) { gridColumns })
+                rowAlignments = (rowAlignments.take(value) + List((value - rowAlignments.size).coerceAtLeast(0)) { "center" })
                 persistRowLayout()
             }
-            Text("تعداد کارت در هر ردیف این صفحه", color = Ink, fontWeight = FontWeight.Bold)
+            Text("تنظیم تعداد کارت و تراز هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
-                NumberSetting("ردیف ${(row + 1).toPersianDigits()}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
-            }
-            Text("تراز ردیف آخر", color = Ink, fontWeight = FontWeight.Bold)
-            listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
-                Row(Modifier.fillMaxWidth().clickable { lastRowAlignment = key; persistRowLayout() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(lastRowAlignment == key, { lastRowAlignment = key; persistRowLayout() }); Text(label, color = Ink) }
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+                        Text("تراز ردیف ${(row + 1).toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+                        listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(rowAlignments.getOrElse(row) { "center" } == key, { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }); Text(label, color = Ink) } }
+                    }
+                }
             }
             Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (if (row == rowCardCounts.lastIndex) lastRowAlignment else gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
                             repeat(count) {
                                 Box(Modifier.weight(1f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
                             }
@@ -548,15 +571,13 @@ private fun SahlBitApp(
         }
         "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
-            listOf("forest" to "سبز جنگلی", "white" to "سفید", "cream" to "کِرِم", "gray" to "طوسی", "blue" to "آبی ملایم").forEach { (key, label) ->
+            listOf("forest" to "آبی پررنگ", "white" to "سفید", "cream" to "کِرِم", "gray" to "طوسی", "blue" to "آبی ملایم").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = backgroundChoice == key, onClick = { backgroundChoice = key; prefs.edit().putString("background", key).apply() }); Text(label, color = Ink)
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
-            NumberSetting("تعداد ضربه برای ورود مدیر", prefs.getInt("settings_taps_threshold", 7), 3, 15) { value ->
-                prefs.edit().putInt("settings_taps_threshold", value).apply()
-            }
+            NumberSetting("تعداد ضربه برای ورود مدیر", settingsTapThreshold, 3, 15) { value -> settingsTapThreshold = value; prefs.edit().putInt("settings_taps_threshold", value).apply() }
             var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", true)) }
             var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", true)) }
             var numericBattery by remember { mutableStateOf(prefs.getBoolean("numeric_battery", false)) }
@@ -670,6 +691,26 @@ private fun SahlBitApp(
         }
 }
 
+@Composable
+private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
+    val context = LocalContext.current
+    val pm = context.packageManager
+    val apps = remember { runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString().lowercase() } }.getOrDefault(emptyList()) }
+    Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        Text("برای اجرای هر برنامه، آن را انتخاب کنید.", color = Ink, modifier = Modifier.padding(bottom = 12.dp))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(apps, key = { it.activityInfo.packageName }) { item ->
+                val pkg = item.activityInfo.packageName
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onLaunch(pkg) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.loadLabel(pm).toString(), color = Ink, modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.OpenInNew, "اجرا", tint = Teal)
+                }
+            }
+        }
+    }
+}
+
 @Composable private fun WelcomeScreen(onContinue: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("به سهل‌بیت خوش آمدید", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Forest)
@@ -690,14 +731,14 @@ private fun SahlBitApp(
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f))
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626))
-            }
+            Box(Modifier.fillMaxWidth().height(132.dp)) {
+            Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.align(Alignment.BottomStart))
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopEnd).size(112.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(88.dp)) }
+        }
         }
         Spacer(Modifier.height(20.dp)); PinField("PIN مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
-        Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پنل مدیریت") }
+        Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پیشخان مدیریت") }
         TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("PIN را فراموش کرده‌ام") }
     }
 }
@@ -705,14 +746,16 @@ private fun SahlBitApp(
     OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAppearance: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
-        Text("داشبورد مدیر", color = Teal, fontSize = 15.sp); Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
+        Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("مدیریت صفحات و چیدمان", "تعداد صفحات و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
             item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Settings, onContacts) }
+            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Apps, onAllApps) }
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
+            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.AccessTime, onClock) }
             item { DashboardCard("امنیت و PIN مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
@@ -754,38 +797,44 @@ private fun SahlBitApp(
     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, lastRowAlignment: String, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
+    LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0 } }
     val context = LocalContext.current
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", true)
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", true)
-    val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
+    val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Color(0xFF2563EB) }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
     val dayText = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[day - 1]
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(38.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (charging) Text("⚡", color = if (battery > 95) Color(0xFF168A45) else Color(0xFF1689D4), fontSize = 48.sp, fontWeight = FontWeight.Bold)
             IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } }) { Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .42f), modifier = Modifier.size(20.dp)) }
         }
-        AnalogClock(Modifier.size(212.dp))
+        val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
+        val clockSize = clockPrefs.getInt("clock_size_dp", 300).coerceIn(180, 360)
+        val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
+        val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
+        val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", true)
+        AnalogClock(Modifier.size(clockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
             if (numericBattery) {
-                Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
             } else {
-                Box(Modifier.width(92.dp).height(36.dp).border(2.dp, batteryColor, RoundedCornerShape(7.dp)).padding(3.dp), contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) {
                     Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor))
                 }
-                Box(Modifier.padding(start = 2.dp).width(6.dp).height(15.dp).background(batteryColor, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)))
+                Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
             }
         }
-        Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
+        if (charging) Text(if (battery > 95) "شارژ تقریباً کامل" else "گوشی در حال شارژ است", color = fg, fontSize = 14.sp)
         Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
@@ -796,8 +845,9 @@ private fun SahlBitApp(
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
                 val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) }.take(gridRows) else List(gridRows) { gridColumns }
-                val pageLastAlignment = alignRoot.optString(index.toString(), gridAlignment)
-                val pageEntries = entries.filter { it.page == index }.take(minOf(cardsPerPage.coerceAtLeast(1), pageRowCounts.sum()))
+                val savedAlignments = alignRoot.opt(index.toString())
+                val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until gridRows).map { savedAlignments.optString(it, "center") }; is String -> List(gridRows) { savedAlignments }; else -> List(gridRows) { gridAlignment } }
+                val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
                     Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
                 } else {
@@ -808,7 +858,7 @@ private fun SahlBitApp(
                         pageRowCounts.take(gridRows).forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
-                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (if (rowIndex == pageRowCounts.take(gridRows).lastIndex) pageLastAlignment else gridAlignment) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                             var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
