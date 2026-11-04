@@ -1,0 +1,4 @@
+<resources>
+    <!-- InCallService was introduced in Android 6.0 (API 23). -->
+    <bool name="sahlbit_incall_service_enabled">false</bool>
+</resources>
