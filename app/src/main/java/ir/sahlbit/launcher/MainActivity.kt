@@ -150,7 +150,16 @@ class MainActivity : ComponentActivity() {
                 return
             }
         }
-        openAndroidSettings()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            runCatching {
+                startActivity(
+                    Intent(android.telecom.TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
+                        .putExtra(android.telecom.TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+                )
+            }.onFailure { openAndroidSettings() }
+        } else {
+            android.widget.Toast.makeText(this, "در اندروید ۵ رابط تماس سهل‌بیت فعال نیست و برنامهٔ تلفن خود گوشی تماس‌ها را مدیریت می‌کند.", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
     private fun openHomeSettings() { runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { openAndroidSettings() } }
     private fun openAndroidSettings() { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
@@ -723,11 +732,13 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای استفاده از سهل‌بیت به‌عنوان صفحهٔ اصلی، نقش Home را انتخاب کنید. نقش تلفن (Dialer) مستقل و فقط برای قابلیت‌های تماس لازم است.", { route = "dashboard" }) {
+        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای استفاده از سهل‌بیت به‌عنوان صفحهٔ اصلی، نقش Home را انتخاب کنید. رابط تماس اختصاصی سهل‌بیت از اندروید ۶ به بعد قابل فعال‌سازی است؛ در اندروید ۵ برنامهٔ تلفن سیستم تماس‌ها را مدیریت می‌کند.", { route = "dashboard" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان صفحهٔ اصلی (Home)") }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب اختیاری به‌عنوان برنامهٔ تلفن (Dialer)") }
-            Spacer(Modifier.height(8.dp))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب اختیاری به‌عنوان برنامهٔ تلفن (Dialer)") }
+                Spacer(Modifier.height(8.dp))
+            }
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
                 else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
