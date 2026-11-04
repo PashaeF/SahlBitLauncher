@@ -7,7 +7,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
+import androidx.core.content.res.ResourcesCompat
 import android.widget.Button
 import android.widget.EditText
 import android.widget.GridLayout
@@ -38,8 +41,15 @@ class DialPadActivity : Activity() {
         root.addView(keys, LinearLayout.LayoutParams(-1, 320))
         root.addView(Button(this).apply { text = "تماس"; textSize = 24f; setOnClickListener { placeCall() } }, LinearLayout.LayoutParams(-1, 76))
         root.addView(Button(this).apply { text = "پاک‌کردن"; setOnClickListener { number.text.clear() } }, LinearLayout.LayoutParams(-1, 60))
+        applyVazirmatn(root)
         setContentView(root)
     }
+
+    private fun applyVazirmatn(view: View) {
+        if (view is TextView) view.typeface = ResourcesCompat.getFont(this, R.font.vazirmatn_regular)
+        if (view is ViewGroup) for (index in 0 until view.childCount) applyVazirmatn(view.getChildAt(index))
+    }
+
     private fun placeCall() {
         val value = number.text.toString().trim()
         if (value.isBlank()) return
