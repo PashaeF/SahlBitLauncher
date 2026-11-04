@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.5.2
+# SahlBit Launcher 0.5.3
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.2`
-- **Version Code:** `18`
+- **Version:** `0.5.3`
+- **Version Code:** `19`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -43,7 +43,12 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Answer/reject controls for ringing calls.
 - Active/held call switching controls.
 - Contact name, number, and available contact photo display.
+- Full-screen incoming-call notification and dedicated call activity with large answer, reject, and hang-up controls.
+- Call-state colors: blue for incoming ringing, amber for outgoing dialing, green for connected, and slate for held calls.
+- Mute, speaker, hold/resume, call-waiting, and proximity-screen controls.
+- Contact photos can be sourced from the Android contacts record or the gallery.
 - Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
+- SahlBit must be selected as the Android default Dialer for its custom in-call interface to be used. Android 5.0/5.1 continues to use the system call interface.
 - Proximity monitoring uses Android's `PROXIMITY_SCREEN_OFF_WAKE_LOCK` when supported. The call activity does not hold the display on with `FLAG_KEEP_SCREEN_ON`.
 
 Call behavior still depends on the selected default Dialer role, Android Telecom, carrier configuration, device firmware, and hardware support. Call waiting and proximity behavior require physical-device verification.
@@ -51,9 +56,11 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 ### Permissions and privacy
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
+- App usage ordering can use Android Usage Access; it is optional and can be granted from the app catalog.
+- Incoming-call notifications require Android notification permission on Android 13+.
 - Direct calling requires the Android call permission.
 - Screen-timeout modification requires Android's special `WRITE_SETTINGS` access.
-- The About screen does not embed a personal phone number in the application source.
+- The About screen displays the contact number configured by the project owner.
 - No server-side account or synchronization service is included.
 
 ## Build with GitHub Actions
@@ -64,7 +71,7 @@ The uploaded artifact is named `sahlbit-debug-apk`.
 
 ## Verification status
 
-Version 0.5.2 includes source-level compatibility work and the existing source-level fixes for page-layout persistence, home-screen drag prevention, call permission handling, call-waiting call selection, held-call switching, proximity screen-off handling, and clock update frequency.
+Version 0.5.3 includes the page-layout persistence and drag-prevention work, global Vazirmatn typography, page-scoped contact/app management, app search and usage-based ordering, configurable clock and timeout controls, and the redesigned Telecom call interface. Source-level completion does not replace physical-device testing.
 
 A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
 
@@ -78,13 +85,18 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
 
-## Version 0.5.2 changes
+## Version 0.5.3 changes
 
-- Lowered the minimum Android version to API 21 (Android 5.0).
-- Enabled core-library desugaring for `java.time` APIs on older Android versions.
-- Disabled the custom `InCallService` and in-call activity below API 23 because Android added `InCallService` in Android 6.0; Android 5.0/5.1 uses the system phone app for the in-call interface.
-- Added API 21-compatible call permission handling and legacy launcher icon resources.
-- Guarded API 23+ call-direction, runtime-permission, settings, and package-query APIs.
+- Updated version to 0.5.3 (versionCode 19); minimum Android remains API 21 (Android 5.0).
+- Applied Vazirmatn to Compose typography, native theme widgets, dial pad, and custom call interface.
+- Improved Dialer role discovery with the required ACTION_DIAL intent filter and notification/full-screen call UI integration.
+- Redesigned the dedicated call screen with large senior-friendly controls, call-state colors, mute, speaker, hold/resume, call waiting, and proximity handling.
+- Scoped selected contacts and apps to the currently selected home page; removed duplicate phone-number choices and added contact-photo source selection.
+- Added search and Android usage-time sorting to the installed-app catalog; system apps are listed first.
+- Replaced clock size steppers with sliders, defaulted the second hand off, added calming background choices, and changed screen timeout to minute/second numeric fields.
+- Defaulted numeric battery percentage and app/contact labels to off.
+- Added a phone contact number to the About page and increased its typography.
+- Enabled R8/resource shrinking for the debug APK and removed unused Compose tooling dependencies.
 - Restricted GitHub Actions builds to the `development` branch.
 
 ## Version 0.5.1 changes
