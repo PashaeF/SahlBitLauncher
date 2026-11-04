@@ -903,9 +903,11 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
+                val rowCountRoot = remember(layoutPrefs.getString("row_counts_per_page", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
-                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) } else List(gridRows) { gridColumns }
+                val fallbackRows = rowCountRoot.optInt(index.toString(), layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+                val pageRowCounts = if (storedRows != null) (0 until storedRows.length()).map { storedRows.optInt(it, gridColumns).coerceIn(1, 4) } else List(fallbackRows) { gridColumns }
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
