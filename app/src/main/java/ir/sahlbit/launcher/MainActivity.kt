@@ -149,13 +149,27 @@ class MainActivity : ComponentActivity() {
         }
         openHomeSettings()
     }
-    private val dialerRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private val dialerRoleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        val telecom = getSystemService(android.telecom.TelecomManager::class.java)
+        val selected = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_DIALER) == true
+        android.widget.Toast.makeText(this, if (selected || telecom?.defaultDialerPackage == packageName) "سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب شد." else "برای نمایش رابط تماس سهل‌بیت، باید آن را برنامهٔ تلفن پیش‌فرض انتخاب کنید.", android.widget.Toast.LENGTH_LONG).show()
+    }
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) selectDialer()
+        else android.widget.Toast.makeText(this, "برای نمایش اعلان تماس ورودی، اجازهٔ اعلان‌ها لازم است.", android.widget.Toast.LENGTH_LONG).show()
+    }
     private fun selectDialer() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val manager = getSystemService(RoleManager::class.java)
             if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) {
                 if (!manager.isRoleHeld(RoleManager.ROLE_DIALER)) dialerRoleLauncher.launch(manager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-                else openAndroidSettings()
+                else android.widget.Toast.makeText(this, "سهل‌بیت هم‌اکنون برنامهٔ تلفن پیش‌فرض است.", android.widget.Toast.LENGTH_LONG).show()
                 return
             }
         }
