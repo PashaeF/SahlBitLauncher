@@ -39,7 +39,7 @@ fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english"
 
         val textPaint = android.graphics.Paint().apply {
             color = android.graphics.Color.rgb(23, 32, 51)
-            textSize = radius * 0.15f
+            textSize = digitSizePx
             textAlign = android.graphics.Paint.Align.CENTER
             isAntiAlias = true
             typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
