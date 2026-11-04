@@ -37,7 +37,16 @@ class SahlBitInCallService : InCallService() {
     }
 
     private val callback = object : Call.Callback() {
-        override fun onStateChanged(call: Call, state: Int) = publishAfterSelection()
+        override fun onStateChanged(call: Call, state: Int) {
+            if (state == Call.STATE_HOLDING) {
+                val waiting = pendingUnhold
+                if (waiting != null) {
+                    pendingUnhold = null
+                    runCatching { waiting.unhold() }
+                }
+            }
+            publishAfterSelection()
+        }
         override fun onDetailsChanged(call: Call, details: Call.Details) = publishAfterSelection()
         override fun onParentChanged(call: Call, parent: Call?) = publishAfterSelection()
         override fun onChildrenChanged(call: Call, children: MutableList<Call>) = publishAfterSelection()
@@ -80,6 +89,8 @@ class SahlBitInCallService : InCallService() {
         var activeCall: Call? = null
             private set
 
+        private var pendingUnhold: Call? = null
+
         fun answer() {
             activeCall?.takeIf { it.state == Call.STATE_RINGING }?.answer(VideoProfile.STATE_AUDIO_ONLY)
         }
@@ -98,8 +109,8 @@ class SahlBitInCallService : InCallService() {
             val active = calls.firstOrNull { it.state == Call.STATE_ACTIVE }
             val held = calls.firstOrNull { it.state == Call.STATE_HOLDING }
             if (active != null && held != null) {
-                runCatching { active.hold() }
-                runCatching { held.unhold() }
+                pendingUnhold = held
+                runCatching { active.hold() }.onFailure { pendingUnhold = null }
             } else if (active == null && held != null) {
                 runCatching { held.unhold() }
             }
