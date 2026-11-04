@@ -1013,14 +1013,18 @@ private fun constantTimeEquals(a: String, b: String): Boolean = MessageDigest.is
 
 private fun copyContactPhoto(context: Context, sourceUri: String): String? {
     val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+    var copied = false
     return try {
         val input = context.contentResolver.openInputStream(Uri.parse(sourceUri)) ?: return null
         input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
-        if (target.exists() && target.length() > 0L) Uri.fromFile(target).toString() else null
+        if (target.exists() && target.length() > 0L) {
+            copied = true
+            Uri.fromFile(target).toString()
+        } else null
     } catch (_: Exception) {
         null
     } finally {
-        if (!target.exists() || target.length() <= 0L) target.delete()
+        if (!copied) target.delete()
     }
 }
 
