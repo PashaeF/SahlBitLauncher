@@ -21,10 +21,16 @@ import kotlin.math.sin
 @Composable
 fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true) {
     var time by remember { mutableStateOf(LocalTime.now()) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(showSecondHand) {
         while (true) {
-            time = LocalTime.now()
-            delay(1000)
+            val now = LocalTime.now()
+            time = now
+            val waitMillis = if (showSecondHand) {
+                1000L
+            } else {
+                ((60 - now.second) * 1000L - now.nano / 1_000_000L).coerceAtLeast(50L)
+            }
+            delay(waitMillis)
         }
     }
     val density = LocalDensity.current
