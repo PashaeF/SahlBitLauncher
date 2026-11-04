@@ -1,6 +1,6 @@
 <resources>
     <style name="Theme.SahlBit" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item>
+        <item name="android:fontFamily">@font/vazirmatn_regular</item>
         <item name="android:statusBarColor">#F8FAFC</item>
         <item name="android:navigationBarColor">#F8FAFC</item>
         <item name="android:windowActionModeOverlay">true</item>
