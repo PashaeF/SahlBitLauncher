@@ -580,7 +580,7 @@ private fun SahlBitApp(
                                 Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                 if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                             }
-                            if (entry.kind == "contact") IconButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Icon(Icons.Default.Photo, "انتخاب عکس از گالری", tint = Teal) }
+                            if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
                             val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
                             val samePagePosition = samePageIndices.indexOf(position)
                             IconButton(enabled = samePagePosition > 0, onClick = {
@@ -591,7 +591,7 @@ private fun SahlBitApp(
                                     val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
                                     entries = mutable; LauncherEntryStore.save(prefs, entries)
                                 }
-                            }) { Icon(Icons.Default.ArrowUpward, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
+                            }) { Text("↑", color = if (samePagePosition > 0) Forest else Color.LightGray, fontSize = 22.sp) }
                             IconButton(enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex, onClick = {
                                 if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) {
                                     val mutable = entries.toMutableList()
@@ -600,7 +600,7 @@ private fun SahlBitApp(
                                     val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
                                     entries = mutable; LauncherEntryStore.save(prefs, entries)
                                 }
-                            }) { Icon(Icons.Default.ArrowDownward, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
+                            }) { Text("↓", color = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray, fontSize = 22.sp) }
                             IconButton(onClick = {
                                 val removed = entries.firstOrNull { it.id == entry.id }
                                 entries = entries.filterNot { it.id == entry.id }
@@ -765,7 +765,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                 val pkg = item.activityInfo.packageName
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onLaunch(pkg) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(item.loadLabel(pm).toString(), color = Ink, modifier = Modifier.weight(1f))
-                    Icon(Icons.Default.OpenInNew, "اجرا", tint = Teal)
+                    Text("اجرا", color = Teal, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -814,9 +814,9 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("مدیریت صفحات و چیدمان", "تعداد صفحات و تعداد کارت‌ها", Icons.Default.Settings, onPages) }
             item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", Icons.Default.Settings, onContacts) }
-            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Apps, onAllApps) }
+            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", Icons.Default.Settings, onAllApps) }
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", Icons.Default.Settings, onAppearance) }
-            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.AccessTime, onClock) }
+            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", Icons.Default.Settings, onClock) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", Icons.Default.Settings, onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", Icons.Default.Settings, onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", Icons.Default.Home, onSelectLauncher) }
