@@ -83,7 +83,7 @@ class CallActivity : Activity(), SensorEventListener {
 
         SahlBitInCallService.activeCall?.let { call ->
             callState = call.state
-            incoming = call.details.callDirection == Call.Details.DIRECTION_INCOMING
+            incoming = SahlBitInCallService.isIncoming(call)
             number = call.details.handle?.schemeSpecificPart.orEmpty()
             displayName = call.details.callerDisplayName.orEmpty().ifBlank { number }
         }
