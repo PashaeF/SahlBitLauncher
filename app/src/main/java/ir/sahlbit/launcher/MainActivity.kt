@@ -389,6 +389,7 @@ private fun SahlBitApp(
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
         "pages" -> SettingsPage("مدیریت صفحات", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحات و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
+            PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
                 if (next < pageCount) entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
@@ -563,6 +564,22 @@ private fun SahlBitApp(
                 Switch(showContactNames, { showContactNames = it; prefs.edit().putBoolean("show_contact_names", it).apply() })
             }
             Divider()
+            var windowBrightness by remember { mutableFloatStateOf(1f) }
+            Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
+            Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل گوشی دست نمی‌زند.", color = Ink, fontSize = 12.sp)
+            Slider(value = windowBrightness, onValueChange = { value ->
+                windowBrightness = value
+                (context as? ComponentActivity)?.window?.let { w ->
+                    val params = w.attributes
+                    params.screenBrightness = value.coerceIn(0.05f, 1f)
+                    w.attributes = params
+                }
+            }, valueRange = 0.05f..1f)
+            OutlinedButton(onClick = {
+                windowBrightness = 1f
+                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE; w.attributes = params }
+            }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از روشنایی خودکار/سیستمی") }
+            Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
             Text("پس از ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه بی‌استفاده‌ماندن", color = Teal)
             Slider(value = screenTimeoutSeconds.toFloat(), onValueChange = { screenTimeoutSeconds = it.toInt() }, valueRange = 15f..1800f, onValueChangeFinished = {
@@ -704,6 +721,24 @@ private fun SahlBitApp(
     Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, lineHeight = 24.sp); Spacer(Modifier.height(18.dp)); content()
+    }
+}
+@Composable private fun PageDropdown(label: String, selectedPage: Int, pageNames: List<String>, onChange: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val safeNames = pageNames.ifEmpty { listOf("صفحهٔ اول") }
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, color = Ink, fontWeight = FontWeight.SemiBold)
+        Box {
+            OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(safeNames.getOrElse(selectedPage) { "صفحهٔ ${(selectedPage + 1).toPersianDigits()}" }, modifier = Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                safeNames.forEachIndexed { index, name ->
+                    DropdownMenuItem(text = { Text(name) }, onClick = { onChange(index); expanded = false })
+                }
+            }
+        }
     }
 }
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
