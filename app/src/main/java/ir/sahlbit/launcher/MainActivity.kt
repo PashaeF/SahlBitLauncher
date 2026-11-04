@@ -487,13 +487,9 @@ private fun SahlBitApp(
                     }
                 }
             }
-            Text("تراز چیدمان", color = Ink, fontWeight = FontWeight.Bold)
-            listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) ->
-                Row(Modifier.fillMaxWidth().clickable { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(gridAlignment == key, { gridAlignment = key; prefs.edit().putString("grid_alignment", key).apply() }); Text(label, color = Ink) }
-            }
         }
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
-            PageDropdown("صفحه مقصد برای موارد جدید", selectedPage, pageNames) { selectedPage = it }
+            PageDropdown("صفحهٔ مقصد برای موارد جدید (مخاطب یا برنامه)", selectedPage, pageNames) { selectedPage = it }
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
@@ -508,7 +504,7 @@ private fun SahlBitApp(
             val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
             Text("افزودن برنامه به صفحه اصلی", color = Ink, fontWeight = FontWeight.Bold)
             LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(installedApps) { resolve ->
+                items(installedApps, key = { it.activityInfo.packageName }) { resolve ->
                     val pkg = resolve.activityInfo.packageName
                     val label = resolve.loadLabel(pm).toString()
                     val alreadyAdded = entries.any { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }
@@ -527,46 +523,36 @@ private fun SahlBitApp(
                 }
             }
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-              items(entries, key = { it.id }) { entry ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(entry.title, color = Ink)
-                        if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) {
-                            Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
-                        }
-                        PageDropdown("صفحهٔ مقصد", entry.page, pageNames) { destination ->
-                            entries = entries.map { if (it.id == entry.id) it.copy(page = destination) else it }
-                            LauncherEntryStore.save(prefs, entries)
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(entries, key = { it.id }) { entry ->
+                    val position = entries.indexOfFirst { it.id == entry.id }
+                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
+                            }
+                            if (entry.kind == "contact") IconButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Icon(Icons.Default.Photo, "انتخاب عکس از گالری", tint = Teal) }
+                            IconButton(enabled = position > 0, onClick = {
+                                val mutable = entries.toMutableList()
+                                val from = mutable.indexOfFirst { it.id == entry.id }
+                                if (from > 0) { val item = mutable.removeAt(from); mutable.add(from - 1, item); entries = mutable; LauncherEntryStore.save(prefs, entries) }
+                            }) { Icon(Icons.Default.ArrowUpward, "انتقال به بالا", tint = if (position > 0) Forest else Color.LightGray) }
+                            IconButton(enabled = position < entries.lastIndex, onClick = {
+                                val mutable = entries.toMutableList()
+                                val from = mutable.indexOfFirst { it.id == entry.id }
+                                if (from >= 0 && from < mutable.lastIndex) { val item = mutable.removeAt(from); mutable.add(from + 1, item); entries = mutable; LauncherEntryStore.save(prefs, entries) }
+                            }) { Icon(Icons.Default.ArrowDownward, "انتقال به پایین", tint = if (position < entries.lastIndex) Forest else Color.LightGray) }
+                            IconButton(onClick = {
+                                val removed = entries.firstOrNull { it.id == entry.id }
+                                entries = entries.filterNot { it.id == entry.id }
+                                LauncherEntryStore.save(prefs, entries)
+                                removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) }
+                            }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
                         }
                     }
-                    if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
-                    if (entry.kind == "contact") TextButton(onClick = {
-                        val lookup = entry.contactLookupUri?.let(Uri::parse)
-                        if (lookup != null) runCatching {
-                            context.startActivity(Intent(Intent.ACTION_EDIT).setDataAndType(lookup, ContactsContract.Contacts.CONTENT_ITEM_TYPE))
-                        }.onFailure { android.widget.Toast.makeText(context, "ویرایش مخاطب در دسترس نیست", android.widget.Toast.LENGTH_LONG).show() }
-                        else android.widget.Toast.makeText(context, "این کارت به مخاطب دفترچه تلفن متصل نیست؛ دوباره مخاطب را انتخاب کنید", android.widget.Toast.LENGTH_LONG).show()
-                    }) { Text("ویرایش دفترچه تلفن") }
-                    IconButton(onClick = { val indices = entries.indices.filter { entries[it].page == entry.page }; val position = indices.indexOfFirst { entries[it].id == entry.id }; if (position > 0) { val mutable = entries.toMutableList(); val a = indices[position]; val b = indices[position - 1]; val temp = mutable[a]; mutable[a] = mutable[b]; mutable[b] = temp; entries = mutable; LauncherEntryStore.save(prefs, entries) } }) { Text("↑", color = Forest, fontSize = 20.sp) }
-                    IconButton(onClick = { val indices = entries.indices.filter { entries[it].page == entry.page }; val position = indices.indexOfFirst { entries[it].id == entry.id }; if (position >= 0 && position < indices.lastIndex) { val mutable = entries.toMutableList(); val a = indices[position]; val b = indices[position + 1]; val temp = mutable[a]; mutable[a] = mutable[b]; mutable[b] = temp; entries = mutable; LauncherEntryStore.save(prefs, entries) } }) { Text("↓", color = Forest, fontSize = 20.sp) }
-                    TextButton(onClick = {
-                        val removed = entries.firstOrNull { it.id == entry.id }
-                        entries = entries.filterNot { it.id == entry.id }
-                        LauncherEntryStore.save(prefs, entries)
-                        removed?.photoUri?.let { photo ->
-                            if (entries.none { it.photoUri == photo }) runCatching {
-                                val uri = Uri.parse(photo)
-                                if (uri.scheme == "file") {
-                                    val file = java.io.File(uri.path ?: "")
-                                    val base = context.filesDir.canonicalFile
-                                    if (file.canonicalFile.parentFile == base && file.name.startsWith("contact_")) file.delete()
-                                }
-                            }
-                        }
-                    }) { Text("حذف", color = Color(0xFFB3261E)) }
                 }
-              }
             }
         }
         "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
@@ -770,7 +756,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     }
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp)) {
+    Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, lineHeight = 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
