@@ -509,6 +509,8 @@ private fun SahlBitApp(
                 rowAlignments = (rowAlignments.take(value) + List((value - rowAlignments.size).coerceAtLeast(0)) { "center" })
                 persistRowLayout()
             }
+            val selectedPageEntryCount = entries.count { it.page == selectedPage }
+            if (selectedPageEntryCount > rowCardCounts.sum()) Text("توجه: این صفحه ${selectedPageEntryCount.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${rowCardCounts.sum().toPersianDigits()} کارت است. برای نمایش همهٔ موارد، تعداد ردیف‌ها یا کارت‌های هر ردیف را افزایش دهید.", color = Color(0xFFB3261E), fontSize = 13.sp)
             Text("تنظیم تعداد کارت و تراز هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -579,16 +581,26 @@ private fun SahlBitApp(
                                 if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                             }
                             if (entry.kind == "contact") IconButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Icon(Icons.Default.Photo, "انتخاب عکس از گالری", tint = Teal) }
-                            IconButton(enabled = position > 0, onClick = {
-                                val mutable = entries.toMutableList()
-                                val from = mutable.indexOfFirst { it.id == entry.id }
-                                if (from > 0) { val item = mutable.removeAt(from); mutable.add(from - 1, item); entries = mutable; LauncherEntryStore.save(prefs, entries) }
-                            }) { Icon(Icons.Default.ArrowUpward, "انتقال به بالا", tint = if (position > 0) Forest else Color.LightGray) }
-                            IconButton(enabled = position < entries.lastIndex, onClick = {
-                                val mutable = entries.toMutableList()
-                                val from = mutable.indexOfFirst { it.id == entry.id }
-                                if (from >= 0 && from < mutable.lastIndex) { val item = mutable.removeAt(from); mutable.add(from + 1, item); entries = mutable; LauncherEntryStore.save(prefs, entries) }
-                            }) { Icon(Icons.Default.ArrowDownward, "انتقال به پایین", tint = if (position < entries.lastIndex) Forest else Color.LightGray) }
+                            val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
+                            val samePagePosition = samePageIndices.indexOf(position)
+                            IconButton(enabled = samePagePosition > 0, onClick = {
+                                if (samePagePosition > 0) {
+                                    val mutable = entries.toMutableList()
+                                    val from = samePageIndices[samePagePosition]
+                                    val to = samePageIndices[samePagePosition - 1]
+                                    val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
+                                    entries = mutable; LauncherEntryStore.save(prefs, entries)
+                                }
+                            }) { Icon(Icons.Default.ArrowUpward, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
+                            IconButton(enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex, onClick = {
+                                if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) {
+                                    val mutable = entries.toMutableList()
+                                    val from = samePageIndices[samePagePosition]
+                                    val to = samePageIndices[samePagePosition + 1]
+                                    val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
+                                    entries = mutable; LauncherEntryStore.save(prefs, entries)
+                                }
+                            }) { Icon(Icons.Default.ArrowDownward, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
                             IconButton(onClick = {
                                 val removed = entries.firstOrNull { it.id == entry.id }
                                 entries = entries.filterNot { it.id == entry.id }
