@@ -226,7 +226,7 @@ private fun SahlBitApp(
         val root = org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}")
         when (val saved = root.opt(page.toString())) {
             is org.json.JSONArray -> (0 until saved.length()).map { saved.optString(it, "center") }
-            is String -> List(gridRows) { saved }
+            is String -> List(gridRows) { row -> if (row == gridRows - 1) saved else gridAlignment }
             else -> emptyList()
         }
     }.getOrDefault(emptyList())
