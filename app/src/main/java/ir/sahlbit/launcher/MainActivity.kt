@@ -787,7 +787,7 @@ private fun SahlBitApp(
 private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val context = LocalContext.current
     val pm = context.packageManager
-    val apps = remember { runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString().lowercase() } }.getOrDefault(emptyList()) }
+    val apps = remember { runCatching { pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString().lowercase() } }.getOrDefault(emptyList()) }
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Text("برای اجرای هر برنامه، آن را انتخاب کنید.", color = Ink, modifier = Modifier.padding(bottom = 12.dp))
