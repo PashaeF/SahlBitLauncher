@@ -562,7 +562,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
+            val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
             Text("افزودن برنامه به صفحه اصلی", color = Ink, fontWeight = FontWeight.Bold)
             LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(installedApps, key = { it.activityInfo.packageName }) { resolve ->
@@ -671,7 +671,7 @@ private fun SahlBitApp(
             Text("پس از ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه بی‌استفاده‌ماندن", color = Teal)
             Slider(value = screenTimeoutSeconds.toFloat(), onValueChange = { screenTimeoutSeconds = it.toInt() }, valueRange = 15f..1800f, onValueChangeFinished = {
                 prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
-                if (android.provider.Settings.System.canWrite(context)) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.System.canWrite(context)) {
                     val applied = runCatching {
                         android.provider.Settings.System.putInt(
                             context.contentResolver,
@@ -691,7 +691,10 @@ private fun SahlBitApp(
                 }
             })
             Text("برای اعمال این تنظیم، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کن.", color = Ink, fontSize = 13.sp)
-            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
+            OutlinedButton(onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+                else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
+            }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
         }
         "security" -> SettingsPage("امنیت مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
@@ -725,7 +728,10 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب اختیاری به‌عنوان برنامهٔ تلفن (Dialer)") }
             Spacer(Modifier.height(8.dp))
-            Button(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اجازهٔ تغییر تنظیمات سیستمی") }
+            Button(onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+                else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
+            }, modifier = Modifier.fillMaxWidth()) { Text("اجازهٔ تغییر تنظیمات سیستمی") }
             Spacer(Modifier.height(8.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
