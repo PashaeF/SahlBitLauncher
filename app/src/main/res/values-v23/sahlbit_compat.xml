@@ -1,0 +1,3 @@
+<resources>
+    <bool name="sahlbit_incall_service_enabled">true</bool>
+</resources>
