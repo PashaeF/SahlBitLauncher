@@ -984,7 +984,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
 }
