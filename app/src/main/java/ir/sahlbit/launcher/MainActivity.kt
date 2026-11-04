@@ -739,7 +739,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME} (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME} (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
