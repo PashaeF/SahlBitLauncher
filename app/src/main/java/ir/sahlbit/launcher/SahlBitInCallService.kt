@@ -154,6 +154,7 @@ class SahlBitInCallService : InCallService() {
             trackedCalls[call] ?: (call.state == Call.STATE_RINGING)
         }
 
+        fun hasHeldCall(): Boolean = trackedCalls.keys.any { it !== activeCall && it.state == Call.STATE_HOLDING }
         fun isMuted(): Boolean = serviceInstance?.isMuted == true
         fun isSpeakerOn(): Boolean = (serviceInstance?.callAudioState?.route ?: 0) and CallAudioState.ROUTE_SPEAKER != 0
         fun toggleMute() { serviceInstance?.let { it.setMuted(!it.isMuted) } }
