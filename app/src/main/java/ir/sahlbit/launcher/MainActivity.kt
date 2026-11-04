@@ -61,6 +61,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import ir.sahlbit.launcher.ui.AnalogClock
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -527,9 +528,9 @@ private fun SahlBitApp(
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
-                            val previewWidth = when (count) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                            val previewWidth = when (count) { 1 -> 120.dp; 2 -> 120.dp; 3 -> 90.dp; else -> 70.dp }
                             repeat(count) {
-                                Box(Modifier.fillMaxWidth(previewWidth).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
+                                Box(Modifier.width(previewWidth).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -863,6 +864,8 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0 } }
     val context = LocalContext.current
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val contentWidth = (screenWidth - 32.dp).coerceAtLeast(240.dp)
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", true)
@@ -923,9 +926,11 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
-                                val itemWidth = when (rowEntries.size) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                                val itemFraction = when (rowEntries.size) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                                val itemMaxWidth = when (rowEntries.size) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                                val itemWidth = minOf(contentWidth * itemFraction, itemMaxWidth)
                                 rowEntries.forEach { entry ->
-                                    Box(Modifier.fillMaxWidth(itemWidth).padding(horizontal = 4.dp)) {
+                                    Box(Modifier.width(itemWidth).padding(horizontal = 4.dp)) {
                             var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
                             Card(onClick = { if (draggingEntryId == null) onEntryClick(entry) }, modifier = Modifier
                                 .onGloballyPositioned { cardBounds[entry.id] = it.boundsInWindow() }
