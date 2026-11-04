@@ -13,6 +13,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.res.ResourcesCompat
 import java.time.LocalTime
 import kotlinx.coroutines.delay
 import kotlin.math.cos
@@ -34,6 +36,8 @@ fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english"
         }
     }
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val digitTypeface = ResourcesCompat.getFont(context, R.font.vazirmatn_medium)
     val digitSizePx = with(density) { digitSizeSp.sp.toPx() }
     Canvas(modifier = modifier.aspectRatio(1f)) {
         val cx = size.width / 2f
@@ -48,18 +52,18 @@ fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english"
             textSize = digitSizePx
             textAlign = android.graphics.Paint.Align.CENTER
             isAntiAlias = true
-            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+            typeface = android.graphics.Typeface.create(digitTypeface, android.graphics.Typeface.NORMAL)
         }
         for (number in 1..12) {
             val angle = Math.toRadians((number * 30 - 90).toDouble())
-            val x = cx + cos(angle).toFloat() * radius * 0.78f
-            val y = cy + sin(angle).toFloat() * radius * 0.78f + textPaint.textSize * 0.34f
+            val x = cx + cos(angle).toFloat() * radius * 0.70f
+            val y = cy + sin(angle).toFloat() * radius * 0.78f + textPaint.textSize * 0.30f
             drawContext.canvas.nativeCanvas.drawText(if (digitLanguage == "persian") number.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }.joinToString("") else number.toString(), x, y, textPaint)
         }
         for (tick in 0 until 60) {
             val angle = Math.toRadians((tick * 6 - 90).toDouble())
-            val outer = radius * 0.91f
-            val inner = if (tick % 5 == 0) radius * 0.84f else radius * 0.88f
+            val outer = radius * 0.94f
+            val inner = if (tick % 5 == 0) radius * 0.87f else radius * 0.90f
             drawLine(
                 color = Color(0xFF94A3B8),
                 start = Offset(cx + cos(angle).toFloat() * inner, cy + sin(angle).toFloat() * inner),
