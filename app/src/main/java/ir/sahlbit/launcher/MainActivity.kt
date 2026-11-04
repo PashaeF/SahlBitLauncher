@@ -28,12 +28,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -247,7 +241,18 @@ private fun SahlBitApp(
     }
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
+    var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val callPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val number = pendingCallNumber
+        pendingCallNumber = null
+        if (!number.isNullOrBlank()) {
+            val callIntent = Intent(if (granted) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))
+            runCatching { context.startActivity(callIntent) }.onFailure {
+                runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
+            }
+        }
+    }
     var contactPickerPending by remember { mutableStateOf(false) }
     var pendingContactName by remember { mutableStateOf("") }
     var pendingContactLookup by remember { mutableStateOf<String?>(null) }
@@ -418,15 +423,20 @@ private fun SahlBitApp(
             onAdminEntry = { pinInput = ""; error = ""; route = "login" },
             pageCount = pageCount, pageNames = pageNames,
             entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, rowAlignments = rowAlignments,
-            onReorder = { fromId, toId ->
-                val from = entries.indexOfFirst { it.id == fromId }; val to = entries.indexOfFirst { it.id == toId }
-                if (from >= 0 && to >= 0 && entries[from].page == entries[to].page) {
-                    val mutable = entries.toMutableList(); val moving = mutable.removeAt(from); mutable.add(to.coerceIn(0, mutable.size), moving)
-                    entries = mutable; LauncherEntryStore.save(prefs, entries)
-                }
-            },
             onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
-            onConfirmCall = { entry -> entry.phoneNumber?.let { number -> runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }; pendingCall = null },
+            onConfirmCall = { entry ->
+                entry.phoneNumber?.takeIf { it.isNotBlank() }?.let { number ->
+                    pendingCallNumber = number
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                        pendingCallNumber = null
+                        val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))
+                        runCatching { context.startActivity(callIntent) }.onFailure {
+                            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
+                        }
+                    } else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
+                }
+                pendingCall = null
+            },
             pendingCall = pendingCall, onCancelCall = { pendingCall = null }
         )
         "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error,
@@ -466,7 +476,10 @@ private fun SahlBitApp(
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             NumberSetting("تعداد صفحات", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
-                if (next < pageCount) entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
+                if (next < pageCount) {
+                    entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
+                    remapPageLayoutPreferences(prefs, (0 until next).associateWith { it })
+                }
                 if (next > pageCount) pageNames = pageNames + (pageCount until next).map { "صفحه ${(it + 1).toPersianDigits()}" }
                 pageNames = pageNames.take(next)
                 pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1)
@@ -477,6 +490,7 @@ private fun SahlBitApp(
                     if (pageCount < 12) {
                         val copyItems = entries.filter { it.page == selectedPage }.map { it.copy(id = java.util.UUID.randomUUID().toString(), page = pageCount) }
                         entries = entries + copyItems
+                        remapPageLayoutPreferences(prefs, (0 until pageCount).associateWith { it }, selectedPage to pageCount)
                         pageNames = pageNames + "${pageNames[selectedPage]} - کپی"
                         pageCount += 1; selectedPage = pageCount - 1
                         LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
@@ -487,8 +501,8 @@ private fun SahlBitApp(
             Text("نام صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${(selectedPage + 1).toPersianDigits()}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { if (selectedPage > 0) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage - 1]; names[selectedPage - 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage - 1); selectedPage - 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage--; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage > 0) { Text("انتقال صفحه به بالا") }
-                OutlinedButton(onClick = { if (selectedPage < pageCount - 1) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage + 1]; names[selectedPage + 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage + 1); selectedPage + 1 -> e.copy(page = selectedPage); else -> e } }; selectedPage++; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage < pageCount - 1) { Text("انتقال صفحه به پایین") }
+                OutlinedButton(onClick = { if (selectedPage > 0) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage - 1]; names[selectedPage - 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage - 1); selectedPage - 1 -> e.copy(page = selectedPage); else -> e } }; remapPageLayoutPreferences(prefs, (0 until pageCount).associateWith { old -> when (old) { selectedPage -> selectedPage - 1; selectedPage - 1 -> selectedPage; else -> old } }); selectedPage--; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage > 0) { Text("انتقال صفحه به بالا") }
+                OutlinedButton(onClick = { if (selectedPage < pageCount - 1) { val names = pageNames.toMutableList(); val n = names[selectedPage]; names[selectedPage] = names[selectedPage + 1]; names[selectedPage + 1] = n; pageNames = names; entries = entries.map { e -> when (e.page) { selectedPage -> e.copy(page = selectedPage + 1); selectedPage + 1 -> e.copy(page = selectedPage); else -> e } }; remapPageLayoutPreferences(prefs, (0 until pageCount).associateWith { old -> when (old) { selectedPage -> selectedPage + 1; selectedPage + 1 -> selectedPage; else -> old } }); selectedPage++; LauncherEntryStore.save(prefs, entries); prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() } }, enabled = selectedPage < pageCount - 1) { Text("انتقال صفحه به پایین") }
             }
             if (confirmPageDeletion) {
                 AlertDialog(
@@ -503,6 +517,7 @@ private fun SahlBitApp(
                                 else -> e
                             }
                         }
+                        remapPageLayoutPreferences(prefs, (0 until pageCount).filter { it != selectedPage }.associate { old -> old to if (old > selectedPage) old - 1 else old })
                         pageNames = pageNames.filterIndexed { index, _ -> index != selectedPage }
                         pageCount -= 1; selectedPage = selectedPage.coerceAtMost(pageCount - 1)
                         LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
@@ -867,7 +882,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0 } }
     val context = LocalContext.current
@@ -890,10 +905,11 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 300).coerceIn(180, 360)
+        val effectiveClockSize = minOf(clockSize, (screenWidth.value.toInt() - 32).coerceAtLeast(120))
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
         val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", true)
-        AnalogClock(Modifier.size(clockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible)
+        AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible)
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
             val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
@@ -925,8 +941,6 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                 if (pageEntries.isEmpty()) {
                     Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
                 } else {
-                    val cardBounds = remember(index) { mutableStateMapOf<String, Rect>() }
-                    var draggingEntryId by remember(index) { mutableStateOf<String?>(null) }
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         var entryOffset = 0
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
@@ -938,33 +952,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                                 val itemWidth = minOf(contentWidth * itemFraction, itemMaxWidth)
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.width(itemWidth).padding(horizontal = 4.dp)) {
-                            var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
-                            Card(onClick = { if (draggingEntryId == null) onEntryClick(entry) }, modifier = Modifier
-                                .onGloballyPositioned { cardBounds[entry.id] = it.boundsInWindow() }
-                                .pointerInput(entry.id, pageEntries, cardBounds) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = { draggingEntryId = entry.id; lastDropTarget = null },
-                                        onDrag = { change, _ ->
-                                            change.consume()
-                                            val origin = cardBounds[entry.id]?.topLeft ?: return@detectDragGesturesAfterLongPress
-                                            val pointer = origin + change.position
-                                            // Track the current drop target without mutating the backing list mid-gesture.
-                                            // Reordering during pointer movement invalidates LazyGrid coordinates and
-                                            // can cause repeated swaps or a dropped gesture on slower devices.
-                                            lastDropTarget = cardBounds.entries.firstOrNull { (id, rect) ->
-                                                id != entry.id && rect.contains(pointer)
-                                            }?.key
-                                        },
-                                        onDragEnd = {
-                                            val target = lastDropTarget
-                                            draggingEntryId = null
-                                            lastDropTarget = null
-                                            if (target != null) onReorder(entry.id, target)
-                                        },
-                                        onDragCancel = { draggingEntryId = null; lastDropTarget = null }
-                                    )
-                                }
-                                .alpha(if (draggingEntryId == entry.id) .55f else 1f),
+                            Card(onClick = { onEntryClick(entry) },
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     val photo = entry.photoUri
@@ -1002,6 +990,26 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         if (pendingCall != null) {
             AlertDialog(onDismissRequest = onCancelCall, title = { Text("تماس با ${pendingCall.title}؟") }, text = { Text("آیا می‌خواهید با این مخاطب تماس بگیرید؟\n${pendingCall.phoneNumber ?: ""}") }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر") } }, dismissButton = { OutlinedButton(onClick = onCancelCall) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
+    }
+}
+
+
+private fun remapPageLayoutPreferences(
+    prefs: android.content.SharedPreferences,
+    mapping: Map<Int, Int>,
+    duplicate: Pair<Int, Int>? = null
+) {
+    listOf("row_counts_per_page", "row_layouts", "row_alignments").forEach { key ->
+        val old = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }
+            .getOrDefault(org.json.JSONObject())
+        val updated = org.json.JSONObject()
+        mapping.forEach { (oldPage, newPage) ->
+            if (old.has(oldPage.toString())) updated.put(newPage.toString(), old.opt(oldPage.toString()))
+        }
+        duplicate?.let { (sourcePage, targetPage) ->
+            if (old.has(sourcePage.toString())) updated.put(targetPage.toString(), old.opt(sourcePage.toString()))
+        }
+        prefs.edit().putString(key, updated.toString()).apply()
     }
 }
 
