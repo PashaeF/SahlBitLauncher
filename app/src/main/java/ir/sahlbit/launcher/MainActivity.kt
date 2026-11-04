@@ -916,7 +916,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                     var draggingEntryId by remember(index) { mutableStateOf<String?>(null) }
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         var entryOffset = 0
-                        pageRowCounts.take(gridRows).forEachIndexed { rowIndex, rowCount ->
+                        pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
