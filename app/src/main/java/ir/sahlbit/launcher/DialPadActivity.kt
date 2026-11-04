@@ -2,6 +2,8 @@ package ir.sahlbit.launcher
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
@@ -42,7 +44,7 @@ class DialPadActivity : Activity() {
         val value = number.text.toString().trim()
         if (value.isBlank()) return
         pendingNumber = value
-        if (checkSelfPermission(android.Manifest.permission.CALL_PHONE) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.CALL_PHONE), REQUEST_CALL_PERMISSION)
             return
         }
@@ -53,16 +55,19 @@ class DialPadActivity : Activity() {
         val value = pendingNumber ?: return
         val uri = Uri.fromParts("tel", value, null)
         runCatching {
-            val telecom = getSystemService(android.telecom.TelecomManager::class.java)
-                ?: error("Telecom service unavailable")
-            telecom.placeCall(uri, android.os.Bundle())
+            startActivity(Intent(Intent.ACTION_CALL, uri))
             finish()
         }.onFailure {
-            android.widget.Toast.makeText(this, "امکان برقراری تماس وجود ندارد. مجوز تماس و سیم‌کارت را بررسی کنید.", android.widget.Toast.LENGTH_LONG).show()
+            runCatching {
+                startActivity(Intent(Intent.ACTION_DIAL, uri))
+                finish()
+            }.onFailure {
+                android.widget.Toast.makeText(this, "امکان برقراری تماس وجود ندارد. مجوز تماس و سیم‌کارت را بررسی کنید.", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
 
-    @Deprecated("Deprecated by Android; retained for minSdk 29 compatibility")
+    @Deprecated("Deprecated by Android; retained for compatibility with older Android versions")
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CALL_PERMISSION && grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) placePendingCall()
