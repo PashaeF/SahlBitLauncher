@@ -63,6 +63,8 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 import java.time.LocalDate
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 private fun Int.toPersianDigits(): String = toString().map { ch ->
@@ -600,7 +602,11 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
+            val installedApps by produceState(initialValue = emptyList<android.content.pm.ResolveInfo>(), key1 = resumeRevision) {
+                value = withContext(Dispatchers.IO) {
+                    runCatching { pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList())
+                }
+            }
             var appSearch by remember { mutableStateOf("") }
             OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) })
             Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
@@ -861,25 +867,32 @@ private fun SahlBitApp(
 private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val context = LocalContext.current
     val pm = context.packageManager
-    val usageAccessGranted = remember {
-        runCatching {
-            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
-            appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
-        }.getOrDefault(false)
+    fun hasUsageAccess(): Boolean = runCatching {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
+    }.getOrDefault(false)
+    var usageAccessGranted by remember { mutableStateOf(hasUsageAccess()) }
+    val hostActivity = context as? ComponentActivity
+    DisposableEffect(hostActivity) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) usageAccessGranted = hasUsageAccess() }
+        hostActivity?.lifecycle?.addObserver(observer)
+        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
-    val apps = remember(usageAccessGranted) {
-        val usageByPackage = if (usageAccessGranted) runCatching {
-            val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
-            manager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000, System.currentTimeMillis())
-                .groupBy { it.packageName }.mapValues { (_, rows) -> rows.sumOf { it.totalTimeInForeground } }
-        }.getOrDefault(emptyMap()) else emptyMap()
-        runCatching {
-            pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0)
-                .distinctBy { it.activityInfo.packageName }
-                .sortedWith(compareByDescending<android.content.pm.ResolveInfo> { (it.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 }
-                    .thenByDescending { usageByPackage[it.activityInfo.packageName] ?: 0L }
-                    .thenBy { it.loadLabel(pm).toString().lowercase() })
-        }.getOrDefault(emptyList())
+    val apps by produceState(initialValue = emptyList<android.content.pm.ResolveInfo>(), key1 = usageAccessGranted) {
+        value = withContext(Dispatchers.IO) {
+            val usageByPackage = if (usageAccessGranted) runCatching {
+                val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+                manager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000, System.currentTimeMillis())
+                    .groupBy { it.packageName }.mapValues { (_, rows) -> rows.sumOf { it.totalTimeInForeground } }
+            }.getOrDefault(emptyMap()) else emptyMap()
+            runCatching {
+                pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0)
+                    .distinctBy { it.activityInfo.packageName }
+                    .sortedWith(compareByDescending<android.content.pm.ResolveInfo> { (it.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 }
+                        .thenByDescending { usageByPackage[it.activityInfo.packageName] ?: 0L }
+                        .thenBy { it.loadLabel(pm).toString().lowercase() })
+            }.getOrDefault(emptyList())
+        }
     }
     var search by remember { mutableStateOf("") }
     val filteredApps = apps.filter { it.loadLabel(pm).toString().contains(search, ignoreCase = true) }
