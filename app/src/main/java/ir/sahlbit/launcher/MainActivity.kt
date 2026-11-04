@@ -158,8 +158,8 @@ class MainActivity : ComponentActivity() {
         android.widget.Toast.makeText(this, if (selected || telecom?.defaultDialerPackage == packageName) "سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب شد." else "برای نمایش رابط تماس سهل‌بیت، باید آن را برنامهٔ تلفن پیش‌فرض انتخاب کنید.", android.widget.Toast.LENGTH_LONG).show()
     }
     private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) selectDialer()
-        else android.widget.Toast.makeText(this, "برای نمایش اعلان تماس ورودی، اجازهٔ اعلان‌ها لازم است.", android.widget.Toast.LENGTH_LONG).show()
+        if (!granted) android.widget.Toast.makeText(this, "بدون اجازهٔ اعلان‌ها ممکن است نمایش تمام‌صفحهٔ تماس ورودی محدود شود.", android.widget.Toast.LENGTH_LONG).show()
+        requestDialerRole()
     }
     private fun selectDialer() {
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -167,6 +167,9 @@ class MainActivity : ComponentActivity() {
             notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             return
         }
+        requestDialerRole()
+    }
+    private fun requestDialerRole() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val manager = getSystemService(RoleManager::class.java)
             if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) {
