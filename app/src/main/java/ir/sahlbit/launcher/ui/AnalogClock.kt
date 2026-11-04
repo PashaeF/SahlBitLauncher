@@ -65,10 +65,10 @@ fun AnalogClock(modifier: Modifier = Modifier) {
             drawLine(Color(0xFF172033), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.48f), strokeWidth = 6f)
         }
         rotate(minuteAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFF344D3E), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.69f), strokeWidth = 4f)
+            drawLine(Color(0xFF2563EB), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.69f), strokeWidth = 4f)
         }
         rotate(secondAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFFB35B45), Offset(cx, cy + radius * 0.18f), Offset(cx, cy - radius * 0.76f), strokeWidth = 1.8f)
+            drawLine(Color(0xFF1D4ED8), Offset(cx, cy + radius * 0.18f), Offset(cx, cy - radius * 0.76f), strokeWidth = 1.8f)
         }
         drawCircle(Color(0xFFB35B45), radius = 5f, center = Offset(cx, cy))
     }
