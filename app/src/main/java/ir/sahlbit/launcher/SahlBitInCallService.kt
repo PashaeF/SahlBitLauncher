@@ -27,12 +27,13 @@ class SahlBitInCallService : InCallService() {
         selectForegroundCall()
         publishForeground()
         showCallNotification()
-        if (!isIncoming(call)) {
-            val ui = Intent(this, CallActivity::class.java).addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            )
-            runCatching { startActivity(ui) }
-        }
+        // As the selected default dialer, bring the custom call UI forward for
+        // both incoming and outgoing calls. The full-screen call notification
+        // remains the fallback when Android defers a background activity start.
+        val ui = Intent(this, CallActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        runCatching { startActivity(ui) }
     }
 
     override fun onCallRemoved(call: Call) {
