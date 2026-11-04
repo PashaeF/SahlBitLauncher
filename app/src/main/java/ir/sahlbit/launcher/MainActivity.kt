@@ -555,6 +555,11 @@ private fun SahlBitApp(
             }
             var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", true)) }
             var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", true)) }
+            var numericBattery by remember { mutableStateOf(prefs.getBoolean("numeric_battery", false)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("نمایش درصد عددی باتری به‌جای نشانگر گرافیکی", modifier = Modifier.weight(1f), color = Ink)
+                Switch(numericBattery, { numericBattery = it; prefs.edit().putBoolean("numeric_battery", it).apply() })
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("نمایش نام برنامه‌ها", modifier = Modifier.weight(1f), color = Ink)
                 Switch(showAppNames, { showAppNames = it; prefs.edit().putBoolean("show_app_names", it).apply() })
@@ -760,18 +765,21 @@ private fun SahlBitApp(
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            if (charging) Text("⚡", color = if (battery > 95) Color(0xFF168A45) else Color(0xFF1689D4), fontSize = 36.sp, fontWeight = FontWeight.Bold)
+            if (charging) Text("⚡", color = if (battery > 95) Color(0xFF168A45) else Color(0xFF1689D4), fontSize = 48.sp, fontWeight = FontWeight.Bold)
             IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } }) { Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .42f), modifier = Modifier.size(20.dp)) }
         }
         AnalogClock(Modifier.size(212.dp))
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            Box(Modifier.width(76.dp).height(30.dp).border(2.dp, batteryColor, RoundedCornerShape(7.dp)).padding(3.dp), contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor))
+            val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
+            if (numericBattery) {
+                Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+            } else {
+                Box(Modifier.width(92.dp).height(36.dp).border(2.dp, batteryColor, RoundedCornerShape(7.dp)).padding(3.dp), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor))
+                }
+                Box(Modifier.padding(start = 2.dp).width(6.dp).height(15.dp).background(batteryColor, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)))
             }
-            Box(Modifier.padding(start = 2.dp).width(5.dp).height(12.dp).background(batteryColor, RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp)))
-            Spacer(Modifier.width(10.dp))
-            Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
         }
         Text(if (charging && battery > 95) "شارژ تقریباً کامل" else if (charging) "گوشی در حال شارژ است" else "میزان شارژ باتری", color = fg, fontSize = 14.sp)
         Spacer(Modifier.height(6.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -830,17 +838,18 @@ private fun SahlBitApp(
                                 Column(Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
-                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(68.dp).clip(RoundedCornerShape(12.dp)))
+                                    val itemPhotoSize = when { rowEntries.size <= 2 -> 104.dp; rowEntries.size == 3 -> 88.dp; else -> 72.dp }
+                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(itemPhotoSize).clip(RoundedCornerShape(14.dp)))
                                     else if (entry.kind == "app") {
                                         val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
                                             val drawable = context.packageManager.getApplicationIcon(pkg)
                                             val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
                                             val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                         }.getOrNull() } }
-                                        if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(58.dp))
+                                        if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(if (rowEntries.size <= 2) 76.dp else 60.dp))
                                         else Icon(Icons.Default.Settings, null, tint = Teal, modifier = Modifier.size(54.dp))
                                     }
-                                     else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(54.dp))
+                                     else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (rowEntries.size <= 2) 76.dp else 54.dp))
                                     if ((entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames)) {
                                         Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                     }
