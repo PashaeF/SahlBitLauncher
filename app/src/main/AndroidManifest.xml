@@ -16,7 +16,7 @@
     <application
         android:name=".SahlBitApplication"
         android:allowBackup="false"
-        android:label="سهل بیت"
+        android:label="سهل‌بیت"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
