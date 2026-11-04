@@ -300,7 +300,7 @@ private fun SahlBitApp(
     var pendingContactOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     fun addPickedContact(name: String, number: String, phoneUri: String, lookupUri: String?, photoSource: String?) {
         val photo = photoSource?.let { source -> copyContactPhoto(context, source) }
-        val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = if (photo != null) "contact" else null, photoSourceUri = photoSource)
+        val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = if (photo != null) "contact" else "none", photoSourceUri = photoSource)
         entries = entries + item
         LauncherEntryStore.save(prefs, entries)
     }
