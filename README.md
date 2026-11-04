@@ -1,13 +1,13 @@
-# SahlBit Launcher 0.5.1
+# SahlBit Launcher 0.5.2
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.1`
-- **Version Code:** `17`
-- **Minimum Android:** API 29 (Android 10)
+- **Version:** `0.5.2`
+- **Version Code:** `18`
+- **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
 - **Gradle:** 8.11.1
@@ -64,7 +64,7 @@ The uploaded artifact is named `sahlbit-debug-apk`.
 
 ## Verification status
 
-Version 0.5.1 includes source-level fixes for page-layout persistence, home-screen drag prevention, call permission handling, call-waiting call selection, held-call switching, proximity screen-off handling, and clock update frequency.
+Version 0.5.2 includes source-level compatibility work and the existing source-level fixes for page-layout persistence, home-screen drag prevention, call permission handling, call-waiting call selection, held-call switching, proximity screen-off handling, and clock update frequency.
 
 A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
 
@@ -77,6 +77,15 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 - Contact photos and permission behavior.
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
+
+## Version 0.5.2 changes
+
+- Lowered the minimum Android version to API 21 (Android 5.0).
+- Enabled core-library desugaring for `java.time` APIs on older Android versions.
+- Disabled the custom `InCallService` and in-call activity below API 23 because Android added `InCallService` in Android 6.0; Android 5.0/5.1 uses the system phone app for the in-call interface.
+- Added API 21-compatible call permission handling and legacy launcher icon resources.
+- Guarded API 23+ call-direction, runtime-permission, settings, and package-query APIs.
+- Restricted GitHub Actions builds to the `development` branch.
 
 ## Version 0.5.1 changes
 
