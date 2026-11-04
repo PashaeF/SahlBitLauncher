@@ -241,38 +241,75 @@ private fun SahlBitApp(
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     val context = LocalContext.current
     var contactPickerPending by remember { mutableStateOf(false) }
+    var pendingContactName by remember { mutableStateOf("") }
+    var pendingContactLookup by remember { mutableStateOf<String?>(null) }
+    var pendingContactPhotoSource by remember { mutableStateOf<String?>(null) }
+    var pendingContactOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    fun addPickedContact(name: String, number: String, phoneUri: String, lookupUri: String?, photoSource: String?) {
+        val photo = photoSource?.let { source -> runCatching {
+            val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
+            val input = context.contentResolver.openInputStream(Uri.parse(source)) ?: error("عکس مخاطب در دسترس نیست")
+            input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
+            if (target.exists() && target.length() > 0L) Uri.fromFile(target).toString() else { target.delete(); null }
+        }.getOrNull() }
+        val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = "contact", photoSourceUri = photoSource)
+        entries = entries + item
+        LauncherEntryStore.save(prefs, entries)
+    }
     val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
             runCatching {
-                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI, ContactsContract.CommonDataKinds.Phone.CONTACT_ID), null, null, null)?.use { c ->
-                    if (c.moveToFirst()) {
-                        val name = c.getString(0) ?: "مخاطب"
-                        val number = c.getString(1) ?: ""
-                        val photoSource = c.getString(2)
-                        val contactId = c.getLong(3)
-                        val lookupUri = ContactsContract.Contacts.getLookupUri(
-                            context.contentResolver,
-                            android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
-                        )
-                        val photo = photoSource?.let { source -> runCatching {
-                            context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
-                                val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
-                                target.outputStream().use { output -> input.copyTo(output) }
-                                Uri.fromFile(target).toString()
+                context.contentResolver.query(uri, arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts.PHOTO_URI), null, null, null)?.use { contactCursor ->
+                    if (contactCursor.moveToFirst()) {
+                        val idColumn = contactCursor.getColumnIndex(ContactsContract.Contacts._ID)
+                        val nameColumn = contactCursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                        val photoColumn = contactCursor.getColumnIndex(ContactsContract.Contacts.PHOTO_URI)
+                        val contactId = if (idColumn >= 0) contactCursor.getLong(idColumn) else -1L
+                        val name = if (nameColumn >= 0) contactCursor.getString(nameColumn).orEmpty() else "مخاطب"
+                        val photoSource = if (photoColumn >= 0) contactCursor.getString(photoColumn) else null
+                        if (contactId >= 0L) {
+                            val lookup = ContactsContract.Contacts.getLookupUri(context.contentResolver, android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId))?.toString()
+                            val options = mutableListOf<Pair<String, String>>()
+                            context.contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?",
+                                arrayOf(contactId.toString()),
+                                null
+                            )?.use { phoneCursor ->
+                                val idIndex = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
+                                val numberIndex = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                while (phoneCursor.moveToNext()) {
+                                    val number = if (numberIndex >= 0) phoneCursor.getString(numberIndex).orEmpty().trim() else ""
+                                    val phoneId = if (idIndex >= 0) phoneCursor.getLong(idIndex) else -1L
+                                    if (number.isNotBlank() && phoneId >= 0L) {
+                                        val phoneUri = android.content.ContentUris.withAppendedId(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, phoneId).toString()
+                                        options.add(number to phoneUri)
+                                    }
+                                }
                             }
-                        }.getOrNull() }
-                        val item = LauncherEntry(kind = "contact", title = name, page = selectedPage, contactUri = uri.toString(), contactLookupUri = lookupUri?.toString(), phoneNumber = number, photoUri = photo, photoSource = "contact", photoSourceUri = photoSource)
-                        entries = entries + item
-                        LauncherEntryStore.save(prefs, entries)
+                            when (options.size) {
+                                0 -> android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است", android.widget.Toast.LENGTH_LONG).show()
+                                1 -> addPickedContact(name, options[0].first, options[0].second, lookup, photoSource)
+                                else -> {
+                                    pendingContactName = name
+                                    pendingContactLookup = lookup
+                                    pendingContactPhotoSource = photoSource
+                                    pendingContactOptions = options
+                                }
+                            }
+                        }
                     }
-                }
+                } ?: android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست", android.widget.Toast.LENGTH_LONG).show()
+            }.onFailure {
+                android.widget.Toast.makeText(context, "خواندن اطلاعات مخاطب ناموفق بود", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
 
     val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
         else if (!granted) android.widget.Toast.makeText(context, "برای انتخاب مخاطب، اجازهٔ دسترسی به مخاطبان لازم است", android.widget.Toast.LENGTH_LONG).show()
         contactPickerPending = false
     }
@@ -500,7 +537,7 @@ private fun SahlBitApp(
             PageDropdown("صفحهٔ مقصد برای موارد جدید (مخاطب یا برنامه)", selectedPage, pageNames) { selectedPage = it }
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
                 } else {
                     contactPickerPending = true
                     contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
@@ -670,6 +707,24 @@ private fun SahlBitApp(
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
+    }
+    if (pendingContactOptions.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingContactOptions = emptyList() },
+            title = { Text("انتخاب شمارهٔ تماس") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("برای ${pendingContactName} چند شماره ثبت شده است. شمارهٔ موردنظر را انتخاب کنید.")
+                    pendingContactOptions.forEach { option ->
+                        OutlinedButton(onClick = {
+                            addPickedContact(pendingContactName, option.first, option.second, pendingContactLookup, pendingContactPhotoSource)
+                            pendingContactOptions = emptyList()
+                        }, modifier = Modifier.fillMaxWidth()) { Text(option.first) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { pendingContactOptions = emptyList() }) { Text("انصراف") } }
+        )
     }
     if (editingContactId != null) {
             AlertDialog(onDismissRequest = { editingContactId = null }, title = { Text("ویرایش کارت مخاطب") }, text = {
