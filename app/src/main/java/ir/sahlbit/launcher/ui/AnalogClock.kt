@@ -57,7 +57,7 @@ fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english"
         for (number in 1..12) {
             val angle = Math.toRadians((number * 30 - 90).toDouble())
             val x = cx + cos(angle).toFloat() * radius * 0.70f
-            val y = cy + sin(angle).toFloat() * radius * 0.78f + textPaint.textSize * 0.30f
+            val y = cy + sin(angle).toFloat() * radius * 0.70f + textPaint.textSize * 0.30f
             drawContext.canvas.nativeCanvas.drawText(if (digitLanguage == "persian") number.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }.joinToString("") else number.toString(), x, y, textPaint)
         }
         for (tick in 0 until 60) {
