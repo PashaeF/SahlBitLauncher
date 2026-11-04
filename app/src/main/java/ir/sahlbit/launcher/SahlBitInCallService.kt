@@ -4,6 +4,7 @@ import android.content.Intent
 import android.telecom.Call
 import android.telecom.InCallService
 import android.telecom.VideoProfile
+import android.os.Build
 
 /**
  * Tracks every Telecom call and publishes the call that needs the user's
@@ -13,7 +14,7 @@ import android.telecom.VideoProfile
 class SahlBitInCallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
-        trackedCalls[call] = call
+        trackedCalls[call] = call.state == Call.STATE_RINGING
         call.registerCallback(callback)
         selectForegroundCall()
         publishForeground()
@@ -77,19 +78,25 @@ class SahlBitInCallService : InCallService() {
                 .putExtra(CallActivity.EXTRA_STATE, call.state)
                 .putExtra(CallActivity.EXTRA_NUMBER, number)
                 .putExtra(CallActivity.EXTRA_NAME, name)
-                .putExtra(CallActivity.EXTRA_INCOMING, details.callDirection == Call.Details.DIRECTION_INCOMING)
+                .putExtra(CallActivity.EXTRA_INCOMING, isIncoming(call))
                 .putExtra(CallActivity.EXTRA_HAS_HELD_CALL, hasHeldCall)
         )
     }
 
     companion object {
-        private val trackedCalls = LinkedHashMap<Call, Call>()
+        private val trackedCalls = LinkedHashMap<Call, Boolean>()
 
         @Volatile
         var activeCall: Call? = null
             private set
 
         private var pendingUnhold: Call? = null
+
+        fun isIncoming(call: Call): Boolean = if (Build.VERSION.SDK_INT >= 29) {
+            call.details.callDirection == Call.Details.DIRECTION_INCOMING
+        } else {
+            trackedCalls[call] ?: (call.state == Call.STATE_RINGING)
+        }
 
         fun answer() {
             activeCall?.takeIf { it.state == Call.STATE_RINGING }?.answer(VideoProfile.STATE_AUDIO_ONLY)
