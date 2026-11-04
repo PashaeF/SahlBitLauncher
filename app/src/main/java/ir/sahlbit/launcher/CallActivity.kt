@@ -89,8 +89,7 @@ class CallActivity : Activity(), SensorEventListener {
             incoming = SahlBitInCallService.isIncoming(call)
             number = call.details.handle?.schemeSpecificPart.orEmpty()
             displayName = call.details.callerDisplayName.orEmpty().ifBlank { number }
-            hasHeldCall = call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE) ||
-                callState == Call.STATE_HOLDING
+            hasHeldCall = SahlBitInCallService.hasHeldCall()
         }
         render()
     }
