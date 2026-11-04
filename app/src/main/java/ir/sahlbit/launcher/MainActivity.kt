@@ -527,8 +527,9 @@ private fun SahlBitApp(
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                            val previewWidth = when (count) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
                             repeat(count) {
-                                Box(Modifier.fillMaxWidth(0.25f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
+                                Box(Modifier.fillMaxWidth(previewWidth).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -922,8 +923,9 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
+                                val itemWidth = when (rowEntries.size) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
                                 rowEntries.forEach { entry ->
-                                    Box(Modifier.fillMaxWidth(0.25f).padding(horizontal = 4.dp)) {
+                                    Box(Modifier.fillMaxWidth(itemWidth).padding(horizontal = 4.dp)) {
                             var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
                             Card(onClick = { if (draggingEntryId == null) onEntryClick(entry) }, modifier = Modifier
                                 .onGloballyPositioned { cardBounds[entry.id] = it.boundsInWindow() }
