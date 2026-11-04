@@ -629,6 +629,7 @@ private fun SahlBitApp(
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pageEntries, key = { it.id }) { entry ->
                     val position = pageEntries.indexOfFirst { it.id == entry.id }
+                    val globalPosition = entries.indexOfFirst { it.id == entry.id }
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
@@ -637,10 +638,10 @@ private fun SahlBitApp(
                                 if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                             }
                             if (entry.kind == "contact") TextButton(onClick = { photoSourceDialogEntry = entry }) {
-                                Text(if (entry.photoSource == "contact") "✓ عکس مخاطبین" else if (entry.photoSource == "gallery") "✓ عکس گالری" else "انتخاب تصویر")
+                                Text(if (entry.photoSource == "contact") "✓ عکس مخاطبین" else if (entry.photoSource == "gallery") "✓ عکس گالری" else "انتخاب تصویر", color = if (entry.photoSource == "contact" || entry.photoSource == "gallery") Color(0xFF168A45) else Teal)
                             }
                             val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
-                            val samePagePosition = samePageIndices.indexOf(position)
+                            val samePagePosition = samePageIndices.indexOf(globalPosition)
                             IconButton(enabled = samePagePosition > 0, onClick = {
                                 if (samePagePosition > 0) {
                                     val mutable = entries.toMutableList()
@@ -922,9 +923,9 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.fillMaxWidth().height(132.dp)) {
+            Box(Modifier.fillMaxWidth().height(156.dp)) {
             Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.align(Alignment.BottomStart))
-            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopEnd).size(112.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(88.dp)) }
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopEnd).size(132.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(108.dp)) }
         }
         }
         Spacer(Modifier.height(20.dp)); PinField("پین مدیر", pin, onPin)
