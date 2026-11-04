@@ -219,6 +219,12 @@ private fun SahlBitApp(
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     val context = LocalContext.current
+    var contactPickerPending by remember { mutableStateOf(false) }
+    val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        else if (!granted) android.widget.Toast.makeText(context, "برای انتخاب مخاطب، اجازهٔ دسترسی به مخاطبان لازم است", android.widget.Toast.LENGTH_LONG).show()
+        contactPickerPending = false
+    }
     val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
@@ -463,8 +469,15 @@ private fun SahlBitApp(
             }
         }
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
-            NumberSetting("صفحه مقصد برای موارد جدید", selectedPage + 1, 1, pageCount.coerceAtLeast(1)) { selectedPage = it - 1 }
-            Button(onClick = { contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب از دفترچه تلفن") }
+            PageDropdown("صفحه مقصد برای موارد جدید", selectedPage, pageNames) { selectedPage = it }
+            Button(onClick = {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+                } else {
+                    contactPickerPending = true
+                    contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
+                }
+            }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب از دفترچه تلفن") }
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -490,7 +503,8 @@ private fun SahlBitApp(
                 }
             }
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
-            entries.forEach { entry ->
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+              items(entries, key = { it.id }) { entry ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(entry.title, color = Ink)
@@ -602,12 +616,16 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو PIN یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای مدیریت تماس‌ها، سهل‌بیت باید با تأیید کاربر به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب شود. اندروید این دسترسی را از طریق نقش رسمی Dialer واگذار می‌کند.", { route = "dashboard" }) {
-            Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان برنامه تلفن پیش‌فرض") }
-            Spacer(Modifier.height(10.dp))
+        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای استفاده از سهل‌بیت به‌عنوان صفحهٔ اصلی، نقش Home را انتخاب کنید. نقش تلفن (Dialer) مستقل و فقط برای قابلیت‌های تماس لازم است.", { route = "dashboard" }) {
+            Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان صفحهٔ اصلی (Home)") }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب اختیاری به‌عنوان برنامهٔ تلفن (Dialer)") }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اجازهٔ تغییر تنظیمات سیستمی") }
+            Spacer(Modifier.height(8.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ۰٫۳٫۰ (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME} (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
