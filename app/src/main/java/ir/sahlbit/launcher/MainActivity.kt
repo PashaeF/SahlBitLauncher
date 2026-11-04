@@ -220,11 +220,6 @@ private fun SahlBitApp(
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     val context = LocalContext.current
     var contactPickerPending by remember { mutableStateOf(false) }
-    val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
-        else if (!granted) android.widget.Toast.makeText(context, "برای انتخاب مخاطب، اجازهٔ دسترسی به مخاطبان لازم است", android.widget.Toast.LENGTH_LONG).show()
-        contactPickerPending = false
-    }
     val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
@@ -255,6 +250,11 @@ private fun SahlBitApp(
         }
     }
 
+    val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        else if (!granted) android.widget.Toast.makeText(context, "برای انتخاب مخاطب، اجازهٔ دسترسی به مخاطبان لازم است", android.widget.Toast.LENGTH_LONG).show()
+        contactPickerPending = false
+    }
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val targetId = selectedPhotoEntryId
         if (uri != null && targetId != null) {
