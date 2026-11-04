@@ -543,6 +543,7 @@ private fun SahlBitApp(
                         }
                     }) { Text("حذف", color = Color(0xFFB3261E)) }
                 }
+              }
             }
         }
         "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
