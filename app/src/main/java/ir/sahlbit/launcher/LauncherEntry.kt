@@ -36,7 +36,7 @@ object LauncherEntryStore {
                     contactLookupUri = o.optString("contactLookupUri").takeIf(String::isNotBlank),
                     phoneNumber = o.optString("phoneNumber").takeIf(String::isNotBlank),
                     photoUri = o.optString("photoUri").takeIf(String::isNotBlank),
-                    photoSource = o.optString("photoSource", "contact"),
+                    photoSource = if (o.optString("photoUri").isBlank()) "none" else o.optString("photoSource", "contact"),
                     photoSourceUri = o.optString("photoSourceUri").takeIf(String::isNotBlank),
                     manualEdit = o.optBoolean("manualEdit", false),
                     packageName = o.optString("packageName").takeIf(String::isNotBlank)
