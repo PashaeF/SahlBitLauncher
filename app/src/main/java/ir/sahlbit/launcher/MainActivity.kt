@@ -528,7 +528,7 @@ private fun SahlBitApp(
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
                             repeat(count) {
-                                Box(Modifier.weight(1f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
+                                Box(Modifier.fillMaxWidth(0.25f).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -760,7 +760,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Text("برای اجرای هر برنامه، آن را انتخاب کنید.", color = Ink, modifier = Modifier.padding(bottom = 12.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(apps, key = { it.activityInfo.packageName }) { item ->
                 val pkg = item.activityInfo.packageName
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onLaunch(pkg) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -923,7 +923,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Start; "right" -> Arrangement.End; else -> Arrangement.Center }) {
                                 rowEntries.forEach { entry ->
-                                    Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
+                                    Box(Modifier.fillMaxWidth(0.25f).padding(horizontal = 4.dp)) {
                             var lastDropTarget by remember(entry.id) { mutableStateOf<String?>(null) }
                             Card(onClick = { if (draggingEntryId == null) onEntryClick(entry) }, modifier = Modifier
                                 .onGloballyPositioned { cardBounds[entry.id] = it.boundsInWindow() }
