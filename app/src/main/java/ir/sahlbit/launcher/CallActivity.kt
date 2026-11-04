@@ -181,6 +181,7 @@ class CallActivity : Activity(), SensorEventListener {
             else -> "وضعیت تماس"
         }
         nameView.text = displayName.ifBlank { "تماس ناشناس" }
+        statusView.setTextColor(foreground)
         nameView.setTextColor(foreground)
         numberView.text = number
         numberView.setTextColor(foreground)
