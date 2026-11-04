@@ -1,143 +1,93 @@
-# SahlBit Launcher 0.3.0 — Build Candidate
+# SahlBit Launcher 0.5.1
 
-A Persian RTL Android launcher designed for older adults and children, with simplified navigation, configurable contact pages, and an accessible call interface.
+A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
-## Build Configuration
+## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.3.0`
-- **Version Code:** `14`
+- **Version:** `0.5.1`
+- **Version Code:** `17`
 - **Minimum Android:** API 29 (Android 10)
-- **Compile SDK:** 35
-- **Target SDK:** 35
+- **Compile SDK / Target SDK:** 35
 - **JDK:** 17
-- **Kotlin:** 2.0.21
-- **Android Gradle Plugin:** 8.9.2
 - **Gradle:** 8.11.1
 
-## Features
+## Main features
 
-### Launcher
-- Persian RTL interface.
-- Simplified home screen designed for older adults and children.
-- Large analog clock.
-- Battery percentage and charging status.
-- Local PIN-protected management dashboard.
+### Home screen
+- Persian RTL interface with a configurable analog clock.
+- Clock size and digit language/size settings.
+- Second-hand updates are suspended when the second hand is disabled.
+- Battery and charging indicators.
 - Multiple home pages with swipe navigation.
-- Local storage of launcher settings and card configurations.
-- Screen timeout configuration, subject to Android special access permissions.
+- Contact and app cards with configurable rows, card counts, and per-row alignment.
+- **Home-screen card reordering by long-press and drag is intentionally disabled.** Card order can only be changed from the PIN-protected management area.
+- The home screen does not expose a drag handle or gesture that can modify card positions.
 
-### Contact Management
-- Add contacts from the Android Contacts provider.
-- Support for multiple phone numbers.
-- Custom contact photos.
-- Contact card management and ordering.
-- Open the Android system Contacts editor to modify actual contact information.
-- Refresh contact information when returning to SahlBit.
+### Management
+- PIN-protected management dashboard.
+- Create, duplicate, rename, delete, and reorder pages.
+- Per-page row count, per-row card count, and per-row left/center/right alignment.
+- Page layout preferences are remapped together with page operations:
+  - Reordering swaps the corresponding layout settings.
+  - Duplicating a page copies its layout settings.
+  - Deleting a page removes its settings and shifts the remaining settings.
+  - Reducing page count removes settings for deleted pages.
+- Add contacts and choose one phone number when a contact has multiple numbers.
+- Add installed launchable apps to selected pages.
+- Change contact-card photos and reorder cards from the management screen.
 
-### Page and Layout Management
-- Create, delete, rename, duplicate, and reorder pages.
-- Configure the number of rows on each page.
-- Configure the number of cards independently for each row (1–4 cards).
-- Configure the final row alignment:
-  - Left
-  - Center
-  - Right
-- Persist row layout settings independently for each page.
-- Preview the configured row counts and final-row alignment.
-- Home screen rendering uses the saved row layout configuration.
-
-### Drag and Drop
-- Card positions are measured on screen.
-- Pointer hit-testing identifies the card under the dragged item.
-- Cards can be moved to the selected drop target.
-- Drag-and-drop still requires physical-device testing, particularly on dense grids and during page navigation.
-
-### Calling and Telecom Integration
+### Calling and Telecom
 - Android Telecom `InCallService` integration.
-- Dedicated call interface.
-- Call control through Android Telecom APIs:
-  - `Call.answer()`
-  - `Call.reject()`
-  - `Call.disconnect()`
+- Incoming calls are prioritized over existing active calls so call waiting is visible.
+- Answer/reject controls for ringing calls.
+- Active/held call switching controls.
+- Contact name, number, and available contact photo display.
+- Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
+- Proximity monitoring uses Android's `PROXIMITY_SCREEN_OFF_WAKE_LOCK` when supported. The call activity does not hold the display on with `FLAG_KEEP_SCREEN_ON`.
 
-#### Call Screen Colors
+Call behavior still depends on the selected default Dialer role, Android Telecom, carrier configuration, device firmware, and hardware support. Call waiting and proximity behavior require physical-device verification.
 
-| Call state | Background |
-|---|---|
-| Incoming ringing | Blue (`#1976D2`) |
-| Outgoing dialing / connecting | Yellow (`#FFC107`) |
-| Connected call | Green (`#2E7D32`) |
-
-- Incoming calls provide answer and decline controls.
-- Outgoing calls provide a cancel control.
-- Connected calls provide a hang-up control.
-- Contact information and available contact photos are displayed during calls.
-- Proximity sensor integration is intended to turn off the display while the phone is held near the user's ear.
-- The InCallService tracks multiple Call objects and selects a foreground call when call states change.
-
-**Note:** Multi-call tracking is preliminary groundwork. Full call-waiting behavior and multi-call controls are not certified.
-
-### Permissions and Privacy
-- Launcher settings and card configurations are stored locally.
-- Contact access requires the relevant Android permissions or system selection flow.
-- Screen timeout modification requires the user to grant Android's `WRITE_SETTINGS` special access.
-- Telecom functionality depends on Android's default Dialer role and system permissions.
-- No server-side account or synchronization service is included in this source.
+### Permissions and privacy
+- Launcher preferences and card configurations are stored locally.
+- Contact access requires the Android contacts permission.
+- Direct calling requires the Android call permission.
+- Screen-timeout modification requires Android's special `WRITE_SETTINGS` access.
+- The About screen does not embed a personal phone number in the application source.
+- No server-side account or synchronization service is included.
 
 ## Build with GitHub Actions
 
-The repository includes a GitHub Actions workflow that:
+The repository workflow builds a debug APK using JDK 17 and Gradle 8.11.1. It runs automatically on pushes to `development` and `main`, and can also be started manually.
 
-1. Checks out the source code.
-2. Configures JDK 17.
-3. Configures Gradle 8.11.1.
-4. Runs `gradle assembleDebug`.
-5. Uploads the debug APK as an artifact named `sahlbit-debug-apk`.
+The uploaded artifact is named `sahlbit-debug-apk`.
 
-The expected APK output is:
+## Verification status
 
-`app/build/outputs/apk/debug/app-debug.apk`
+Version 0.5.1 includes source-level fixes for page-layout persistence, home-screen drag prevention, call permission handling, call-waiting call selection, held-call switching, proximity screen-off handling, and clock update frequency.
 
-The workflow can be triggered by pushing to the `main` branch or manually through GitHub Actions.
+A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
 
-## Verification Status
+- Incoming and outgoing calls, including call waiting and switching between active/held calls.
+- Proximity screen-off and wake behavior while the phone is held near the user's ear.
+- Runtime permission grant/deny paths for direct calling.
+- Page duplication, deletion, reordering, and page-count reduction with different per-page layouts.
+- Confirmation that home cards cannot be reordered by long-pressing or dragging.
+- Clock settings and responsive sizing on narrow screens.
+- Contact photos and permission behavior.
 
-**This is a build candidate, not a verified production release.**
+Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
 
-The source has not been confirmed through a successful Android Gradle Plugin build or comprehensive physical-device testing.
+## Version 0.5.1 changes
 
-The following areas require additional verification:
-
-- Compilation and runtime behavior on Android 10–15.
-- Row layout behavior on different screen sizes and densities.
-- Drag-and-drop reliability.
-- Incoming calls while the screen is locked.
-- Default Dialer role eligibility.
-- Ringtone and call notification behavior.
-- Bluetooth and audio routing.
-- Dual-SIM selection and call waiting.
-- Proximity sensor behavior across device manufacturers.
-- Contact photo availability and permission handling.
-- Samsung One UI and other OEM-specific Telecom behavior.
-
-## Security and Device Restrictions
-
-- Secure Mode / Device Owner kiosk locking is not included.
-- Immersive mode alone cannot guarantee permanent system navigation-bar or status-bar suppression.
-- Android's default launcher and default phone application should not be replaced until the APK has been built, tested, and a recovery path has been confirmed.
-- Keep Samsung One UI Home available during testing.
-
-## Version 0.3.0 Changelog
-
-### Added
-- Per-page row layout configuration.
-- Independent card counts for individual rows (1–4).
-- Independent final-row alignment (left, center, right).
-- Home screen rendering based on persisted row layout settings.
-- Layout preview reflecting row counts and final-row alignment.
-
-### Build and Testing
-- Updated application version to `0.3.0`.
-- Updated version code to `14`.
-- Android Gradle build and physical-device verification remain pending.
+- Updated version to 0.5.1 (versionCode 17).
+- Fixed page-layout preference remapping for page reorder, duplication, deletion, and page-count reduction.
+- Removed all home-screen card drag-and-drop handling; card order is managed only in the admin settings.
+- Added runtime `CALL_PHONE` permission handling for direct contact calls with a safe dialer fallback.
+- Prioritized ringing calls over active calls in the Telecom service.
+- Added active/held call switching controls.
+- Replaced the black proximity overlay and persistent screen-on flag with a proximity screen-off wake lock when supported.
+- Reduced clock updates to once per minute when the second hand is disabled.
+- Constrained the displayed clock size to the available screen width.
+- Updated GitHub Actions to build on pushes to `development`.
+- Refreshed project documentation and removed the embedded phone number from the About screen.
