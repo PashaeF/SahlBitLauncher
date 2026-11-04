@@ -35,6 +35,8 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -573,7 +575,7 @@ private fun SahlBitApp(
             Text("برای اعمال این تنظیم، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کن.", color = Ink, fontSize = 13.sp)
             OutlinedButton(onClick = { runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
         }
-        "security" -> SettingsPage("امنیت مدیر", "PIN با PBKDF2 و نمک تصادفی ذخیره می‌شود. پس از پنج تلاش ناموفق، ورود برای ۳۰ ثانیه قفل می‌شود. اگر PIN فراموش شد، امکان بازنشانی با یک پرسش ریاضی ساده وجود دارد؛ این روش امنیت محدودی دارد.", { route = "dashboard" }) {
+        "security" -> SettingsPage("امنیت مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر PIN مدیر") }
         }
         "pinverify" -> SettingsPage("تأیید PIN فعلی", "برای تغییر PIN، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
@@ -585,7 +587,7 @@ private fun SahlBitApp(
                 else { oldPinInput = ""; error = "PIN فعلی نادرست است." }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و ادامه") }
         }
-        "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازنشانی PIN، مسئلهٔ سادهٔ زیر را حل کن. این روش امنیت محدودی دارد و هر فردی که به گوشی دسترسی داشته باشد ممکن است آن را حل کند.", { route = "login" }) {
+        "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { route = "login" }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
             Text("${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -681,22 +683,22 @@ private fun SahlBitApp(
     }
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).padding(20.dp)) {
+    Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, lineHeight = 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
 }
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toString(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
 }
 
 @Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, cardsPerPage: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, lastRowAlignment: String, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onReorder: (String, String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
-    val adminTapThreshold = remember { launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15) }
-    val showAppNames = remember { launcherPrefs.getBoolean("show_app_names", true) }
-    val showContactNames = remember { launcherPrefs.getBoolean("show_contact_names", true) }
+    val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
+    val showAppNames = launcherPrefs.getBoolean("show_app_names", true)
+    val showContactNames = launcherPrefs.getBoolean("show_contact_names", true)
     val bg = when (background) { "white" -> Color.White; "cream" -> Cream; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Forest }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
