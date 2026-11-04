@@ -12,8 +12,8 @@ android {
         applicationId = "ir.sahlbit.launcher"
         minSdk = 29
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.5.0"
+        versionCode = 17
+        versionName = "0.5.1"
     }
 
     buildFeatures { compose = true; buildConfig = true }
