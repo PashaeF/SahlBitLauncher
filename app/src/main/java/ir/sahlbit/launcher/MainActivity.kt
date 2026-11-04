@@ -318,14 +318,15 @@ private fun SahlBitApp(
                                     }
                                 }
                             }
-                            when (options.size) {
+                            val uniqueOptions = options.distinctBy { option -> option.first.filter { it.isDigit() || it == '+' } }
+                            when (uniqueOptions.size) {
                                 0 -> android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است", android.widget.Toast.LENGTH_LONG).show()
-                                1 -> addPickedContact(name, options[0].first, options[0].second, lookup, photoSource)
+                                1 -> addPickedContact(name, uniqueOptions[0].first, uniqueOptions[0].second, lookup, photoSource)
                                 else -> {
                                     pendingContactName = name
                                     pendingContactLookup = lookup
                                     pendingContactPhotoSource = photoSource
-                                    pendingContactOptions = options
+                                    pendingContactOptions = uniqueOptions
                                 }
                             }
                         }
@@ -573,7 +574,7 @@ private fun SahlBitApp(
             }
         }
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
-            PageDropdown("صفحهٔ مقصد برای موارد جدید (مخاطب یا برنامه)", selectedPage, pageNames) { selectedPage = it }
+            PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
@@ -586,9 +587,12 @@ private fun SahlBitApp(
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             val installedApps = remember(route, resumeRevision) { runCatching { pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList()) }
-            Text("افزودن برنامه به صفحه اصلی", color = Ink, fontWeight = FontWeight.Bold)
+            var appSearch by remember { mutableStateOf("") }
+            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) })
+            Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
+            val visibleApps = installedApps.filter { it.loadLabel(pm).toString().contains(appSearch, ignoreCase = true) }
             LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(installedApps, key = { it.activityInfo.packageName }) { resolve ->
+                items(visibleApps, key = { it.activityInfo.packageName }) { resolve ->
                     val pkg = resolve.activityInfo.packageName
                     val label = resolve.loadLabel(pm).toString()
                     val alreadyAdded = entries.any { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }
@@ -606,10 +610,11 @@ private fun SahlBitApp(
                     }
                 }
             }
-            Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
+            val pageEntries = entries.filter { it.page == selectedPage }
+            Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = Ink, fontWeight = FontWeight.Bold)
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(entries, key = { it.id }) { entry ->
-                    val position = entries.indexOfFirst { it.id == entry.id }
+                items(pageEntries, key = { it.id }) { entry ->
+                    val position = pageEntries.indexOfFirst { it.id == entry.id }
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
                         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
@@ -617,7 +622,9 @@ private fun SahlBitApp(
                                 Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 1)
                                 if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
                             }
-                            if (entry.kind == "contact") TextButton(onClick = { selectedPhotoEntryId = entry.id; galleryPicker.launch("image/*") }) { Text("عکس گالری") }
+                            if (entry.kind == "contact") TextButton(onClick = { photoSourceDialogEntry = entry }) {
+                                Text(if (entry.photoSource == "contact") "✓ عکس مخاطبین" else if (entry.photoSource == "gallery") "✓ عکس گالری" else "انتخاب تصویر")
+                            }
                             val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
                             val samePagePosition = samePageIndices.indexOf(position)
                             IconButton(enabled = samePagePosition > 0, onClick = {
@@ -786,6 +793,39 @@ private fun SahlBitApp(
                 }
             },
             confirmButton = { TextButton(onClick = { pendingContactOptions = emptyList() }) { Text("انصراف") } }
+        )
+    }
+    if (photoSourceDialogEntry != null) {
+        val photoEntry = photoSourceDialogEntry!!
+        AlertDialog(
+            onDismissRequest = { photoSourceDialogEntry = null },
+            title = { Text("انتخاب تصویر مخاطب") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("روش دریافت تصویر را انتخاب کنید.")
+                TextButton(onClick = {
+                    val source = photoEntry.photoSourceUri ?: runCatching {
+                        context.contentResolver.query(Uri.parse(photoEntry.contactUri ?: ""), arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    }.getOrNull()
+                    val copied = source?.let { copyContactPhoto(context, it) }
+                    if (copied != null) {
+                        val old = entries.firstOrNull { it.id == photoEntry.id }?.photoUri
+                        entries = entries.map { if (it.id == photoEntry.id) it.copy(photoUri = copied, photoSource = "contact", photoSourceUri = source) else it }
+                        LauncherEntryStore.save(prefs, entries)
+                        old?.takeIf { entries.none { e -> e.photoUri == old } }?.let { deleteOwnedContactPhoto(context, it) }
+                    } else android.widget.Toast.makeText(context, "تصویر مخاطب در دفترچه تلفن موجود نیست", android.widget.Toast.LENGTH_LONG).show()
+                    photoSourceDialogEntry = null
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text((if (photoEntry.photoSource == "contact") "✓ " else "") + "استفاده از عکس برنامهٔ مخاطبین اندروید")
+                }
+                TextButton(onClick = {
+                    selectedPhotoEntryId = photoEntry.id
+                    photoSourceDialogEntry = null
+                    galleryPicker.launch("image/*")
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text((if (photoEntry.photoSource == "gallery") "✓ " else "") + "انتخاب تصویر از گالری")
+                }
+            } },
+            confirmButton = { TextButton(onClick = { photoSourceDialogEntry = null }) { Text("بستن") } }
         )
     }
     if (editingContactId != null) {
