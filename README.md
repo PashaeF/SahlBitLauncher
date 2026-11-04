@@ -58,7 +58,7 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 
 ## Build with GitHub Actions
 
-The repository workflow builds a debug APK using JDK 17 and Gradle 8.11.1. It runs automatically on pushes to `development` and `main`, and can also be started manually.
+The repository workflow builds a debug APK using JDK 17 and Gradle 8.11.1. It runs automatically on pushes to `development` and can also be started manually.
 
 The uploaded artifact is named `sahlbit-debug-apk`.
 
