@@ -258,6 +258,9 @@ private fun SahlBitApp(
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
+    var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toString()) }
+    var timeoutSecondsText by remember { mutableStateOf((screenTimeoutSeconds % 60).toString()) }
+    var photoSourceDialogEntry by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -474,8 +477,10 @@ private fun SahlBitApp(
         )
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
-            NumberSetting("اندازهٔ ساعت (dp)", clockSizeDp, 180, 360) { v -> clockSizeDp = v; prefs.edit().putInt("clock_size_dp", v).apply() }
-            NumberSetting("اندازهٔ اعداد ساعت (sp)", clockDigitSizeSp, 20, 56) { v -> clockDigitSizeSp = v; prefs.edit().putInt("clock_digit_size_sp", v).apply() }
+            Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+            Slider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
+            Text("اندازهٔ اعداد ساعت: ${clockDigitSizeSp.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
+            Slider(value = clockDigitSizeSp.toFloat(), onValueChange = { v -> clockDigitSizeSp = v.toInt(); prefs.edit().putInt("clock_digit_size_sp", clockDigitSizeSp).apply() }, valueRange = 20f..56f)
             Text("زبان اعداد ساعت", color = Ink, fontWeight = FontWeight.Bold)
             listOf("english" to "انگلیسی (123)", "persian" to "فارسی (۱۲۳)").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(clockDigitLanguage == key, { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }); Text(label, color = Ink) } }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش ثانیه‌شمار", modifier = Modifier.weight(1f), color = Ink); Switch(showSecondHand, { showSecondHand = it; prefs.edit().putBoolean("clock_show_seconds", it).apply() }) }
@@ -646,7 +651,7 @@ private fun SahlBitApp(
         }
         "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
-            listOf("forest" to "آبی پررنگ", "white" to "سفید", "cream" to "کِرِم", "gray" to "طوسی", "blue" to "آبی ملایم").forEach { (key, label) ->
+            listOf("forest" to "آبی پررنگ", "white" to "سفید", "cream" to "کِرِم", "gray" to "طوسی", "blue" to "آبی ملایم", "sage" to "سبز مریم‌گلی", "lavender" to "یاسی ملایم", "mint" to "نعنایی", "sand" to "شنی روشن", "rose" to "صورتی آرام").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(selected = backgroundChoice == key, onClick = { backgroundChoice = key; prefs.edit().putString("background", key).apply() }); Text(label, color = Ink)
                 }
@@ -686,28 +691,30 @@ private fun SahlBitApp(
             }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از روشنایی خودکار/سیستمی") }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
-            Text("پس از ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه بی‌استفاده‌ماندن", color = Teal)
-            Slider(value = screenTimeoutSeconds.toFloat(), onValueChange = { screenTimeoutSeconds = it.toInt() }, valueRange = 15f..1800f, onValueChangeFinished = {
-                prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
+            Text("زمان را به‌صورت عددی وارد کنید. مقدار پیش‌فرض ۱ دقیقه و ۰ ثانیه است.", color = Ink)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(value = timeoutMinutesText, onValueChange = { value ->
+                    timeoutMinutesText = value.filter(Char::isDigit).take(2)
+                    screenTimeoutSeconds = ((timeoutMinutesText.toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toIntOrNull() ?: 0)).coerceIn(15, 1800)
+                    prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
+                }, modifier = Modifier.weight(1f), label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = timeoutSecondsText, onValueChange = { value ->
+                    val seconds = value.filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
+                    timeoutSecondsText = seconds.toString()
+                    screenTimeoutSeconds = ((timeoutMinutesText.toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
+                    prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
+                }, modifier = Modifier.weight(1f), label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            }
+            Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
+            OutlinedButton(onClick = {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.System.canWrite(context)) {
-                    val applied = runCatching {
-                        android.provider.Settings.System.putInt(
-                            context.contentResolver,
-                            android.provider.Settings.System.SCREEN_OFF_TIMEOUT,
-                            screenTimeoutSeconds * 1000
-                        )
-                    }.getOrDefault(false)
+                    val applied = runCatching { android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, screenTimeoutSeconds * 1000) }.getOrDefault(false)
                     if (!applied) android.widget.Toast.makeText(context, "تنظیم زمان خاموشی نمایشگر اعمال نشد", android.widget.Toast.LENGTH_LONG).show()
                 } else {
                     android.widget.Toast.makeText(context, "برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی لازم است", android.widget.Toast.LENGTH_LONG).show()
-                    runCatching {
-                        context.startActivity(
-                            Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    }
+                    runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 }
-            })
+            }, modifier = Modifier.fillMaxWidth()) { Text("اعمال زمان خاموشی نمایشگر") }
             Text("برای اعمال این تنظیم، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کن.", color = Ink, fontSize = 13.sp)
             OutlinedButton(onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
@@ -755,7 +762,10 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME} (آزمایشی)\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nوب‌سایت: pashaef.ir", { route = "dashboard" }) { }
+        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME}\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nوب‌سایت: pashaef.ir\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴", { route = "dashboard" }) {
+            Text("سهل‌بیت؛ محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری.", color = Ink, fontSize = 18.sp, lineHeight = 30.sp)
+            Text("تلفن همراه: ۰۹۱۴۵۸۸۰۸۱۴", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
@@ -908,7 +918,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", false)
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
-    val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); else -> Color(0xFF2563EB) }
+    val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); "sage" -> Color(0xFFE5EDE5); "lavender" -> Color(0xFFEDE7F6); "mint" -> Color(0xFFE2F2EC); "sand" -> Color(0xFFF3EBDD); "rose" -> Color(0xFFF7E7E9); else -> Color(0xFF2563EB) }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
     val dayText = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[day - 1]
