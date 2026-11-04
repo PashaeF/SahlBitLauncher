@@ -210,9 +210,11 @@ class CallActivity : Activity(), SensorEventListener {
         if (number.isBlank() || androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         runCatching {
             val lookup = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
-            contentResolver.query(lookup, arrayOf(ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use { cursor ->
+            contentResolver.query(lookup, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val photo = cursor.getString(0)
+                    val contactName = cursor.getString(0).orEmpty()
+                    if (contactName.isNotBlank() && (displayName.isBlank() || displayName == number)) nameView.text = contactName
+                    val photo = cursor.getString(1)
                     if (!photo.isNullOrBlank()) contentResolver.openInputStream(Uri.parse(photo))?.use { stream ->
                         android.graphics.drawable.Drawable.createFromStream(stream, null)?.let { avatarView.setImageDrawable(it) }
                     }
