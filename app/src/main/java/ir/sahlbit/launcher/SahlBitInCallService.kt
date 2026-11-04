@@ -1,7 +1,12 @@
 package ir.sahlbit.launcher
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Intent
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.telecom.InCallService
 import android.telecom.VideoProfile
 import android.os.Build
@@ -12,17 +17,22 @@ import android.os.Build
  * an already-active call.
  */
 class SahlBitInCallService : InCallService() {
+    override fun onCreate() { super.onCreate(); serviceInstance = this }
+    override fun onDestroy() { if (serviceInstance === this) serviceInstance = null; super.onDestroy() }
+
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         trackedCalls[call] = call.state == Call.STATE_RINGING
         call.registerCallback(callback)
         selectForegroundCall()
         publishForeground()
-
-        val ui = Intent(this, CallActivity::class.java).addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        )
-        runCatching { startActivity(ui) }
+        showCallNotification()
+        if (!isIncoming(call)) {
+            val ui = Intent(this, CallActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            )
+            runCatching { startActivity(ui) }
+        }
     }
 
     override fun onCallRemoved(call: Call) {
@@ -30,9 +40,11 @@ class SahlBitInCallService : InCallService() {
         trackedCalls.remove(call)
         selectForegroundCall()
         if (activeCall == null) {
+            getSystemService(NotificationManager::class.java)?.cancel(CALL_NOTIFICATION_ID)
             sendBroadcast(Intent(CallActivity.ACTION_CALL_ENDED).setPackage(packageName))
         } else {
             publishForeground()
+            showCallNotification()
         }
         super.onCallRemoved(call)
     }
@@ -83,7 +95,51 @@ class SahlBitInCallService : InCallService() {
         )
     }
 
+    private fun showCallNotification() {
+        val call = activeCall ?: return
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        val manager = getSystemService(NotificationManager::class.java) ?: return
+        if (Build.VERSION.SDK_INT >= 26) {
+            val channel = NotificationChannel(CALL_CHANNEL_ID, "تماس‌های سهل‌بیت", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "نمایش رابط تماس ورودی و وضعیت تماس"
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setSound(null, null)
+            }
+            manager.createNotificationChannel(channel)
+        }
+        val intent = Intent(this, CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
+        val fullScreen = PendingIntent.getActivity(this, CALL_NOTIFICATION_ID, intent, flags)
+        val incoming = isIncoming(call) && call.state == Call.STATE_RINGING
+        val title = call.details.callerDisplayName.orEmpty().ifBlank { call.details.handle?.schemeSpecificPart.orEmpty().ifBlank { "تماس ورودی" } }
+        val text = if (incoming) "تماس ورودی؛ برای پاسخ لمس کنید" else "تماس در حال انجام"
+        val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CALL_CHANNEL_ID) else Notification.Builder(this)
+        val notification = builder
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setContentIntent(fullScreen)
+            .setFullScreenIntent(fullScreen, incoming)
+            .setPriority(Notification.PRIORITY_MAX)
+            .build()
+        runCatching { manager.notify(CALL_NOTIFICATION_ID, notification) }
+    }
+
+    override fun onBringToForeground(showDialpad: Boolean) {
+        super.onBringToForeground(showDialpad)
+        val intent = Intent(this, CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        runCatching { startActivity(intent) }
+    }
+
     companion object {
+        private const val CALL_CHANNEL_ID = "sahlbit_calls"
+        private const val CALL_NOTIFICATION_ID = 7301
+        @Volatile private var serviceInstance: SahlBitInCallService? = null
         private val trackedCalls = LinkedHashMap<Call, Boolean>()
 
         @Volatile
@@ -96,6 +152,25 @@ class SahlBitInCallService : InCallService() {
             call.details.callDirection == Call.Details.DIRECTION_INCOMING
         } else {
             trackedCalls[call] ?: (call.state == Call.STATE_RINGING)
+        }
+
+        fun isMuted(): Boolean = serviceInstance?.isMuted == true
+        fun isSpeakerOn(): Boolean = (serviceInstance?.callAudioState?.route ?: 0) and CallAudioState.ROUTE_SPEAKER != 0
+        fun toggleMute() { serviceInstance?.let { it.setMuted(!it.isMuted) } }
+        fun toggleSpeaker() {
+            serviceInstance?.let { service ->
+                val current = service.callAudioState?.route ?: CallAudioState.ROUTE_EARPIECE
+                val target = if ((current and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_EARPIECE else CallAudioState.ROUTE_SPEAKER
+                service.setAudioRoute(target)
+            }
+        }
+        fun toggleHold() {
+            activeCall?.let { call ->
+                when (call.state) {
+                    Call.STATE_ACTIVE -> runCatching { call.hold() }
+                    Call.STATE_HOLDING -> runCatching { call.unhold() }
+                }
+            }
         }
 
         fun answer() {
