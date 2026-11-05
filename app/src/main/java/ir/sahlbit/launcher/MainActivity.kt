@@ -183,6 +183,10 @@ class MainActivity : ComponentActivity() {
     }
     private fun openHomeSettings() { runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { openAndroidSettings() } }
     private fun openAndroidSettings() { runCatching { startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersiveMode(true)
+    }
     override fun onDestroy() { runCatching { unregisterReceiver(receiver) }; super.onDestroy() }
 }
 
@@ -686,7 +690,7 @@ private fun SahlBitApp(
                     Text(label, color = Ink)
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) { Text("مخفی‌سازی نوارهای سیستم", modifier = Modifier.weight(1f), color = Ink); Switch(immersive, { immersive = it; prefs.edit().putBoolean("immersive", it).apply() }) }
+            Text("نوار وضعیت و نوار پیمایش اندروید در محیط سهل‌بیت مخفی می‌مانند.", color = Color(0xFF64748B), fontSize = 12.sp)
             NumberSetting("تعداد ضربه برای ورود مدیر", settingsTapThreshold, 3, 15) { value -> settingsTapThreshold = value; prefs.edit().putInt("settings_taps_threshold", value).apply() }
             var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", false)) }
             var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", false)) }
@@ -790,15 +794,20 @@ private fun SahlBitApp(
                 Text("برای نمایش رابط تماس اختصاصی و مدیریت تماس‌ها در سهل‌بیت لازم است.", color = Color(0xFF64748B), fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
             }
+            Text("دسترسی مخاطبان", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("برای خواندن نام کامل، شماره تلفن و تصویر مخاطب از دفترچه تلفن استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
+            OutlinedButton(onClick = { contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }, modifier = Modifier.fillMaxWidth()) { Text("اعطای دسترسی مخاطبان") }
+            Spacer(Modifier.height(8.dp))
+            Text("اجازهٔ برقراری تماس", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("برای تماس مستقیم با مخاطب از صفحهٔ اصلی لازم است؛ در صورت رد اجازه، شماره‌گیر سیستم باز می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
+            OutlinedButton(onClick = { callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تماس تلفنی") }
+            Spacer(Modifier.height(8.dp))
             Text("دسترسی آمار مصرف برنامه‌ها", color = Ink, fontWeight = FontWeight.SemiBold)
             Text("برای مرتب‌سازی برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر استفاده می‌شود و محتوای برنامه‌ها را نمی‌خواند.", color = Color(0xFF64748B), fontSize = 12.sp)
-            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra("package", context.packageName)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
+            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra("package", context.packageName).putExtra("android.provider.extra.APP_PACKAGE", context.packageName).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
             Spacer(Modifier.height(8.dp))
-            if (Build.VERSION.SDK_INT >= 34) {
-                OutlinedButton(onClick = {
-                    runCatching { context.startActivity(Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", Uri.parse("package:" + context.packageName))) }
-                }, modifier = Modifier.fillMaxWidth()) { Text("بررسی اجازهٔ نمایش تمام‌صفحهٔ تماس") }
-            }
+            Text("دسترسی تغییر تنظیمات سیستمی", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("برای انتخاب و ذخیرهٔ زنگ تماس، اعلان و هشدار و همچنین اعمال زمان خاموشی نمایشگر استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
             Button(onClick = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
                 else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
