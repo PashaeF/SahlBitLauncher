@@ -1358,13 +1358,15 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                 Text(previewName.ifBlank { "مخاطب نمونه" }, color = previewForeground, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
                 Text(previewNumber, color = previewForeground, fontSize = numberSize.sp)
                 if (profile == "incoming") {
+                    Spacer(Modifier.height(2.dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
-                    Spacer(Modifier.height(spacing.dp))
+                    Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
-                    Spacer(Modifier.height(spacing.dp))
+                    Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
+                    Spacer(Modifier.height(26.dp))
                     Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
@@ -1374,7 +1376,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                             Text(if (previewSpeakerOn) alternateLabel else firstLabel, fontSize = buttonTextSize.sp)
                         }
                     }
-                    Spacer(Modifier.height(spacing.dp))
+                    Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 }
             }
