@@ -422,7 +422,7 @@ private fun SahlBitApp(
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "security", "permissions", "about", "pinchange", "pinverify")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -487,9 +487,10 @@ private fun SahlBitApp(
             onExit = { adminAuthenticated = false; route = "home" },
             onPages = { route = "pages" }, onContacts = { route = "contacts" }, onAllApps = { route = "allapps" },
             onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
-            onPermissions = { route = "permissions" }, onAbout = { route = "about" },
+            onPermissions = { route = "permissions" }, onAbout = { route = "about" }, onAudio = { route = "audio" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
+        "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -932,6 +933,72 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     }
 }
 
+@Composable
+private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val audio = remember { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
+    fun volume(stream: Int) = audio.getStreamVolume(stream)
+    fun maxVolume(stream: Int) = audio.getStreamMaxVolume(stream).coerceAtLeast(1)
+    var ring by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_RING).toFloat()) }
+    var media by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_MUSIC).toFloat()) }
+    var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM).toFloat()) }
+    var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat()) }
+    val ringtonePicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val picked = if (Build.VERSION.SDK_INT >= 33) result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+        else @Suppress("DEPRECATION") result.data?.getParcelableExtra<Uri>(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        if (picked != null) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
+                runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, android.media.RingtoneManager.TYPE_RINGTONE, picked) }
+            } else {
+                prefs.edit().putString("pending_ringtone_uri", picked.toString()).apply()
+                runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+            }
+        }
+    }
+    val host = context as? ComponentActivity
+    DisposableEffect(host) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context))) {
+                prefs.getString("pending_ringtone_uri", null)?.let { raw ->
+                    runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, android.media.RingtoneManager.TYPE_RINGTONE, Uri.parse(raw)) }
+                    prefs.edit().remove("pending_ringtone_uri").apply()
+                }
+                ring = volume(android.media.AudioManager.STREAM_RING).toFloat()
+            }
+        }
+        host?.lifecycle?.addObserver(observer)
+        onDispose { host?.lifecycle?.removeObserver(observer) }
+    }
+    fun picker(type: Int, title: String) {
+        val intent = Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, type)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, title)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.media.RingtoneManager.getActualDefaultRingtoneUri(context, type))
+        ringtonePicker.launch(intent)
+    }
+    SettingsPage("صدا و زنگ‌ها", "بلندی صدای تماس، رسانه، زنگ هشدار و اعلان‌ها را تنظیم کنید. انتخاب زنگ تماس از فهرست زنگ‌های خود گوشی انجام می‌شود.", onBack) {
+        Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(value = ring, onValueChange = { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING).toFloat())
+        Text("صدای رسانه: ${media.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(value = media, onValueChange = { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat())
+        Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(value = alarm, onValueChange = { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM).toFloat())
+        Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(value = notification, onValueChange = { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat())
+        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
+        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
+        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_ALARM, "انتخاب زنگ هشدار") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ هشدار") }
+        Text("برای ذخیرهٔ زنگ انتخاب‌شده، ممکن است اجازهٔ تغییر تنظیمات سیستمی لازم باشد.", color = Color(0xFF64748B), fontSize = 12.sp)
+        OutlinedButton(onClick = {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context))
+                runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+            else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی فعال است.", android.widget.Toast.LENGTH_SHORT).show()
+        }, modifier = Modifier.fillMaxWidth()) { Text("مدیریت اجازهٔ انتخاب زنگ") }
+    }
+}
+
 @Composable private fun WelcomeScreen(onContinue: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("به سهل‌بیت خوش آمدید", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Forest)
@@ -964,27 +1031,46 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", "📄", onPages) }
-            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", "👥", onContacts) }
-            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", "📱", onAllApps) }
-            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", "🎨", onAppearance) }
-            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "🕒", onClock) }
-            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "🔐", onSecurity) }
-            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "🛡️", onPermissions) }
-            item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", "🏠", onSelectLauncher) }
-            item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", "⚙️", onAndroidSettings) }
-            item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "ℹ️", onAbout) }
+            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", "pages", onPages) }
+            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", "contacts", onContacts) }
+            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", "apps", onAllApps) }
+            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", "appearance", onAppearance) }
+            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock", onClock) }
+            item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
+            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "security", onSecurity) }
+            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "permissions", onPermissions) }
+            item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", "home", onSelectLauncher) }
+            item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", "settings", onAndroidSettings) }
+            item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
         }
     }
 }
 @Composable private fun DashboardCard(title: String, subtitle: String, icon: String, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) { Text(icon, fontSize = 28.sp); Spacer(Modifier.width(16.dp)); Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }; Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal) }
+        Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            val categoryIcon = when (icon) {
+                "pages" -> Icons.Default.ViewList
+                "contacts" -> Icons.Default.People
+                "apps" -> Icons.Default.Apps
+                "appearance" -> Icons.Default.Palette
+                "clock" -> Icons.Default.AccessTime
+                "audio" -> Icons.Default.VolumeUp
+                "security" -> Icons.Default.Lock
+                "permissions" -> Icons.Default.Security
+                "home" -> Icons.Default.Home
+                "settings" -> Icons.Default.Settings
+                else -> Icons.Default.Info
+            }
+            Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(16.dp))
+            Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }
+            Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal)
+        }
     }
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
