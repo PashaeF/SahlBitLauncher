@@ -1263,10 +1263,10 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     val palette = listOf("#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#F1F5F9", "#FFFFFF", "#168A45", "#BE232D", "#1976D2", "#455A64")
     SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("ورودی", fontSize = 11.sp) })
-            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("خروجی", fontSize = 11.sp) })
-            FilterChip(profile == "active", { profile = "active" }, label = { Text("مکالمه", fontSize = 11.sp) })
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("تماس ورودی قبل از مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("تماس خروجی قبل از مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "active", { profile = "active" }, label = { Text("تماس پس از برقراری مکالمه", fontSize = 11.sp) })
         }
         Text("مخاطب پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
         if (contacts.isNotEmpty()) {
