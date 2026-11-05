@@ -1338,12 +1338,14 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                 val previewBitmap = remember(previewPhotoUri) {
                     previewPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() }
                 }
-                Box(Modifier.size(minOf(avatarSize, 210).dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+                val previewAvatarSize = minOf(avatarSize, (LocalConfiguration.current.screenWidthDp - 56).coerceAtLeast(140))
+                val previewForeground = if (bgColor.luminance() > 0.62f) Ink else Color.White
+                Box(Modifier.size(previewAvatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
                     if (previewBitmap != null) Image(previewBitmap, contentDescription = previewName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(avatarRadius.dp)))
-                    else Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
+                    else Icon(Icons.Default.Person, null, tint = previewForeground, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
                 }
-                Text(previewName.ifBlank { "مخاطب نمونه" }, color = Color.White, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
-                Text(previewNumber, color = Color.White, fontSize = numberSize.sp)
+                Text(previewName.ifBlank { "مخاطب نمونه" }, color = previewForeground, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
+                Text(previewNumber, color = previewForeground, fontSize = numberSize.sp)
                 if (profile == "incoming") {
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
                     Spacer(Modifier.height(spacing.dp))
