@@ -210,7 +210,7 @@ private fun SahlBitApp(
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var immersive by remember { mutableStateOf(true) }
-    var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "cream") ?: "cream") }
+    var backgroundChoice by remember { mutableStateOf((prefs.getString("background", "cream") ?: "cream").let { if (it == "forest") "cream" else it }) }
     var settingsTapThreshold by remember { mutableIntStateOf(prefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)) }
     var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
     var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
@@ -953,6 +953,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     fun volume(stream: Int) = audio.getStreamVolume(stream)
     fun maxVolume(stream: Int) = audio.getStreamMaxVolume(stream).coerceAtLeast(1)
     var ring by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_RING).toFloat()) }
+    var voice by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_VOICE_CALL).toFloat()) }
     var media by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_MUSIC).toFloat()) }
     var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM).toFloat()) }
     var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat()) }
@@ -993,6 +994,8 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     SettingsPage("صدا و زنگ‌ها", "بلندی صدای تماس، رسانه، زنگ هشدار و اعلان‌ها را تنظیم کنید. انتخاب زنگ تماس از فهرست زنگ‌های خود گوشی انجام می‌شود.", onBack) {
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(value = ring, onValueChange = { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING).toFloat())
+        Text("صدای مکالمه: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(value = voice, onValueChange = { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL).toFloat())
         Text("صدای رسانه: ${media.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(value = media, onValueChange = { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat())
         Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
