@@ -1155,6 +1155,48 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     }
 }
 
+@Composable
+private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
+    val titles = listOf("خوش‌آمدگویی", "انتخاب لانچر پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها")
+    val descriptions = listOf(
+        "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
+        "با انتخاب سهل‌بیت به‌عنوان لانچر پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید لانچر دیگری را در تنظیمات اندروید انتخاب کنید.",
+        "این اجازه برای تغییر زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. اندروید صفحه‌ای جداگانه باز می‌کند؛ نام سهل‌بیت را پیدا کنید و اجازهٔ تغییر تنظیمات سیستم را روشن کنید.",
+        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. این انتخاب جایگزین برنامهٔ تلفن قبلی می‌شود و هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
+        "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است تا مدیر بتواند افراد موردنظر را به صفحهٔ اصلی اضافه کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
+        "این اجازه برای تماس مستقیم با مخاطبی که مدیر روی صفحهٔ اصلی انتخاب کرده است استفاده می‌شود. اگر اجازه داده نشود، سهل‌بیت می‌تواند شماره‌گیر سیستم را باز کند و تماس از آنجا انجام شود.",
+        "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است."
+    )
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (step == 0) {
+            Spacer(Modifier.height(24.dp))
+            Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(132.dp))
+            Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, null); Text("مرحلهٔ قبل") }
+                Spacer(Modifier.weight(1f))
+                Text("مرحلهٔ ${step.toPersianDigits()} از ۶", color = Teal, fontWeight = FontWeight.Bold)
+            }
+            Text(titles[step], color = Forest, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(descriptions[step], color = Ink, fontSize = 16.sp, lineHeight = 27.sp)
+                if (step > 0) {
+                    Text("اگر اکنون به هر دلیل نتوانستید این اجازه را بدهید، اشکالی ندارد؛ بعداً از بخش «مجوزها و دسترسی‌ها» در تنظیمات سهل‌بیت می‌توانید آن را فعال کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                    Text(if (granted) "این دسترسی قبلاً فعال شده است." else "وضعیت فعلی: هنوز فعال نشده است.", color = if (granted) Color(0xFF168A45) else Color(0xFFB45309), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    OutlinedButton(onClick = onGrant, modifier = Modifier.fillMaxWidth().height(54.dp)) { Text(if (granted) "بررسی / بازکردن تنظیم مربوط" else "رفتن به صفحهٔ اعطای اجازه") }
+                }
+            }
+        }
+        Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(58.dp)) {
+            Text(if (step == 6) "پایان ویزارد" else if (step == 0) "شروع راه‌اندازی" else "ادامه بدون اعطای اجازه")
+        }
+        if (step > 0) Text("می‌توانید مراحل را بدون اعطای دسترسی ورق بزنید؛ هیچ مرحله‌ای شما را مجبور به فعال‌سازی مجوز نمی‌کند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+    }
+}
+
 @Composable private fun WelcomeScreen(onContinue: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("به سهل‌بیت خوش آمدید", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Forest)
