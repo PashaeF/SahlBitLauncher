@@ -1268,7 +1268,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     var buttonRadius by remember(profile) { mutableIntStateOf(intValue("button_radius", 20)) }
     var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 72)) }
     var bgHex by remember(profile) { mutableStateOf(textValue("background", if (profile == "incoming") "#6B9FC9" else if (profile == "outgoing") "#FFC94D" else "#2E7D32")) }
-    var primaryHex by remember(profile) { mutableStateOf(textValue("primary", "#168A45")) }
+    var primaryHex by remember(profile) { mutableStateOf(textValue("primary", if (profile == "active") "#1976D2" else "#168A45")) }
     var secondaryHex by remember(profile) { mutableStateOf(textValue("secondary", "#BE232D")) }
     var firstLabel by remember(profile) { mutableStateOf(textValue("first_label", if (profile == "incoming") "پاسخ به تماس" else if (profile == "outgoing") "لغو تماس" else "تغییر به بلندگو")) }
     var secondLabel by remember(profile) { mutableStateOf(textValue("second_label", if (profile == "incoming") "رد تماس" else "پایان تماس")) }

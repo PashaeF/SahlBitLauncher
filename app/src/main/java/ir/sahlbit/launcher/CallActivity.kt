@@ -145,7 +145,7 @@ class CallActivity : Activity(), SensorEventListener {
         fun styleColor(key: String, fallback: Int): Int = runCatching { Color.parseColor(styleText(key, String.format("#%06X", 0xFFFFFF and fallback))) }.getOrDefault(fallback)
         val defaultBackground = when { ringing -> Color.rgb(107, 159, 201); dialing -> Color.rgb(255, 201, 77); active -> Color.rgb(46, 125, 50); held -> Color.rgb(69, 90, 100); else -> Color.rgb(55, 71, 79) }
         val background = styleColor("background", defaultBackground)
-        val primaryColor = styleColor("primary", Color.rgb(22, 138, 69))
+        val primaryColor = styleColor("primary", if (profile == "active") Color.rgb(25, 118, 210) else Color.rgb(22, 138, 69))
         val secondaryColor = styleColor("secondary", Color.rgb(190, 35, 45))
         val luminance = (android.graphics.Color.red(background) * 0.299f + android.graphics.Color.green(background) * 0.587f + android.graphics.Color.blue(background) * 0.114f) / 255f
         val foreground = if (luminance > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
