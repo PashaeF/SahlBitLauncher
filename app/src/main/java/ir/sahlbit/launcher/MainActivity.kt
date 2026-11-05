@@ -263,7 +263,7 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", 0).coerceIn(0, 6)) }
-    var route by remember { mutableStateOf(if (!initialized || pinHash == null) "wizard" else if (crashRecovery) "recovery" else "home") }
+    var route by remember { mutableStateOf(if (!initialized || pinHash == null || prefs.getInt("setup_wizard_version", 0) < 1) "wizard" else if (crashRecovery) "recovery" else "home") }
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -455,7 +455,10 @@ private fun SahlBitApp(
         if (route == "wizard" && wizardStep in 1..6 && isWizardPermissionGranted(context, wizardStep)) {
             wizardStep += 1
             prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-            if (wizardStep > 6) { route = "setpin"; prefs.edit().remove("setup_wizard_step").apply() }
+            if (wizardStep > 6) {
+                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 1).apply()
+                    route = if (initialized && pinHash != null) "home" else "setpin"
+                }
         }
     }
     LaunchedEffect(resumeRevision) {
@@ -519,7 +522,10 @@ private fun SahlBitApp(
             onNext = {
                 wizardStep += 1
                 prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                if (wizardStep > 6) { route = "setpin"; prefs.edit().remove("setup_wizard_step").apply() }
+                if (wizardStep > 6) {
+                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 1).apply()
+                    route = if (initialized && pinHash != null) "home" else "setpin"
+                }
             },
             onBack = {
                 if (wizardStep > 0) { wizardStep -= 1; prefs.edit().putInt("setup_wizard_step", wizardStep).apply() }
