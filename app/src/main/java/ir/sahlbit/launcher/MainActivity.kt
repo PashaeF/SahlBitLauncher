@@ -45,6 +45,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -664,13 +665,13 @@ private fun SahlBitApp(
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 if (entry.kind == "contact") {
-                                    Text(entry.title, color = Ink, fontWeight = FontWeight.Bold, maxLines = 2)
+                                    Text(entry.title, color = Ink, fontWeight = FontWeight.Bold)
                                     Text(entry.phoneNumber.orEmpty(), color = Color(0xFF64748B), fontSize = 13.sp)
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         TextButton(onClick = { photoSourceDialogEntry = entry }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("انتخاب عکس", color = Teal) }
                                         Spacer(Modifier.weight(1f))
-                                        IconButton(onClick = { if (samePagePosition > 0) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition - 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) } }, enabled = samePagePosition > 0) { Icon(Icons.Default.KeyboardArrowUp, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
-                                        IconButton(onClick = { if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) } }, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = Forest) }
+                                        Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition > 0) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition - 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowUp, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
+                                        Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
                                         IconButton(onClick = { val removed = entries.firstOrNull { it.id == entry.id }; entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries); removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) } }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
                                     }
                                 } else { Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2) }
@@ -709,6 +710,9 @@ private fun SahlBitApp(
             }
             Divider()
             var windowBrightness by remember { mutableFloatStateOf(prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)) }
+            LaunchedEffect(windowBrightness) {
+                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = windowBrightness; w.attributes = params }
+            }
             Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
             Text("${(windowBrightness * 100).toInt().toPersianDigits()}٪", color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل گوشی دست نمی‌زند.", color = Ink, fontSize = 12.sp)
@@ -724,8 +728,8 @@ private fun SahlBitApp(
             OutlinedButton(onClick = {
                 windowBrightness = 0.40f
                 prefs.edit().putFloat("window_brightness", 0.40f).apply()
-                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE; w.attributes = params }
-            }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از روشنایی خودکار/سیستمی") }
+                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = 0.40f; w.attributes = params }
+            }, modifier = Modifier.fillMaxWidth()) { Text("بازنشانی روشنایی به ۴۰ درصد") }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
             Text("زمان را به‌صورت عددی وارد کنید. مقدار پیش‌فرض ۱ دقیقه و ۰ ثانیه است.", color = Ink)
@@ -1220,7 +1224,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
                 val avatar = remember(pendingCall.photoUri) { pendingCall.photoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
-            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(58.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) } }, dismissButton = { Button(onClick = onCancelCall, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
+            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(58.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) } }, dismissButton = { Button(onClick = onCancelCall, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
     }
 }
