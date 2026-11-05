@@ -512,9 +512,12 @@ private fun SahlBitApp(
             Slider(value = clockSecondLength, onValueChange = { clockSecondLength = it; prefs.edit().putFloat("clock_second_hand_length", it).apply() }, valueRange = 0.40f..0.92f)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش ثانیه‌شمار", modifier = Modifier.weight(1f), color = Ink); Switch(showSecondHand, { showSecondHand = it; prefs.edit().putBoolean("clock_show_seconds", it).apply() }) }
             Text("پیش‌نمایش ساعت صفحهٔ اصلی", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            val previewClockSize = minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 64).coerceAtLeast(180)
+            val homeClockSize = minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 32).coerceAtLeast(120)
+            val previewDigitSize = (clockDigitSizeSp * previewClockSize.toFloat() / homeClockSize.toFloat()).toInt()
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)), shape = RoundedCornerShape(16.dp)) {
                 Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                    AnalogClock(Modifier.size(minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 64).coerceAtLeast(180).dp), digitLanguage = clockDigitLanguage, digitSizeSp = clockDigitSizeSp, showSecondHand = showSecondHand, hourHandLength = clockHourLength, minuteHandLength = clockMinuteLength, secondHandLength = clockSecondLength)
+                    AnalogClock(Modifier.size(previewClockSize.dp), digitLanguage = clockDigitLanguage, digitSizeSp = previewDigitSize, showSecondHand = showSecondHand, hourHandLength = clockHourLength, minuteHandLength = clockMinuteLength, secondHandLength = clockSecondLength)
                 }
             }
         }
