@@ -88,6 +88,7 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 - Updated to versionCode 20 / versionName 0.5.4.
 - Added configurable hour, minute, and second hand lengths and an in-settings analog clock preview.
+- Removed unused phone-state and vibration permissions to keep the requested access surface smaller.
 - Redesigned the home charging indicator and the dedicated call interface; removed SahlBit-posted call notifications.
 - Improved administrator login, contact-card management, app search, and page-capacity feedback.
 - Added volume controls for calls, media, alarms, and notifications, plus ringtone/notification/alarm tone pickers.
