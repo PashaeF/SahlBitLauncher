@@ -491,7 +491,7 @@ private fun SahlBitApp(
             "pinchange", "pinverify" -> "security"
             "mathrecovery" -> "login"
             "login" -> "home"
-            "setpin" -> "wizard"
+            "setpin" -> { wizardStep = 6; prefs.edit().putInt("setup_wizard_step", 6).apply(); "wizard" }
             "callcustom" -> "dashboard"
             else -> "dashboard"
         }
