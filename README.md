@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.5.4
+# SahlBit Launcher 0.5.5
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.4`
-- **Version Code:** `20`
+- **Version:** `0.5.5`
+- **Version Code:** `21`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -83,6 +83,14 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 - Contact photos and permission behavior.
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
+
+## Version 0.5.5 changes
+
+- Added a multi-step first-run wizard with resumable role and permission requests.
+- Added a dedicated call-screen customization section for incoming, outgoing, and active-call layouts with live previews.
+- Equalized home-card dimensions, added app reorder/remove controls, and refreshed permission explanations and management.
+- Added Android package-specific Usage Access deep linking and automatic screen-timeout application.
+- Updated default clock settings and audio stream controls; Android system volume streams are refreshed on resume and volume-change broadcasts.
 
 ## Version 0.5.4 changes
 

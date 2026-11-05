@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import ir.sahlbit.launcher.ui.AnalogClock
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -94,6 +95,59 @@ private val SahlBitTypography: Typography = Typography().let { t ->
         bodyLarge=t.bodyLarge.copy(fontFamily=Vazirmatn), bodyMedium=t.bodyMedium.copy(fontFamily=Vazirmatn), bodySmall=t.bodySmall.copy(fontFamily=Vazirmatn),
         labelLarge=t.labelLarge.copy(fontFamily=Vazirmatn), labelMedium=t.labelMedium.copy(fontFamily=Vazirmatn), labelSmall=t.labelSmall.copy(fontFamily=Vazirmatn)
     )
+}
+
+private fun hasUsageAccess(context: Context): Boolean = runCatching {
+    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+    appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
+}.getOrDefault(false)
+
+private fun isHomeRoleHeld(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val manager = context.getSystemService(RoleManager::class.java)
+        if (manager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) return manager.isRoleHeld(RoleManager.ROLE_HOME)
+    }
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+    return context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == context.packageName
+}
+private fun isDialerRoleHeld(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val manager = context.getSystemService(RoleManager::class.java)
+        if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) return manager.isRoleHeld(RoleManager.ROLE_DIALER)
+    }
+    return context.getSystemService(android.telecom.TelecomManager::class.java)?.defaultDialerPackage == context.packageName
+}
+private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = when (step) {
+    1 -> isHomeRoleHeld(context)
+    2 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
+    3 -> isDialerRoleHeld(context)
+    4 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+    5 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+    6 -> hasUsageAccess(context)
+    else -> true
+}
+private fun openUsageAccessSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        .setData(Uri.fromParts("package", context.packageName, null))
+        .putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+    runCatching { context.startActivity(intent) }.onFailure {
+        runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+    }
+}
+
+@Composable
+private fun PermissionCard(title: String, description: String, buttonLabel: String, granted: Boolean, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
+                Text(if (granted) "فعال" else "نیازمند اجازه", color = if (granted) Color(0xFF168A45) else Color(0xFFB45309), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+            OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(if (granted && buttonLabel.startsWith("اعطای")) "بررسی وضعیت دسترسی" else buttonLabel) }
+        }
+    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -207,7 +261,8 @@ private fun SahlBitApp(
 ) {
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
-    var route by remember { mutableStateOf(if (!initialized || pinHash == null) "welcome" else if (crashRecovery) "recovery" else "home") }
+    var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", 0).coerceIn(0, 6)) }
+    var route by remember { mutableStateOf(if (!initialized || pinHash == null) "wizard" else if (crashRecovery) "recovery" else "home") }
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -217,12 +272,12 @@ private fun SahlBitApp(
     var settingsTapThreshold by remember { mutableIntStateOf(prefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)) }
     var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
     var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
-    var clockSizeDp by remember { mutableIntStateOf(prefs.getInt("clock_size_dp", 300).coerceIn(180, 360)) }
+    var clockSizeDp by remember { mutableIntStateOf(prefs.getInt("clock_size_dp", 360).coerceIn(180, 360)) }
     var clockDigitSizeSp by remember { mutableIntStateOf(prefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)) }
     var clockDigitLanguage by remember { mutableStateOf(prefs.getString("clock_digit_language", "english") ?: "english") }
-    var clockHourLength by remember { mutableFloatStateOf(prefs.getFloat("clock_hour_hand_length", 0.48f).coerceIn(0.25f, 0.70f)) }
-    var clockMinuteLength by remember { mutableFloatStateOf(prefs.getFloat("clock_minute_hand_length", 0.69f).coerceIn(0.35f, 0.88f)) }
-    var clockSecondLength by remember { mutableFloatStateOf(prefs.getFloat("clock_second_hand_length", 0.76f).coerceIn(0.40f, 0.92f)) }
+    var clockHourLength by remember { mutableFloatStateOf(prefs.getFloat("clock_hour_hand_length", 0.40f).coerceIn(0.25f, 0.70f)) }
+    var clockMinuteLength by remember { mutableFloatStateOf(prefs.getFloat("clock_minute_hand_length", 0.65f).coerceIn(0.35f, 0.88f)) }
+    var clockSecondLength by remember { mutableFloatStateOf(prefs.getFloat("clock_second_hand_length", 0.90f).coerceIn(0.40f, 0.92f)) }
     var showSecondHand by remember { mutableStateOf(prefs.getBoolean("clock_show_seconds", false)) }
     var adminAuthenticated by remember { mutableStateOf(false) }
     var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
@@ -294,6 +349,8 @@ private fun SahlBitApp(
             runCatching { context.startActivity(callIntent) }.onFailure {
                 runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
             }
+        } else {
+            android.widget.Toast.makeText(context, if (granted) "اجازهٔ تماس تلفنی فعال شد." else "اجازهٔ تماس تلفنی داده نشد؛ می‌توانید بعداً از بخش مجوزها اقدام کنید.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
     var contactPickerPending by remember { mutableStateOf(false) }
@@ -362,7 +419,8 @@ private fun SahlBitApp(
 
     val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
-        else if (!granted) android.widget.Toast.makeText(context, "برای انتخاب مخاطب، اجازهٔ دسترسی به مخاطبان لازم است", android.widget.Toast.LENGTH_LONG).show()
+        else if (granted) android.widget.Toast.makeText(context, "دسترسی مخاطبان فعال است.", android.widget.Toast.LENGTH_SHORT).show()
+        else android.widget.Toast.makeText(context, "برای نمایش و انتخاب مخاطبان، اجازهٔ دسترسی به مخاطبان لازم است. می‌توانید بعداً از بخش مجوزها اقدام کنید.", android.widget.Toast.LENGTH_LONG).show()
         contactPickerPending = false
     }
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -392,6 +450,13 @@ private fun SahlBitApp(
         hostActivity?.lifecycle?.addObserver(observer)
         onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
+    LaunchedEffect(resumeRevision, wizardStep, route) {
+        if (route == "wizard" && wizardStep in 1..6 && isWizardPermissionGranted(context, wizardStep)) {
+            wizardStep += 1
+            prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
+            if (wizardStep > 6) { route = "setpin"; prefs.edit().remove("setup_wizard_step").apply() }
+        }
+    }
     LaunchedEffect(resumeRevision) {
         if (resumeRevision > 0) {
             val refreshed = entries.map { entry ->
@@ -419,25 +484,45 @@ private fun SahlBitApp(
     }
 
     LaunchedEffect(immersive) { onImmersiveChange(immersive) }
-    BackHandler(enabled = route != "home" && route != "welcome") {
+    BackHandler(enabled = route != "home" && route != "welcome" && route != "wizard") {
         route = when (route) {
             "dashboard" -> { adminAuthenticated = false; "home" }
             "pinchange", "pinverify" -> "security"
             "mathrecovery" -> "login"
             "login" -> "home"
-            "setpin" -> "welcome"
+            "setpin" -> "wizard"
+            "callcustom" -> "dashboard"
             else -> "dashboard"
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
 
     when (route) {
-        "welcome" -> WelcomeScreen(
-            onContinue = { route = "setpin" }
+        "wizard" -> SetupWizardScreen(
+            step = wizardStep,
+            granted = isWizardPermissionGranted(context, wizardStep),
+            onGrant = {
+                when (wizardStep) {
+                    1 -> onSelectLauncher()
+                    2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+                    3 -> onSelectDialer()
+                    4 -> if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
+                    5 -> if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
+                    6 -> openUsageAccessSettings(context)
+                }
+            },
+            onNext = {
+                wizardStep += 1
+                prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
+                if (wizardStep > 6) { route = "setpin"; prefs.edit().remove("setup_wizard_step").apply() }
+            },
+            onBack = {
+                if (wizardStep > 0) { wizardStep -= 1; prefs.edit().putInt("setup_wizard_step", wizardStep).apply() }
+            }
         )
         "setpin" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
             if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
@@ -496,9 +581,11 @@ private fun SahlBitApp(
             onPages = { route = "pages" }, onContacts = { route = "contacts" }, onAllApps = { route = "allapps" },
             onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
             onPermissions = { route = "permissions" }, onAbout = { route = "about" }, onAudio = { route = "audio" },
+            onCallCustomization = { route = "callcustom" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
+        "callcustom" -> CallCustomizationPage(prefs = prefs, onBack = { route = "dashboard" })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -616,6 +703,13 @@ private fun SahlBitApp(
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
+            PermissionCard(
+                title = "دسترسی به مخاطبان",
+                description = "برای نمایش نام کامل، شماره تماس و تصویر مخاطب‌ها در صفحهٔ اصلی و رابط تماس لازم است. این اجازه فقط امکان خواندن دفترچه تلفن را می‌دهد؛ سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
+                buttonLabel = "اعطای دسترسی مخاطبان",
+                granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
+                onClick = { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
+            )
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
@@ -680,7 +774,19 @@ private fun SahlBitApp(
                                         Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
                                         IconButton(onClick = { val removed = entries.firstOrNull { it.id == entry.id }; entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries); removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) } }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
                                     }
-                                } else { Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2) }
+                                } else {
+                                    Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Spacer(Modifier.weight(1f))
+                                        Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition > 0) {
+                                            val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition - 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries)
+                                        }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowUp, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
+                                        Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) {
+                                            val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries)
+                                        }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
+                                        IconButton(onClick = { entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries) }) { Icon(Icons.Default.Close, "حذف برنامه", tint = Color(0xFFB3261E)) }
+                                    }
+                                }
                             }
                         }
                     }
@@ -738,7 +844,12 @@ private fun SahlBitApp(
             }, modifier = Modifier.fillMaxWidth()) { Text("بازنشانی روشنایی به ۴۰ درصد") }
             Divider()
             Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
-            Text("زمان را به‌صورت عددی وارد کنید. مقدار پیش‌فرض ۱ دقیقه و ۰ ثانیه است.", color = Ink)
+            Text("زمان را به‌صورت عددی وارد کنید. پس از تغییر عدد، تنظیم در صورت داشتن اجازه به‌طور خودکار ذخیره و اعمال می‌شود.", color = Ink)
+            LaunchedEffect(screenTimeoutSeconds, resumeRevision) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
+                    runCatching { Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, screenTimeoutSeconds * 1000) }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(value = timeoutMinutesText, onValueChange = { value ->
                     timeoutMinutesText = value.toPersianDigitsText().filter(Char::isDigit).take(2)
@@ -753,20 +864,11 @@ private fun SahlBitApp(
                 }, modifier = Modifier.weight(1f), label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
+            Text("برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کنید.", color = Ink, fontSize = 13.sp)
             OutlinedButton(onClick = {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.System.canWrite(context)) {
-                    val applied = runCatching { android.provider.Settings.System.putInt(context.contentResolver, android.provider.Settings.System.SCREEN_OFF_TIMEOUT, screenTimeoutSeconds * 1000) }.getOrDefault(false)
-                    if (!applied) android.widget.Toast.makeText(context, "تنظیم زمان خاموشی نمایشگر اعمال نشد", android.widget.Toast.LENGTH_LONG).show()
-                } else {
-                    android.widget.Toast.makeText(context, "برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی لازم است", android.widget.Toast.LENGTH_LONG).show()
-                    runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                }
-            }, modifier = Modifier.fillMaxWidth()) { Text("اعمال زمان خاموشی نمایشگر") }
-            Text("برای اعمال این تنظیم، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کن.", color = Ink, fontSize = 13.sp)
-            OutlinedButton(onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-                else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
-            }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تنظیم زمان خاموشی") }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
+                else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
+            }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای تنظیم زمان خاموشی") }
         }
         "security" -> SettingsPage("امنیت مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
@@ -795,39 +897,39 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای نمایش رابط تماس اختصاصی، سهل‌بیت باید برنامهٔ تلفن پیش‌فرض باشد. این قابلیت از اندروید ۶ به بعد فعال است؛ در اندروید ۵ برنامهٔ تلفن سیستم تماس‌ها را مدیریت می‌کند.", { route = "dashboard" }) {
-            Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان صفحهٔ اصلی (Home)") }
-            Text("برای نمایش صفحهٔ اصلی سهل‌بیت پس از فشردن دکمهٔ خانه استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
-            Spacer(Modifier.height(8.dp))
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض (Dialer)") }
-                Text("برای نمایش رابط تماس اختصاصی و مدیریت تماس‌ها در سهل‌بیت لازم است.", color = Color(0xFF64748B), fontSize = 12.sp)
-                Spacer(Modifier.height(8.dp))
-            }
-            Text("دسترسی مخاطبان", color = Ink, fontWeight = FontWeight.SemiBold)
-            Text("برای خواندن نام کامل، شماره تلفن و تصویر مخاطب از دفترچه تلفن استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
-            OutlinedButton(onClick = { contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }, modifier = Modifier.fillMaxWidth()) { Text("اعطای دسترسی مخاطبان") }
-            Spacer(Modifier.height(8.dp))
-            Text("اجازهٔ برقراری تماس", color = Ink, fontWeight = FontWeight.SemiBold)
-            Text("برای تماس مستقیم با مخاطب از صفحهٔ اصلی لازم است؛ در صورت رد اجازه، شماره‌گیر سیستم باز می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
-            OutlinedButton(onClick = { callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تماس تلفنی") }
-            Spacer(Modifier.height(8.dp))
-            Text("دسترسی آمار مصرف برنامه‌ها", color = Ink, fontWeight = FontWeight.SemiBold)
-            Text("برای مرتب‌سازی برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر استفاده می‌شود و محتوای برنامه‌ها را نمی‌خواند.", color = Color(0xFF64748B), fontSize = 12.sp)
-            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra("package", context.packageName).putExtra("android.provider.extra.APP_PACKAGE", context.packageName).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
-            Spacer(Modifier.height(8.dp))
-            Text("دسترسی تغییر تنظیمات سیستمی", color = Ink, fontWeight = FontWeight.SemiBold)
-            Text("برای انتخاب و ذخیرهٔ زنگ تماس، اعلان و هشدار و همچنین اعمال زمان خاموشی نمایشگر استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
-            Button(onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-                else android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی از طریق مجوز زمان نصب مدیریت می‌شود.", android.widget.Toast.LENGTH_LONG).show()
-            }, modifier = Modifier.fillMaxWidth()) { Text("اجازهٔ تغییر تنظیمات سیستمی") }
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
+        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { route = "dashboard" }) {
+            val contactsGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+            val callGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+            val writeGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
+            val usageGranted = hasUsageAccess(context)
+            val homeGranted = isHomeRoleHeld(context)
+            val dialerGranted = isDialerRoleHeld(context)
+            PermissionCard("نقش لانچر پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان لانچر پیش‌فرض", homeGranted, onSelectLauncher)
+            PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
+            PermissionCard("دسترسی مخاطبان", "این دسترسی برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. بدون آن، انتخاب و نمایش مخاطبان در صفحهٔ اصلی محدود می‌شود. سهل‌بیت دفترچه تلفن را تغییر نمی‌دهد.", "اعطای دسترسی مخاطبان", contactsGranted, { if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
+            PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
+            PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
+            PermissionCard("دسترسی تغییر تنظیمات سیستمی", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستمی", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
+            PermissionCard("دسترسی تنظیم صدا", "این اجازهٔ عادی اندروید برای تغییر بلندی صداهای تماس، اعلان، رسانه و هشدار استفاده می‌شود. مقدار صدا با تنظیمات خود اندروید همگام است.", "بازکردن تنظیمات صدا", true, { runCatching { context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS)) } })
+            Spacer(Modifier.height(12.dp))
+            Text("بازکردن تنظیمات اندروید", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات گوشی به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
+            OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "about" -> SettingsPage("درباره سهل‌بیت", "SahlBit Launcher\nنسخه ${BuildConfig.VERSION_NAME}\nتوسعه‌دهنده: امیرعلی پاشایی فرد\nوب‌سایت: pashaef.ir\nشماره تماس: ۰۹۱۴۵۸۸۰۸۱۴", { route = "dashboard" }) {
-            Text("سهل‌بیت؛ محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری.", color = Ink, fontSize = 18.sp, lineHeight = 30.sp)
-            Text("تلفن همراه: ۰۹۱۴۵۸۸۰۸۱۴", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(112.dp))
+                    Text("سهل‌بیت", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    Text("محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری", color = Ink, fontSize = 16.sp, lineHeight = 26.sp)
+                    Divider()
+                    Text("نسخهٔ ${BuildConfig.VERSION_NAME}", color = Forest, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 15.sp)
+                    Text("وب‌سایت: pashaef.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text("سهل‌بیت برای ساده‌سازی استفاده از تلفن همراه و دسترسی سریع‌تر به افراد و برنامه‌های مهم طراحی شده است.", color = Ink, fontSize = 15.sp, lineHeight = 25.sp)
         }
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
@@ -936,7 +1038,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
         Text("برنامه‌های سیستمی ابتدا نمایش داده می‌شوند؛ سایر برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر مرتب شده‌اند.", color = Ink, modifier = Modifier.padding(bottom = 8.dp))
         if (!usageAccessGranted) {
             Text("برای مرتب‌سازی دقیق بر اساس میزان استفاده، دسترسی آمار مصرف برنامه‌ها را فعال کنید.", color = Teal, fontSize = 13.sp)
-            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra("package", context.packageName).putExtra("android.provider.extra.APP_PACKAGE", context.packageName).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
+            OutlinedButton(onClick = { openUsageAccessSettings(context) }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
         }
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
         Spacer(Modifier.height(12.dp))
@@ -1032,7 +1134,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 }
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top) {
         Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(12.dp)); Text("یک پین عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 17.sp)
         Spacer(Modifier.height(18.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(12.dp)); PinField("تکرار پین", confirm, onConfirm)
@@ -1042,7 +1144,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 }
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onBack, modifier = Modifier.size(56.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(34.dp)) }
+        IconButton(onClick = onBack, modifier = Modifier.size(72.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(48.dp)) }
         Text("ورود مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(14.dp)); PinField("پین مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 8.dp))
@@ -1055,7 +1157,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
@@ -1066,6 +1168,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
             item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", "appearance", onAppearance) }
             item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock", onClock) }
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
+            item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر سه وضعیت تماس و پیش‌نمایش", "callcustom", onCallCustomization) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "security", onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "permissions", onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", "home", onSelectLauncher) }
@@ -1078,9 +1181,17 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             val categoryIcon = when (icon) {
-                "contacts" -> Icons.Default.Person
-                "apps" -> Icons.Default.Search
-                "audio" -> Icons.Default.Call
+                "pages" -> Icons.Default.ViewModule
+                "contacts" -> Icons.Default.Contacts
+                "apps" -> Icons.Default.Apps
+                "appearance" -> Icons.Default.Palette
+                "clock" -> Icons.Default.AccessTime
+                "audio" -> Icons.Default.VolumeUp
+                "callcustom" -> Icons.Default.Call
+                "security" -> Icons.Default.Lock
+                "permissions" -> Icons.Default.VerifiedUser
+                "home" -> Icons.Default.Home
+                "settings" -> Icons.Default.Android
                 "about" -> Icons.Default.Info
                 else -> Icons.Default.Settings
             }
@@ -1092,7 +1203,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     }
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
@@ -1191,30 +1302,33 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                                val itemFraction = when (rowEntries.size) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
-                                val itemMaxWidth = when (rowEntries.size) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                                val itemFraction = when (rowCount) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                                val itemMaxWidth = when (rowCount) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
                                 val itemWidth = minOf(contentWidth * itemFraction, itemMaxWidth)
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.width(itemWidth).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
+                                modifier = Modifier.fillMaxWidth().height(154.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
-                                Column(Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(Modifier.fillMaxSize().padding(vertical = 10.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
-                                    val itemPhotoSize = when { rowEntries.size <= 2 -> 104.dp; rowEntries.size == 3 -> 88.dp; else -> 72.dp }
-                                    if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(itemPhotoSize).clip(RoundedCornerShape(14.dp)))
-                                    else if (entry.kind == "app") {
-                                        val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
-                                            val drawable = context.packageManager.getApplicationIcon(pkg)
-                                            val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                                            val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
-                                        }.getOrNull() } }
-                                        if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(if (rowEntries.size <= 2) 76.dp else 60.dp))
-                                        else Icon(Icons.Default.Settings, null, tint = Teal, modifier = Modifier.size(54.dp))
+                                    Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
+                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)))
+                                        else if (entry.kind == "app") {
+                                            val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
+                                                val drawable = context.packageManager.getApplicationIcon(pkg)
+                                                val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                                                val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
+                                            }.getOrNull() } }
+                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp))
+                                            else Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(58.dp))
+                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(58.dp))
                                     }
-                                     else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (rowEntries.size <= 2) 76.dp else 54.dp))
-                                    if ((entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames)) {
-                                        Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                    Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
+                                        if ((entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames)) {
+                                            Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                                        }
                                     }
                                 }
                             }
@@ -1236,7 +1350,13 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
                 val avatar = remember(pendingCall.photoUri) { pendingCall.photoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
-            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(58.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) } }, dismissButton = { Button(onClick = onCancelCall, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
+            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) }
+                    Spacer(Modifier.width(72.dp))
+                    Button(onClick = onCancelCall, modifier = Modifier.height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") }
+                }
+            }, dismissButton = { })
         }
     }
 }
