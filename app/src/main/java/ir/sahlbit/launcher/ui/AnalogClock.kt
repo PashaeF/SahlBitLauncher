@@ -21,7 +21,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true) {
+fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true, hourHandLength: Float = 0.48f, minuteHandLength: Float = 0.69f, secondHandLength: Float = 0.76f) {
     var time by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(showSecondHand) {
         while (true) {
@@ -75,13 +75,13 @@ fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english"
         val minuteAngle = (time.minute + time.second / 60f) * 6f
         val secondAngle = time.second * 6f
         rotate(hourAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFF172033), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.48f), strokeWidth = 6f)
+            drawLine(Color(0xFF172033), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * hourHandLength.coerceIn(0.25f, 0.70f)), strokeWidth = 6f)
         }
         rotate(minuteAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFF2563EB), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * 0.69f), strokeWidth = 4f)
+            drawLine(Color(0xFF2563EB), Offset(cx, cy + radius * 0.08f), Offset(cx, cy - radius * minuteHandLength.coerceIn(0.35f, 0.88f)), strokeWidth = 4f)
         }
         if (showSecondHand) rotate(secondAngle, pivot = Offset(cx, cy)) {
-            drawLine(Color(0xFF1D4ED8), Offset(cx, cy + radius * 0.18f), Offset(cx, cy - radius * 0.76f), strokeWidth = 1.8f)
+            drawLine(Color(0xFF1D4ED8), Offset(cx, cy + radius * 0.18f), Offset(cx, cy - radius * secondHandLength.coerceIn(0.40f, 0.92f)), strokeWidth = 1.8f)
         }
         drawCircle(Color(0xFFB35B45), radius = 5f, center = Offset(cx, cy))
     }

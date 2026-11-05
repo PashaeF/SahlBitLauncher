@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.5.3
+# SahlBit Launcher 0.5.4
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.3`
-- **Version Code:** `19`
+- **Version:** `0.5.4`
+- **Version Code:** `20`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -43,9 +43,9 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Answer/reject controls for ringing calls.
 - Active/held call switching controls.
 - Contact name, number, and available contact photo display.
-- Full-screen incoming-call notification and dedicated call activity with large answer, reject, and hang-up controls.
-- Call-state colors: blue for incoming ringing, amber for outgoing dialing, green for connected, and slate for held calls.
-- Mute, speaker, hold/resume, call-waiting, and proximity-screen controls.
+- Dedicated full-screen call activity with large answer, reject, cancel, speaker, and hang-up controls.
+- Call-state colors: softened blue for incoming ringing, amber for outgoing dialing, and green for connected calls.
+- Speaker switching and proximity screen-off during an active call.
 - Contact photos can be sourced from the Android contacts record or the gallery.
 - Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
 - SahlBit must be selected as the Android default Dialer for its custom in-call interface to be used. Android 5.0/5.1 continues to use the system call interface.
@@ -57,7 +57,6 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
 - App usage ordering can use Android Usage Access; it is optional and can be granted from the app catalog.
-- Incoming-call notifications require Android notification permission on Android 13+.
 - Direct calling requires the Android call permission.
 - Screen-timeout modification requires Android's special `WRITE_SETTINGS` access.
 - The About screen displays the contact number configured by the project owner.
@@ -84,6 +83,14 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 - Contact photos and permission behavior.
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
+
+## Version 0.5.4 changes
+
+- Updated to versionCode 20 / versionName 0.5.4.
+- Added configurable hour, minute, and second hand lengths and an in-settings analog clock preview.
+- Redesigned the home charging indicator and the dedicated call interface; removed SahlBit-posted call notifications.
+- Improved administrator login, contact-card management, app search, and page-capacity feedback.
+- Localized timeout and brightness values in Persian digits and set cream as the default background.
 
 ## Version 0.5.3 changes
 
