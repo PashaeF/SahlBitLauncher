@@ -147,7 +147,8 @@ class CallActivity : Activity(), SensorEventListener {
         val background = styleColor("background", defaultBackground)
         val primaryColor = styleColor("primary", Color.rgb(22, 138, 69))
         val secondaryColor = styleColor("secondary", Color.rgb(190, 35, 45))
-        val foreground = if (android.graphics.Color.luminance(background) > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
+        val luminance = (android.graphics.Color.red(background) * 0.299f + android.graphics.Color.green(background) * 0.587f + android.graphics.Color.blue(background) * 0.114f) / 255f
+        val foreground = if (luminance > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
         val avatarSize = dp(styleInt("avatar_dp", 250).coerceIn(140, 340))
         avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
         avatarView.background = GradientDrawable().apply { cornerRadius = dp(styleInt("avatar_radius", 20).coerceIn(0, 40)).toFloat() }

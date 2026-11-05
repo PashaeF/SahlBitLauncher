@@ -21,7 +21,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true, hourHandLength: Float = 0.48f, minuteHandLength: Float = 0.69f, secondHandLength: Float = 0.76f) {
+fun AnalogClock(modifier: Modifier = Modifier, digitLanguage: String = "english", digitSizeSp: Int = 40, showSecondHand: Boolean = true, hourHandLength: Float = 0.40f, minuteHandLength: Float = 0.65f, secondHandLength: Float = 0.90f) {
     var time by remember { mutableStateOf(LocalTime.now()) }
     LaunchedEffect(showSecondHand) {
         while (true) {

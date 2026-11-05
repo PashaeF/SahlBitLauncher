@@ -1427,7 +1427,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
-        val clockSize = clockPrefs.getInt("clock_size_dp", 300).coerceIn(180, 360)
+        val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
         val effectiveClockSize = minOf(clockSize, (screenWidth.value.toInt() - 32).coerceAtLeast(120))
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
