@@ -1256,6 +1256,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     var selectedContactId by remember { mutableStateOf<String?>(null) }
     var previewPhotoUri by remember { mutableStateOf<String?>(null) }
     var contactMenuExpanded by remember { mutableStateOf(false) }
+    var previewSpeakerOn by remember { mutableStateOf(false) }
     val prefix = "call_${profile}_"
     fun intValue(key: String, fallback: Int) = prefs.getInt(prefix + key, fallback)
     fun textValue(key: String, fallback: String) = prefs.getString(prefix + key, fallback) ?: fallback
@@ -1354,7 +1355,15 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Spacer(Modifier.height(spacing.dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("🔊  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
+                                Text(if (previewSpeakerOn) "☎" else "🔊", color = Color(0xFF1976D2), fontSize = 27.sp)
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Text(if (previewSpeakerOn) alternateLabel else firstLabel, fontSize = buttonTextSize.sp)
+                        }
+                    }
                     Spacer(Modifier.height(spacing.dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 }
