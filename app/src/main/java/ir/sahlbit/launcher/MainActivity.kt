@@ -919,7 +919,7 @@ private fun SahlBitApp(
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(112.dp))
+                    Box(Modifier.size(112.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(104.dp)) }
                     Text("سهل‌بیت", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                     Text("محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری", color = Ink, fontSize = 16.sp, lineHeight = 26.sp)
                     Divider()
@@ -1170,7 +1170,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (step == 0) {
             Spacer(Modifier.height(24.dp))
-            Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(132.dp))
+            Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(122.dp)) }
             Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
