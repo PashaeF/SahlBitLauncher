@@ -96,7 +96,7 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 - Updated version to 0.5.3 (versionCode 19); minimum Android remains API 21 (Android 5.0).
 - Applied Vazirmatn to Compose typography, native theme widgets, dial pad, and custom call interface.
-- Improved Dialer role discovery with the required ACTION_DIAL intent filter and notification/full-screen call UI integration.
+- Improved Dialer role discovery with the required ACTION_DIAL intent filter and the dedicated full-screen call interface without SahlBit-posted call notifications.
 - Redesigned the dedicated call screen with large senior-friendly controls, call-state colors, mute, speaker, hold/resume, call waiting, and proximity handling.
 - Scoped selected contacts and apps to the currently selected home page; removed duplicate phone-number choices and added contact-photo source selection.
 - Added search and Android usage-time sorting to the installed-app catalog; system apps are listed first.
