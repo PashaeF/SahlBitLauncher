@@ -509,7 +509,7 @@ private fun SahlBitApp(
             Text("پیش‌نمایش ساعت صفحهٔ اصلی", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)), shape = RoundedCornerShape(16.dp)) {
                 Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
-                    AnalogClock(Modifier.size(220.dp), digitLanguage = clockDigitLanguage, digitSizeSp = (clockDigitSizeSp * 0.72f).toInt(), showSecondHand = showSecondHand, hourHandLength = clockHourLength, minuteHandLength = clockMinuteLength, secondHandLength = clockSecondLength)
+                    AnalogClock(Modifier.size(minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 64).coerceAtLeast(180).dp), digitLanguage = clockDigitLanguage, digitSizeSp = clockDigitSizeSp, showSecondHand = showSecondHand, hourHandLength = clockHourLength, minuteHandLength = clockMinuteLength, secondHandLength = clockSecondLength)
                 }
             }
         }
@@ -944,8 +944,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM).toFloat()) }
     var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat()) }
     val ringtonePicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val picked = if (Build.VERSION.SDK_INT >= 33) result.data?.getParcelableExtra(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
-        else @Suppress("DEPRECATION") result.data?.getParcelableExtra<Uri>(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+        val picked = result.data?.extras?.get(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
         if (picked != null) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
                 runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, android.media.RingtoneManager.TYPE_RINGTONE, picked) }
@@ -1118,7 +1117,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } }, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
             }

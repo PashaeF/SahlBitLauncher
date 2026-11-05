@@ -112,7 +112,7 @@ class CallActivity : Activity(), SensorEventListener {
             setImageResource(android.R.drawable.sym_def_app_icon); scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
             background = GradientDrawable().apply { cornerRadius = dp(20).toFloat() }
         }
-        root.addView(avatarView, LinearLayout.LayoutParams(dp(236), dp(236)).apply { topMargin = dp(4); bottomMargin = dp(8) })
+        root.addView(avatarView, LinearLayout.LayoutParams(dp(250), dp(250)).apply { topMargin = dp(4); bottomMargin = dp(8) })
         nameView = TextView(this).also { styleText(it, 27f, Color.WHITE, true); it.maxLines = 2 }
         root.addView(nameView, LinearLayout.LayoutParams(-1, dp(58)))
         numberView = TextView(this).also { styleText(it, 20f, Color.WHITE) }
@@ -143,9 +143,18 @@ class CallActivity : Activity(), SensorEventListener {
         numberView.text = number; numberView.setTextColor(foreground); loadContactPhoto()
         primaryAction.text = when { ringing -> "☎  پاسخ به تماس"; dialing -> "✕  لغو تماس"; held -> "☎  بازگشت به تماس"; else -> "✕  پایان تماس" }
         primaryAction.background = GradientDrawable().apply { setColor(if (ringing) Color.rgb(22, 140, 68) else Color.rgb(190, 35, 45)); cornerRadius = dp(20).toFloat() }
-        primaryAction.layoutParams = (primaryAction.layoutParams as LinearLayout.LayoutParams).apply { height = dp(78); topMargin = dp(if (dialing) 78 else 10) }
-        declineAction.visibility = if (ringing) View.VISIBLE else View.GONE
-        speakerAction.visibility = if (active || held) View.VISIBLE else View.GONE
+        root.removeView(primaryAction)
+        root.removeView(declineAction)
+        root.removeView(speakerAction)
+        if (ringing) {
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(10) })
+            root.addView(declineAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(82) })
+        } else if (dialing) {
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(96) })
+        } else {
+            root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(34) })
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(54) })
+        }
         speakerAction.text = if (SahlBitInCallService.isSpeakerOn()) "☎  تغییر به تلفن" else "🔊  تغییر به بلندگو"
         updateProximityMonitoring(); applyImmersive()
     }
