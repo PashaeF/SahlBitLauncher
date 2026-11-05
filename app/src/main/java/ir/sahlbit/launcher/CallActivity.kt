@@ -168,8 +168,12 @@ class CallActivity : Activity(), SensorEventListener {
         val avatarSize = dp(styleInt("avatar_dp", 250).coerceIn(140, 340))
         avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
         avatarView.background = GradientDrawable().apply { cornerRadius = dp(styleInt("avatar_radius", 20).coerceIn(0, 40)).toFloat() }
-        nameView.textSize = styleInt("name_sp", 27).coerceIn(16, 40).toFloat()
-        numberView.textSize = styleInt("number_sp", 20).coerceIn(12, 32).toFloat()
+        val nameTextSize = styleInt("name_sp", 27).coerceIn(16, 40)
+        val numberTextSize = styleInt("number_sp", 20).coerceIn(12, 32)
+        nameView.textSize = nameTextSize.toFloat()
+        numberView.textSize = numberTextSize.toFloat()
+        nameView.layoutParams = nameView.layoutParams.apply { height = dp((nameTextSize * 2.35f).toInt().coerceIn(50, 100)) }
+        numberView.layoutParams = numberView.layoutParams.apply { height = dp((numberTextSize * 1.8f).toInt().coerceIn(36, 60)) }
         val buttonHeight = dp(styleInt("button_height_dp", 82).coerceIn(56, 120))
         val buttonTextSize = styleInt("button_text_sp", 22).coerceIn(14, 30).toFloat()
         val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
@@ -178,6 +182,8 @@ class CallActivity : Activity(), SensorEventListener {
         primaryAction.textSize = buttonTextSize
         declineAction.textSize = buttonTextSize
         speakerLabel.textSize = buttonTextSize
+        val speakerBadgeSize = dp((styleInt("button_height_dp", 82).coerceIn(56, 120) - 12).coerceIn(40, 52))
+        speakerIcon.layoutParams = speakerIcon.layoutParams.apply { width = speakerBadgeSize; height = speakerBadgeSize }
         primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
@@ -198,6 +204,7 @@ class CallActivity : Activity(), SensorEventListener {
         speakerIcon.text = if (speakerEnabled) "☎" else "🔊"
         speakerIcon.setTextColor(Color.rgb(25, 105, 190))
         speakerLabel.text = if (speakerEnabled) styleText("alternate_label", "تغییر به تلفن") else styleText("first_label", "تغییر به بلندگو")
+        speakerAction.contentDescription = speakerLabel.text
         root.removeView(primaryAction)
         root.removeView(declineAction)
         root.removeView(speakerAction)
