@@ -1355,17 +1355,17 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             val categoryIcon = when (icon) {
-                "pages" -> Icons.Default.ViewModule
-                "contacts" -> Icons.Default.Contacts
-                "apps" -> Icons.Default.Apps
-                "appearance" -> Icons.Default.Palette
-                "clock" -> Icons.Default.AccessTime
-                "audio" -> Icons.Default.VolumeUp
-                "callcustom" -> Icons.Default.Call
+                "pages" -> Icons.Default.List
+                "contacts" -> Icons.Default.Person
+                "apps" -> Icons.Default.Search
+                "appearance" -> Icons.Default.Edit
+                "clock" -> Icons.Default.DateRange
+                "audio" -> Icons.Default.Call
+                "callcustom" -> Icons.Default.Phone
                 "security" -> Icons.Default.Lock
-                "permissions" -> Icons.Default.VerifiedUser
+                "permissions" -> Icons.Default.CheckCircle
                 "home" -> Icons.Default.Home
-                "settings" -> Icons.Default.Android
+                "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
                 else -> Icons.Default.Settings
             }
@@ -1496,7 +1496,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                                                 val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                             }.getOrNull() } }
                                             if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp))
-                                            else Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(58.dp))
+                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(58.dp))
                                         } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(58.dp))
                                     }
                                     Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
