@@ -35,7 +35,9 @@ class CallActivity : Activity(), SensorEventListener {
     private lateinit var avatarView: ImageView
     private lateinit var primaryAction: Button
     private lateinit var declineAction: Button
-    private lateinit var speakerAction: Button
+    private lateinit var speakerAction: LinearLayout
+    private lateinit var speakerIcon: TextView
+    private lateinit var speakerLabel: TextView
     private var callState = Call.STATE_NEW
     private var incoming = false
     private var displayName = ""
@@ -127,8 +129,22 @@ class CallActivity : Activity(), SensorEventListener {
         root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(78)).apply { topMargin = dp(10) })
         declineAction = makeButton("✕  رد تماس", 22f, Color.rgb(190, 35, 45)) { SahlBitInCallService.reject() }
         root.addView(declineAction, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(76) })
-        speakerAction = makeButton("🔊  تغییر به بلندگو", 21f, Color.rgb(25, 105, 190)) { SahlBitInCallService.toggleSpeaker() }
-        root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(34) })
+        speakerIcon = TextView(this).apply {
+            text = "🔊"; textSize = 30f; gravity = Gravity.CENTER
+            setTextColor(Color.rgb(25, 105, 190))
+            background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
+        }
+        speakerLabel = TextView(this).also { styleText(it, 21f, Color.WHITE, true) }
+        speakerAction = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            background = GradientDrawable().apply { setColor(Color.rgb(25, 105, 190)); cornerRadius = dp(20).toFloat() }
+            addView(speakerIcon, LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(14) })
+            addView(speakerLabel, LinearLayout.LayoutParams(-2, -2))
+            setOnClickListener { SahlBitInCallService.toggleSpeaker() }
+        }
+        root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(34) })
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
     }
 
@@ -159,11 +175,13 @@ class CallActivity : Activity(), SensorEventListener {
         val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
         val spacing = dp(styleInt("spacing_dp", 72).coerceIn(8, 120))
         root.setBackgroundColor(background)
-        listOf(primaryAction, declineAction, speakerAction).forEach { button ->
-            button.textSize = buttonTextSize
-            button.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
-        }
+        primaryAction.textSize = buttonTextSize
+        declineAction.textSize = buttonTextSize
+        speakerLabel.textSize = buttonTextSize
+        primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
+        declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
+        speakerIcon.background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
         primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         statusView.text = when { ringing -> "تماس ورودی"; dialing -> "در حال شماره‌گیری"; active -> "تماس برقرار است"; held -> "تماس در انتظار"; callState == Call.STATE_DISCONNECTING -> "در حال پایان تماس"; else -> "وضعیت تماس" }
@@ -176,7 +194,10 @@ class CallActivity : Activity(), SensorEventListener {
             else -> "✕  " + styleText("second_label", "پایان تماس")
         }
         declineAction.text = "✕  " + styleText("second_label", "رد تماس")
-        speakerAction.text = if (SahlBitInCallService.isSpeakerOn()) "☎  " + styleText("alternate_label", "تغییر به تلفن") else "🔊  " + styleText("first_label", "تغییر به بلندگو")
+        val speakerEnabled = SahlBitInCallService.isSpeakerOn()
+        speakerIcon.text = if (speakerEnabled) "☎" else "🔊"
+        speakerIcon.setTextColor(Color.rgb(25, 105, 190))
+        speakerLabel.text = if (speakerEnabled) styleText("alternate_label", "تغییر به تلفن") else styleText("first_label", "تغییر به بلندگو")
         root.removeView(primaryAction)
         root.removeView(declineAction)
         root.removeView(speakerAction)
