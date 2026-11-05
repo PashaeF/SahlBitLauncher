@@ -957,13 +957,14 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     var media by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_MUSIC).toFloat()) }
     var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM).toFloat()) }
     var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat()) }
+    var selectedRingtoneType by remember { mutableIntStateOf(android.media.RingtoneManager.TYPE_RINGTONE) }
     val ringtonePicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val picked = result.data?.extras?.get(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
         if (picked != null) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
-                runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, android.media.RingtoneManager.TYPE_RINGTONE, picked) }
+                runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, selectedRingtoneType, picked) }
             } else {
-                prefs.edit().putString("pending_ringtone_uri", picked.toString()).apply()
+                prefs.edit().putString("pending_ringtone_uri", picked.toString()).putInt("pending_ringtone_type", selectedRingtoneType).apply()
                 runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
             }
         }
@@ -973,8 +974,9 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME && (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context))) {
                 prefs.getString("pending_ringtone_uri", null)?.let { raw ->
-                    runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, android.media.RingtoneManager.TYPE_RINGTONE, Uri.parse(raw)) }
-                    prefs.edit().remove("pending_ringtone_uri").apply()
+                    val pendingType = prefs.getInt("pending_ringtone_type", android.media.RingtoneManager.TYPE_RINGTONE)
+                    runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, pendingType, Uri.parse(raw)) }
+                    prefs.edit().remove("pending_ringtone_uri").remove("pending_ringtone_type").apply()
                 }
                 ring = volume(android.media.AudioManager.STREAM_RING).toFloat()
             }
@@ -983,6 +985,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
         onDispose { host?.lifecycle?.removeObserver(observer) }
     }
     fun picker(type: Int, title: String) {
+        selectedRingtoneType = type
         val intent = Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, type)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, title)
