@@ -49,7 +49,10 @@ class CallActivity : Activity(), SensorEventListener {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                ACTION_CALL_ENDED -> finish()
+                ACTION_CALL_ENDED -> {
+                    runCatching { startActivity(Intent(this@CallActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
+                    finish()
+                }
                 ACTION_CALL_STATE -> {
                     callState = intent.getIntExtra(EXTRA_STATE, Call.STATE_NEW)
                     incoming = intent.getBooleanExtra(EXTRA_INCOMING, false)
@@ -124,7 +127,7 @@ class CallActivity : Activity(), SensorEventListener {
         root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(78)).apply { topMargin = dp(10) })
         declineAction = makeButton("✕  رد تماس", 22f, Color.rgb(190, 35, 45)) { SahlBitInCallService.reject() }
         root.addView(declineAction, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(76) })
-        speakerAction = makeButton("🔊  تغییر به بلندگو", 21f, Color.rgb(25, 105, 190)) { SahlBitInCallService.toggleSpeaker(); render() }
+        speakerAction = makeButton("🔊  تغییر به بلندگو", 21f, Color.rgb(25, 105, 190)) { SahlBitInCallService.toggleSpeaker() }
         root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(34) })
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
     }
@@ -135,27 +138,56 @@ class CallActivity : Activity(), SensorEventListener {
         val dialing = !incoming && (callState == Call.STATE_NEW || callState == Call.STATE_DIALING || callState == Call.STATE_CONNECTING || callState == Call.STATE_SELECT_PHONE_ACCOUNT)
         val active = callState == Call.STATE_ACTIVE
         val held = callState == Call.STATE_HOLDING
-        val background = when { ringing -> Color.rgb(77, 145, 205); dialing -> Color.rgb(255, 193, 7); active -> Color.rgb(46, 125, 50); held -> Color.rgb(69, 90, 100); else -> Color.rgb(55, 71, 79) }
-        val foreground = if (dialing) Color.rgb(38, 50, 56) else Color.WHITE
+        val profile = if (ringing) "incoming" else if (dialing) "outgoing" else "active"
+        val style = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
+        fun styleInt(key: String, fallback: Int) = style.getInt("call_" + profile + "_" + key, fallback)
+        fun styleText(key: String, fallback: String) = style.getString("call_" + profile + "_" + key, fallback) ?: fallback
+        fun styleColor(key: String, fallback: Int): Int = runCatching { Color.parseColor(styleText(key, String.format("#%06X", 0xFFFFFF and fallback))) }.getOrDefault(fallback)
+        val defaultBackground = when { ringing -> Color.rgb(107, 159, 201); dialing -> Color.rgb(255, 201, 77); active -> Color.rgb(46, 125, 50); held -> Color.rgb(69, 90, 100); else -> Color.rgb(55, 71, 79) }
+        val background = styleColor("background", defaultBackground)
+        val primaryColor = styleColor("primary", Color.rgb(22, 138, 69))
+        val secondaryColor = styleColor("secondary", Color.rgb(190, 35, 45))
+        val foreground = if (android.graphics.Color.luminance(background) > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
+        val avatarSize = dp(styleInt("avatar_dp", 250).coerceIn(140, 340))
+        avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
+        avatarView.background = GradientDrawable().apply { cornerRadius = dp(styleInt("avatar_radius", 20).coerceIn(0, 40)).toFloat() }
+        nameView.textSize = styleInt("name_sp", 27).coerceIn(16, 40).toFloat()
+        numberView.textSize = styleInt("number_sp", 20).coerceIn(12, 32).toFloat()
+        val buttonHeight = dp(styleInt("button_height_dp", 82).coerceIn(56, 120))
+        val buttonTextSize = styleInt("button_text_sp", 22).coerceIn(14, 30).toFloat()
+        val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
+        val spacing = dp(styleInt("spacing_dp", 72).coerceIn(8, 120))
         root.setBackgroundColor(background)
+        listOf(primaryAction, declineAction, speakerAction).forEach { button ->
+            button.textSize = buttonTextSize
+            button.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
+        }
+        speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
+        primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
+        declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         statusView.text = when { ringing -> "تماس ورودی"; dialing -> "در حال شماره‌گیری"; active -> "تماس برقرار است"; held -> "تماس در انتظار"; callState == Call.STATE_DISCONNECTING -> "در حال پایان تماس"; else -> "وضعیت تماس" }
         nameView.text = displayName.ifBlank { "تماس ناشناس" }; statusView.setTextColor(foreground); nameView.setTextColor(foreground)
         numberView.text = number; numberView.setTextColor(foreground); loadContactPhoto()
-        primaryAction.text = when { ringing -> "☎  پاسخ به تماس"; dialing -> "✕  لغو تماس"; held -> "☎  بازگشت به تماس"; else -> "✕  پایان تماس" }
-        primaryAction.background = GradientDrawable().apply { setColor(if (ringing) Color.rgb(22, 140, 68) else Color.rgb(190, 35, 45)); cornerRadius = dp(20).toFloat() }
+        primaryAction.text = when {
+            ringing -> "☎  " + styleText("first_label", "پاسخ به تماس")
+            dialing -> "✕  " + styleText("first_label", "لغو تماس")
+            held -> "☎  بازگشت به تماس"
+            else -> "✕  " + styleText("second_label", "پایان تماس")
+        }
+        declineAction.text = "✕  " + styleText("second_label", "رد تماس")
+        speakerAction.text = if (SahlBitInCallService.isSpeakerOn()) "☎  " + styleText("alternate_label", "تغییر به تلفن") else "🔊  " + styleText("first_label", "تغییر به بلندگو")
         root.removeView(primaryAction)
         root.removeView(declineAction)
         root.removeView(speakerAction)
         if (ringing) {
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(10) })
-            root.addView(declineAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(82) })
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = dp(10) })
+            root.addView(declineAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
         } else if (dialing) {
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(96) })
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
         } else {
-            root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(34) })
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(54) })
+            root.addView(speakerAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = dp(34) })
+            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
         }
-        speakerAction.text = if (SahlBitInCallService.isSpeakerOn()) "☎  تغییر به تلفن" else "🔊  تغییر به بلندگو"
         updateProximityMonitoring(); applyImmersive()
     }
 

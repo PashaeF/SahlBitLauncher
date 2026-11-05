@@ -20,6 +20,11 @@ class SahlBitInCallService : InCallService() {
         bringCallUiToFront()
     }
 
+    override fun onCallAudioStateChanged(audioState: CallAudioState) {
+        super.onCallAudioStateChanged(audioState)
+        publishForeground()
+    }
+
     override fun onCallRemoved(call: Call) {
         runCatching { call.unregisterCallback(callback) }
         trackedCalls.remove(call)
