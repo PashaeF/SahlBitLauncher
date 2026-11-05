@@ -20,8 +20,18 @@ import android.widget.TextView
 class DialPadActivity : Activity() {
     private lateinit var number: EditText
     private var pendingNumber: String? = null
+
+    @Suppress("DEPRECATION")
+    private fun applyImmersive() {
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyImmersive()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(24, 24, 24, 24); setBackgroundColor(0xFFF6F2E8.toInt()) }
         root.addView(TextView(this).apply { text = "شماره‌گیر سهل‌بیت"; textSize = 26f; setTextColor(0xFF244B3D.toInt()); gravity = Gravity.CENTER }, ViewGroup.LayoutParams(-1, 80))
         number = EditText(this).apply { textSize = 28f; gravity = Gravity.CENTER; hint = "شماره تلفن"; setSingleLine(true); setText(intent?.data?.schemeSpecificPart.orEmpty()) }
@@ -81,6 +91,11 @@ class DialPadActivity : Activity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CALL_PERMISSION && grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) placePendingCall()
         else if (requestCode == REQUEST_CALL_PERMISSION) android.widget.Toast.makeText(this, "برای تماس، اجازهٔ برقراری تماس لازم است.", android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersive()
     }
 
     companion object { private const val REQUEST_CALL_PERMISSION = 501 }
