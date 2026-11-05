@@ -70,6 +70,10 @@ import kotlinx.coroutines.withContext
 private fun Int.toPersianDigits(): String = toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + (ch.code - '0'.code)).toChar() else ch
 }.joinToString("" )
+private fun String.toEnglishDigits(): String = map { ch ->
+    when (ch) { in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar(); in '٠'..'٩' -> ('0'.code + ch.code - '٠'.code).toChar(); else -> ch }
+}.joinToString("")
+private fun String.toPersianDigitsText(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch }.joinToString("")
 
 private val Forest = Color(0xFF2563EB)
 private val Cream = Color(0xFFF8FAFC)
@@ -157,24 +161,12 @@ class MainActivity : ComponentActivity() {
             getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_DIALER) == true
         android.widget.Toast.makeText(this, if (selected || telecom?.defaultDialerPackage == packageName) "سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب شد." else "برای نمایش رابط تماس سهل‌بیت، باید آن را برنامهٔ تلفن پیش‌فرض انتخاب کنید.", android.widget.Toast.LENGTH_LONG).show()
     }
-    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) android.widget.Toast.makeText(this, "بدون اجازهٔ اعلان‌ها ممکن است نمایش تمام‌صفحهٔ تماس ورودی محدود شود.", android.widget.Toast.LENGTH_LONG).show()
-        requestDialerRole()
-    }
-    private fun selectDialer() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-            return
-        }
-        requestDialerRole()
-    }
+    private fun selectDialer() { requestDialerRole() }
     private fun requestDialerRole() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val manager = getSystemService(RoleManager::class.java)
             if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) {
-                if (!manager.isRoleHeld(RoleManager.ROLE_DIALER)) dialerRoleLauncher.launch(manager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-                else android.widget.Toast.makeText(this, "سهل‌بیت هم‌اکنون برنامهٔ تلفن پیش‌فرض است.", android.widget.Toast.LENGTH_LONG).show()
+                dialerRoleLauncher.launch(manager.createRequestRoleIntent(RoleManager.ROLE_DIALER))
                 return
             }
         }
@@ -212,7 +204,7 @@ private fun SahlBitApp(
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
-    var immersive by remember { mutableStateOf(prefs.getBoolean("immersive", true)) }
+    var immersive by remember { mutableStateOf(true) }
     var backgroundChoice by remember { mutableStateOf(prefs.getString("background", "cream") ?: "cream") }
     var settingsTapThreshold by remember { mutableIntStateOf(prefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)) }
     var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
@@ -280,8 +272,8 @@ private fun SahlBitApp(
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
-    var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toString()) }
-    var timeoutSecondsText by remember { mutableStateOf((screenTimeoutSeconds % 60).toString()) }
+    var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toPersianDigits()) }
+    var timeoutSecondsText by remember { mutableStateOf((screenTimeoutSeconds % 60).toPersianDigits()) }
     var photoSourceDialogEntry by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
@@ -723,11 +715,13 @@ private fun SahlBitApp(
                 Switch(showContactNames, { showContactNames = it; prefs.edit().putBoolean("show_contact_names", it).apply() })
             }
             Divider()
-            var windowBrightness by remember { mutableFloatStateOf(1f) }
+            var windowBrightness by remember { mutableFloatStateOf(prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)) }
             Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
+            Text("${(windowBrightness * 100).toInt().toPersianDigits()}٪", color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل گوشی دست نمی‌زند.", color = Ink, fontSize = 12.sp)
             Slider(value = windowBrightness, onValueChange = { value ->
                 windowBrightness = value
+                prefs.edit().putFloat("window_brightness", value).apply()
                 (context as? ComponentActivity)?.window?.let { w ->
                     val params = w.attributes
                     params.screenBrightness = value.coerceIn(0.05f, 1f)
@@ -735,7 +729,8 @@ private fun SahlBitApp(
                 }
             }, valueRange = 0.05f..1f)
             OutlinedButton(onClick = {
-                windowBrightness = 1f
+                windowBrightness = 0.40f
+                prefs.edit().putFloat("window_brightness", 0.40f).apply()
                 (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE; w.attributes = params }
             }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از روشنایی خودکار/سیستمی") }
             Divider()
@@ -743,14 +738,14 @@ private fun SahlBitApp(
             Text("زمان را به‌صورت عددی وارد کنید. مقدار پیش‌فرض ۱ دقیقه و ۰ ثانیه است.", color = Ink)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(value = timeoutMinutesText, onValueChange = { value ->
-                    timeoutMinutesText = value.filter(Char::isDigit).take(2)
-                    screenTimeoutSeconds = ((timeoutMinutesText.toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toIntOrNull() ?: 0)).coerceIn(15, 1800)
+                    timeoutMinutesText = value.toPersianDigitsText().filter(Char::isDigit).take(2)
+                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toEnglishDigits().toIntOrNull() ?: 0)).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
                 }, modifier = Modifier.weight(1f), label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = timeoutSecondsText, onValueChange = { value ->
-                    val seconds = value.filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
-                    timeoutSecondsText = seconds.toString()
-                    screenTimeoutSeconds = ((timeoutMinutesText.toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
+                    val seconds = value.toEnglishDigits().filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
+                    timeoutSecondsText = seconds.toPersianDigits()
+                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
                 }, modifier = Modifier.weight(1f), label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
@@ -799,11 +794,17 @@ private fun SahlBitApp(
         }
         "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "برای نمایش رابط تماس اختصاصی، سهل‌بیت باید برنامهٔ تلفن پیش‌فرض باشد. این قابلیت از اندروید ۶ به بعد فعال است؛ در اندروید ۵ برنامهٔ تلفن سیستم تماس‌ها را مدیریت می‌کند.", { route = "dashboard" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان صفحهٔ اصلی (Home)") }
+            Text("برای نمایش صفحهٔ اصلی سهل‌بیت پس از فشردن دکمهٔ خانه استفاده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Teal)) { Text("انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض (Dialer)") }
+                Button(onClick = onSelectDialer, modifier = Modifier.fillMaxWidth()) { Text("انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض (Dialer)") }
+                Text("برای نمایش رابط تماس اختصاصی و مدیریت تماس‌ها در سهل‌بیت لازم است.", color = Color(0xFF64748B), fontSize = 12.sp)
                 Spacer(Modifier.height(8.dp))
             }
+            Text("دسترسی آمار مصرف برنامه‌ها", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("برای مرتب‌سازی برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر استفاده می‌شود و محتوای برنامه‌ها را نمی‌خواند.", color = Color(0xFF64748B), fontSize = 12.sp)
+            OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra("package", context.packageName)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
+            Spacer(Modifier.height(8.dp))
             if (Build.VERSION.SDK_INT >= 34) {
                 OutlinedButton(onClick = {
                     runCatching { context.startActivity(Intent("android.settings.MANAGE_APP_USE_FULL_SCREEN_INTENT", Uri.parse("package:" + context.packageName))) }
@@ -929,11 +930,12 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
             Text("برای مرتب‌سازی دقیق بر اساس میزان استفاده، دسترسی آمار مصرف برنامه‌ها را فعال کنید.", color = Teal, fontSize = 13.sp)
             OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
         }
-        OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) })
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
+        Spacer(Modifier.height(12.dp))
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filteredApps, key = { it.activityInfo.packageName }) { item ->
                 val pkg = item.activityInfo.packageName
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).clickable { onLaunch(pkg) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White).border(1.dp, Color(0xFFD8C9A8), RoundedCornerShape(14.dp)).clickable { onLaunch(pkg) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(item.loadLabel(pm).toString(), color = Ink, modifier = Modifier.weight(1f))
                     Text("اجرا", color = Teal, fontWeight = FontWeight.SemiBold)
                 }
@@ -960,16 +962,13 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     }
 }
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).padding(24.dp), verticalArrangement = Arrangement.Center) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.fillMaxWidth().height(156.dp)) {
-            Text("ورود مدیر", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.align(Alignment.BottomStart))
-            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.TopEnd).size(132.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(108.dp)) }
-        }
-        }
-        Spacer(Modifier.height(20.dp)); PinField("پین مدیر", pin, onPin)
-        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
-        Spacer(Modifier.height(20.dp)); Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ورود به پیشخان مدیریت") }
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+        IconButton(onClick = onBack, modifier = Modifier.size(56.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(34.dp)) }
+        Text("ورود مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Spacer(Modifier.height(14.dp)); PinField("پین مدیر", pin, onPin)
+        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("ورود به پیشخان مدیریت") }
         TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("پین را فراموش کرده‌ام") }
     }
 }
