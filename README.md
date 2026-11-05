@@ -40,12 +40,12 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 ### Calling and Telecom
 - Android Telecom `InCallService` integration.
 - Incoming calls are prioritized over existing active calls so call waiting is visible.
-- Answer/reject controls for ringing calls.
-- Active/held call switching controls.
 - Contact name, number, and available contact photo display.
-- Dedicated full-screen call activity with large answer, reject, cancel, speaker, and hang-up controls.
-- Call-state colors: softened blue for incoming ringing, amber for outgoing dialing, and green for connected calls.
-- Speaker switching and proximity screen-off during an active call.
+- Dedicated full-screen call activity with configurable answer, reject, cancel, speaker, and hang-up controls.
+- Call-state colors and all three call layouts can be customized by the administrator, including image size/radius, typography, button labels/sizes/radius/spacing, and colors.
+- Call customization previews can use a contact already saved to the launcher, including its selected photo.
+- Speaker route changes are reflected after Telecom reports the updated audio route.
+- Proximity screen-off and wake behavior during an active call.
 - Contact photos can be sourced from the Android contacts record or the gallery.
 - Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
 - SahlBit must be selected as the Android default Dialer for its custom in-call interface to be used. Android 5.0/5.1 continues to use the system call interface.
@@ -56,9 +56,12 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 ### Permissions and privacy
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
-- App usage ordering can use Android Usage Access; it is optional and can be granted from the app catalog.
+- App usage ordering can use Android Usage Access; the package-specific Settings URI is used to open the SahlBit entry directly where the device Settings app supports it.
 - Direct calling requires the Android call permission.
-- Screen-timeout modification requires Android's special `WRITE_SETTINGS` access.
+- Screen-timeout modification and saving custom ringtone choices require Android's special `WRITE_SETTINGS` access.
+- Volume sliders write to Android `AudioManager` streams and refresh from system volume-change events and when the app resumes.
+- Android exposes a shared `STREAM_VOICE_CALL` volume path for earpiece and speakerphone; the two call-volume controls are intentionally linked rather than pretending to be independent.
+- Alarm volume uses the separate `STREAM_ALARM` stream and is not the same as ringtone volume.
 - The About screen displays the contact number configured by the project owner.
 - No server-side account or synchronization service is included.
 
@@ -70,7 +73,7 @@ The uploaded artifact is named `sahlbit-debug-apk`.
 
 ## Verification status
 
-Version 0.5.3 includes the page-layout persistence and drag-prevention work, global Vazirmatn typography, page-scoped contact/app management, app search and usage-based ordering, configurable clock and timeout controls, and the redesigned Telecom call interface. Source-level completion does not replace physical-device testing.
+Version 0.5.5 adds the multi-page first-run wizard (also shown once to existing 0.5.4 installations), package-specific Usage Access navigation, Android-synchronized audio controls, auto-applied screen timeout, equal-size home cards and layout previews, app reordering/removal, and administrator-controlled call-screen layouts with previews. The wizard preserves an existing administrator PIN when upgrading; a fresh installation is asked to create one after the wizard.
 
 A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
 
@@ -86,11 +89,18 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 ## Version 0.5.5 changes
 
-- Added a multi-step first-run wizard with resumable role and permission requests.
-- Added a dedicated call-screen customization section for incoming, outgoing, and active-call layouts with live previews.
-- Equalized home-card dimensions, added app reorder/remove controls, and refreshed permission explanations and management.
-- Added Android package-specific Usage Access deep linking and automatic screen-timeout application.
-- Updated default clock settings and audio stream controls; Android system volume streams are refreshed on resume and volume-change broadcasts.
+- Added a seven-page first-run wizard: welcome/logo, default launcher, system-settings access, default Dialer, contacts, direct calling, and Usage Access. Each permission step explains its purpose, supports skipping, resumes after Android Settings, and remains available in the permissions page.
+- Existing 0.5.4 installations see the new wizard once; completing it does not reset the administrator PIN. New installations set the PIN after completing the wizard.
+- Added three call customization profiles (incoming ringing, outgoing dialing, and connected call) with editable labels, sizes, spacing, corner radii, color swatches, and a live preview using a saved launcher contact.
+- Added asynchronous speaker-route UI refresh and return-to-home behavior after calls end.
+- Equalized home-card dimensions independent of contact photo/app icon and aligned the page-layout preview with the home-card sizing calculation.
+- Added app reorder/remove controls and contact permission controls in both the contact manager and permissions page.
+- Added separate permission cards with explanations and current status; Android Settings is now a distinct section.
+- Opened Usage Access using the package-specific URI supported by Android's Usage Access Settings activity.
+- Applied screen-timeout changes automatically after input and made settings/PIN pages scroll with the on-screen keyboard.
+- Set clock defaults to 360 dp, 40 sp, English digits, 40%/65%/90% hand lengths, and no second hand.
+- Added system volume control in ring, notification, media, system, voice-call, and alarm order; refreshed values from Android and clarified shared earpiece/speaker call volume.
+- Redesigned About and the administrator setup/login layouts.
 
 ## Version 0.5.4 changes
 
