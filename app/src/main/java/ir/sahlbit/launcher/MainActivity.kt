@@ -263,7 +263,7 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", 0).coerceIn(0, 6)) }
-    var route by remember { mutableStateOf(if (!initialized || pinHash == null || prefs.getInt("setup_wizard_version", 0) < 1) "wizard" else if (crashRecovery) "recovery" else "home") }
+    var route by remember { mutableStateOf(if (prefs.getInt("setup_wizard_version", 0) < 1) "wizard" else if (!initialized || pinHash == null) "setpin" else if (crashRecovery) "recovery" else "home") }
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
