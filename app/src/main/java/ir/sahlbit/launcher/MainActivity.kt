@@ -77,7 +77,7 @@ private fun String.toEnglishDigits(): String = map { ch ->
 private fun String.toPersianDigitsText(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch }.joinToString("")
 
 private val Forest = Color(0xFF2563EB)
-private val Cream = Color(0xFFF8FAFC)
+private val Cream = Color(0xFFFFF8E7)
 private val Ink = Color(0xFF172033)
 private val Teal = Color(0xFF1D4ED8)
 
