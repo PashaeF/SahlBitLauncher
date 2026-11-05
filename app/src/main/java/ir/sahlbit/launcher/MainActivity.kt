@@ -601,6 +601,9 @@ private fun SahlBitApp(
         }
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
+            val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
+            val selectedCountForPage = entries.count { it.page == selectedPage }
+            if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
@@ -647,41 +650,26 @@ private fun SahlBitApp(
                     val position = pageEntries.indexOfFirst { it.id == entry.id }
                     val globalPosition = entries.indexOfFirst { it.id == entry.id }
                     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, modifier = Modifier.width(24.dp))
+                        val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
+                        val samePagePosition = samePageIndices.indexOf(globalPosition)
+                        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.width(38.dp).height(88.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFF1F5F9)), contentAlignment = Alignment.Center) {
+                                Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            }
+                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                if (entry.kind == "contact" && !entry.phoneNumber.isNullOrBlank()) Text(entry.phoneNumber!!, color = Color(0xFF64748B), fontSize = 12.sp)
+                                if (entry.kind == "contact") {
+                                    Text(entry.title, color = Ink, fontWeight = FontWeight.Bold, maxLines = 2)
+                                    Text(entry.phoneNumber.orEmpty(), color = Color(0xFF64748B), fontSize = 13.sp)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        TextButton(onClick = { photoSourceDialogEntry = entry }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("انتخاب عکس", color = Teal) }
+                                        Spacer(Modifier.weight(1f))
+                                        IconButton(onClick = { if (samePagePosition > 0) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition - 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) } }, enabled = samePagePosition > 0) { Icon(Icons.Default.KeyboardArrowUp, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
+                                        IconButton(onClick = { if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) } }, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = Forest) }
+                                        IconButton(onClick = { val removed = entries.firstOrNull { it.id == entry.id }; entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries); removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) } }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
+                                    }
+                                } else { Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2) }
                             }
-                            if (entry.kind == "contact") TextButton(onClick = { photoSourceDialogEntry = entry }) {
-                                Text(if (entry.photoSource == "contact") "✓ عکس مخاطبین" else if (entry.photoSource == "gallery") "✓ عکس گالری" else "انتخاب تصویر", color = if (entry.photoSource == "contact" || entry.photoSource == "gallery") Color(0xFF168A45) else Teal)
-                            }
-                            val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
-                            val samePagePosition = samePageIndices.indexOf(globalPosition)
-                            IconButton(enabled = samePagePosition > 0, onClick = {
-                                if (samePagePosition > 0) {
-                                    val mutable = entries.toMutableList()
-                                    val from = samePageIndices[samePagePosition]
-                                    val to = samePageIndices[samePagePosition - 1]
-                                    val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
-                                    entries = mutable; LauncherEntryStore.save(prefs, entries)
-                                }
-                            }) { Text("↑", color = if (samePagePosition > 0) Forest else Color.LightGray, fontSize = 22.sp) }
-                            IconButton(enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex, onClick = {
-                                if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) {
-                                    val mutable = entries.toMutableList()
-                                    val from = samePageIndices[samePagePosition]
-                                    val to = samePageIndices[samePagePosition + 1]
-                                    val item = mutable[from]; mutable[from] = mutable[to]; mutable[to] = item
-                                    entries = mutable; LauncherEntryStore.save(prefs, entries)
-                                }
-                            }) { Text("↓", color = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray, fontSize = 22.sp) }
-                            IconButton(onClick = {
-                                val removed = entries.firstOrNull { it.id == entry.id }
-                                entries = entries.filterNot { it.id == entry.id }
-                                LauncherEntryStore.save(prefs, entries)
-                                removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) }
-                            }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
                         }
                     }
                 }
@@ -1140,7 +1128,11 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
             }
         }
         if (pendingCall != null) {
-            AlertDialog(onDismissRequest = onCancelCall, title = { Text("تماس با ${pendingCall.title}؟") }, text = { Text("آیا می‌خواهید با این مخاطب تماس بگیرید؟\n${pendingCall.phoneNumber ?: ""}") }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر") } }, dismissButton = { OutlinedButton(onClick = onCancelCall) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
+            AlertDialog(onDismissRequest = onCancelCall, title = {
+                val avatar = remember(pendingCall.photoUri) { pendingCall.photoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
+                if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
+                else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
+            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = { Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(58.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) } }, dismissButton = { Button(onClick = onCancelCall, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") } })
         }
     }
 }
