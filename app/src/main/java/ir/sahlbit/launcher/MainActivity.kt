@@ -1058,70 +1058,100 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
 private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
     val context = LocalContext.current
     val audio = remember { context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager }
-    fun volume(stream: Int) = audio.getStreamVolume(stream)
-    fun maxVolume(stream: Int) = audio.getStreamMaxVolume(stream).coerceAtLeast(1)
-    var ring by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_RING).toFloat()) }
-    var voice by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_VOICE_CALL).toFloat()) }
-    var media by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_MUSIC).toFloat()) }
-    var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM).toFloat()) }
-    var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat()) }
-    var selectedRingtoneType by remember { mutableIntStateOf(android.media.RingtoneManager.TYPE_RINGTONE) }
-    val ringtonePicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val picked = result.data?.extras?.get(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
-        if (picked != null) {
+    fun volume(stream: Int) = audio.getStreamVolume(stream).toFloat()
+    fun maxVolume(stream: Int) = audio.getStreamMaxVolume(stream).coerceAtLeast(1).toFloat()
+    var ring by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_RING)) }
+    var notification by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_NOTIFICATION)) }
+    var media by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_MUSIC)) }
+    var system by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_SYSTEM)) }
+    var voice by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_VOICE_CALL)) }
+    var alarm by remember { mutableFloatStateOf(volume(android.media.AudioManager.STREAM_ALARM)) }
+    var selectedType by remember { mutableIntStateOf(android.media.RingtoneManager.TYPE_RINGTONE) }
+    fun refresh() {
+        ring = volume(android.media.AudioManager.STREAM_RING)
+        notification = volume(android.media.AudioManager.STREAM_NOTIFICATION)
+        media = volume(android.media.AudioManager.STREAM_MUSIC)
+        system = volume(android.media.AudioManager.STREAM_SYSTEM)
+        voice = volume(android.media.AudioManager.STREAM_VOICE_CALL)
+        alarm = volume(android.media.AudioManager.STREAM_ALARM)
+    }
+    val receiver = remember { object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) { refresh() }
+    } }
+    val host = context as? ComponentActivity
+    DisposableEffect(host) {
+        val filter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
+        if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refresh()
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
+                    prefs.getString("pending_ringtone_uri", null)?.let { raw ->
+                        val type = prefs.getInt("pending_ringtone_type", android.media.RingtoneManager.TYPE_RINGTONE)
+                        runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, type, Uri.parse(raw)) }
+                        prefs.edit().remove("pending_ringtone_uri").remove("pending_ringtone_type").apply()
+                    }
+                }
+            }
+        }
+        host?.lifecycle?.addObserver(observer)
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+            host?.lifecycle?.removeObserver(observer)
+        }
+    }
+    val pickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.extras?.get(android.media.RingtoneManager.EXTRA_RINGTONE_PICKED_URI) as? Uri
+        if (uri != null) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
-                runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, selectedRingtoneType, picked) }
+                runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, selectedType, uri) }
+                    .onSuccess { android.widget.Toast.makeText(context, "زنگ انتخاب‌شده ذخیره شد.", android.widget.Toast.LENGTH_SHORT).show() }
+                    .onFailure { android.widget.Toast.makeText(context, "ذخیرهٔ زنگ ناموفق بود؛ دسترسی تغییر تنظیمات سیستم را بررسی کنید.", android.widget.Toast.LENGTH_LONG).show() }
             } else {
-                prefs.edit().putString("pending_ringtone_uri", picked.toString()).putInt("pending_ringtone_type", selectedRingtoneType).apply()
+                prefs.edit().putString("pending_ringtone_uri", uri.toString()).putInt("pending_ringtone_type", selectedType).apply()
                 runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
             }
         }
     }
-    val host = context as? ComponentActivity
-    DisposableEffect(host) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context))) {
-                prefs.getString("pending_ringtone_uri", null)?.let { raw ->
-                    val pendingType = prefs.getInt("pending_ringtone_type", android.media.RingtoneManager.TYPE_RINGTONE)
-                    runCatching { android.media.RingtoneManager.setActualDefaultRingtoneUri(context, pendingType, Uri.parse(raw)) }
-                    prefs.edit().remove("pending_ringtone_uri").remove("pending_ringtone_type").apply()
-                }
-                ring = volume(android.media.AudioManager.STREAM_RING).toFloat()
-            }
-        }
-        host?.lifecycle?.addObserver(observer)
-        onDispose { host?.lifecycle?.removeObserver(observer) }
-    }
-    fun picker(type: Int, title: String) {
-        selectedRingtoneType = type
-        val intent = Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
+    fun pick(type: Int, title: String) {
+        selectedType = type
+        pickerLauncher.launch(Intent(android.media.RingtoneManager.ACTION_RINGTONE_PICKER)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TYPE, type)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_TITLE, title)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.media.RingtoneManager.getActualDefaultRingtoneUri(context, type))
-        ringtonePicker.launch(intent)
+            .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.media.RingtoneManager.getActualDefaultRingtoneUri(context, type)))
     }
-    SettingsPage("صدا و زنگ‌ها", "بلندی صدای تماس، رسانه، زنگ هشدار و اعلان‌ها را تنظیم کنید. انتخاب زنگ تماس از فهرست زنگ‌های خود گوشی انجام می‌شود.", onBack) {
+    SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(value = ring, onValueChange = { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING).toFloat())
-        Text("صدای مکالمه: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(value = voice, onValueChange = { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL).toFloat())
-        Text("صدای رسانه: ${media.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(value = media, onValueChange = { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC).toFloat())
-        Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(value = alarm, onValueChange = { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM).toFloat())
+        Slider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
         Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(value = notification, onValueChange = { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toFloat())
-        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
-        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
-        OutlinedButton(onClick = { picker(android.media.RingtoneManager.TYPE_ALARM, "انتخاب زنگ هشدار") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ هشدار") }
-        Text("برای ذخیرهٔ زنگ انتخاب‌شده، ممکن است اجازهٔ تغییر تنظیمات سیستمی لازم باشد.", color = Color(0xFF64748B), fontSize = 12.sp)
+        Slider(notification, { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION))
+        Text("صدای رسانه: ${media.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(media, { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC))
+        Text("صدای سیستم: ${system.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(system, { system = it; audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_SYSTEM))
+        Text("صدای مکالمه در حالت تلفن: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
+        Text("صدای مکالمه در حالت بلندگو: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
+        Text("اندروید مسیر کنترل عمومی مشترکی برای صدای مکالمه در حالت گوشی و بلندگو ارائه می‌کند؛ بنابراین این دو نوار همگام هستند. صدای زنگ هشدار مسیر جداگانه‌ای دارد و با صدای زنگ تماس یکسان نیست.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+        Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Slider(alarm, { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM))
+        Divider()
+        OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
+        OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
+        OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_ALARM, "انتخاب زنگ هشدار") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ هشدار") }
+        Text("برای ذخیرهٔ زنگ انتخاب‌شده، اندروید اجازهٔ تغییر تنظیمات سیستمی را درخواست می‌کند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
         OutlinedButton(onClick = {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context))
                 runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-            else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی فعال است.", android.widget.Toast.LENGTH_SHORT).show()
-        }, modifier = Modifier.fillMaxWidth()) { Text("مدیریت اجازهٔ انتخاب زنگ") }
+            else android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
+        }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای مدیریت انتخاب زنگ") }
     }
 }
 
