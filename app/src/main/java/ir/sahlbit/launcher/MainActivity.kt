@@ -263,6 +263,7 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", 0).coerceIn(0, 6)) }
+    var wizardRequestRevision by remember { mutableIntStateOf(-1) }
     var route by remember { mutableStateOf(if (prefs.getInt("setup_wizard_version", 0) < 1) "wizard" else if (!initialized || pinHash == null) "setpin" else if (crashRecovery) "recovery" else "home") }
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
@@ -451,14 +452,18 @@ private fun SahlBitApp(
         hostActivity?.lifecycle?.addObserver(observer)
         onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
-    LaunchedEffect(resumeRevision, wizardStep, route) {
-        if (route == "wizard" && wizardStep in 1..6 && isWizardPermissionGranted(context, wizardStep)) {
-            wizardStep += 1
-            prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-            if (wizardStep > 6) {
+    LaunchedEffect(resumeRevision, wizardStep, route, wizardRequestRevision) {
+        if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
+            val permissionGranted = isWizardPermissionGranted(context, wizardStep)
+            wizardRequestRevision = -1
+            if (permissionGranted) {
+                wizardStep += 1
+                prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
+                if (wizardStep > 6) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 1).apply()
                     route = if (initialized && pinHash != null) "home" else "setpin"
                 }
+            }
         }
     }
     LaunchedEffect(resumeRevision) {
@@ -510,6 +515,7 @@ private fun SahlBitApp(
             step = wizardStep,
             granted = isWizardPermissionGranted(context, wizardStep),
             onGrant = {
+                wizardRequestRevision = resumeRevision
                 when (wizardStep) {
                     1 -> onSelectLauncher()
                     2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
@@ -520,6 +526,7 @@ private fun SahlBitApp(
                 }
             },
             onNext = {
+                wizardRequestRevision = -1
                 wizardStep += 1
                 prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
                 if (wizardStep > 6) {
@@ -528,6 +535,7 @@ private fun SahlBitApp(
                 }
             },
             onBack = {
+                wizardRequestRevision = -1
                 if (wizardStep > 0) { wizardStep -= 1; prefs.edit().putInt("setup_wizard_step", wizardStep).apply() }
             }
         )
