@@ -1336,6 +1336,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         val secondaryColor = Color(android.graphics.Color.parseColor(secondaryHex))
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bgColor), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(when (profile) { "incoming" -> "تماس ورودی"; "outgoing" -> "در حال شماره‌گیری"; else -> "تماس برقرار است" }, color = previewForeground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 val previewBitmap = remember(previewPhotoUri) {
                     previewPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() }
                 }
