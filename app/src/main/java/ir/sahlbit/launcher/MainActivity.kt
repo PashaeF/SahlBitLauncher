@@ -689,9 +689,9 @@ private fun SahlBitApp(
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                            val previewWidth = when (count) { 1 -> 120.dp; 2 -> 120.dp; 3 -> 90.dp; else -> 70.dp }
+                            val previewWidth = when (count) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
                             repeat(count) {
-                                Box(Modifier.width(previewWidth).padding(horizontal = 2.dp).height(48.dp).clip(RoundedCornerShape(9.dp)).background(Teal.copy(alpha = .16f)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 12.sp) }
+                                Box(Modifier.width(previewWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             }
                         }
                     }
@@ -1432,9 +1432,9 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
         val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", false)
-        val hourLength = clockPrefs.getFloat("clock_hour_hand_length", 0.48f)
-        val minuteLength = clockPrefs.getFloat("clock_minute_hand_length", 0.69f)
-        val secondLength = clockPrefs.getFloat("clock_second_hand_length", 0.76f)
+        val hourLength = clockPrefs.getFloat("clock_hour_hand_length", 0.40f)
+        val minuteLength = clockPrefs.getFloat("clock_minute_hand_length", 0.65f)
+        val secondLength = clockPrefs.getFloat("clock_second_hand_length", 0.90f)
         AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
