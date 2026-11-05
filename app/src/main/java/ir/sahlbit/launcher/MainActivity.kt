@@ -1229,6 +1229,108 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
     OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
 }
 
+@Composable
+private fun CallCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+    var profile by remember { mutableStateOf("incoming") }
+    var previewName by remember { mutableStateOf("مخاطب نمونه") }
+    var previewNumber by remember { mutableStateOf("۰۹۱۲۱۲۳۴۵۶۷") }
+    val prefix = "call_${profile}_"
+    fun intValue(key: String, fallback: Int) = prefs.getInt(prefix + key, fallback)
+    fun textValue(key: String, fallback: String) = prefs.getString(prefix + key, fallback) ?: fallback
+    var avatarSize by remember(profile) { mutableIntStateOf(intValue("avatar_dp", 250)) }
+    var avatarRadius by remember(profile) { mutableIntStateOf(intValue("avatar_radius", 20)) }
+    var nameSize by remember(profile) { mutableIntStateOf(intValue("name_sp", 27)) }
+    var numberSize by remember(profile) { mutableIntStateOf(intValue("number_sp", 20)) }
+    var buttonHeight by remember(profile) { mutableIntStateOf(intValue("button_height_dp", 82)) }
+    var buttonTextSize by remember(profile) { mutableIntStateOf(intValue("button_text_sp", 22)) }
+    var buttonRadius by remember(profile) { mutableIntStateOf(intValue("button_radius", 20)) }
+    var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 72)) }
+    var bgHex by remember(profile) { mutableStateOf(textValue("background", if (profile == "incoming") "#6B9FC9" else if (profile == "outgoing") "#FFC94D" else "#2E7D32")) }
+    var primaryHex by remember(profile) { mutableStateOf(textValue("primary", "#168A45")) }
+    var secondaryHex by remember(profile) { mutableStateOf(textValue("secondary", "#BE232D")) }
+    var firstLabel by remember(profile) { mutableStateOf(textValue("first_label", if (profile == "incoming") "پاسخ به تماس" else if (profile == "outgoing") "لغو تماس" else "تغییر به بلندگو")) }
+    var secondLabel by remember(profile) { mutableStateOf(textValue("second_label", if (profile == "incoming") "رد تماس" else "پایان تماس")) }
+    var alternateLabel by remember(profile) { mutableStateOf(textValue("alternate_label", "تغییر به تلفن")) }
+    fun saveInt(key: String, value: Int) { prefs.edit().putInt(prefix + key, value).apply() }
+    fun saveText(key: String, value: String) { prefs.edit().putString(prefix + key, value).apply() }
+    val palette = listOf("#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#F1F5F9", "#FFFFFF", "#168A45", "#BE232D", "#1976D2", "#455A64")
+    SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
+        Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("ورودی", fontSize = 11.sp) })
+            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("خروجی", fontSize = 11.sp) })
+            FilterChip(profile == "active", { profile = "active" }, label = { Text("مکالمه", fontSize = 11.sp) })
+        }
+        Text("مخاطب نمونه برای پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
+        OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
+        OutlinedTextField(previewNumber, { previewNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
+        Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
+        Slider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
+        Text("گردی گوشه‌های تصویر: ${avatarRadius.toPersianDigits()} dp", color = Ink)
+        Slider(avatarRadius.toFloat(), { avatarRadius = it.toInt(); saveInt("avatar_radius", avatarRadius) }, valueRange = 0f..40f)
+        Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = Ink)
+        Slider(nameSize.toFloat(), { nameSize = it.toInt(); saveInt("name_sp", nameSize) }, valueRange = 16f..40f)
+        Text("اندازه شماره تماس: ${numberSize.toPersianDigits()} sp", color = Ink)
+        Slider(numberSize.toFloat(), { numberSize = it.toInt(); saveInt("number_sp", numberSize) }, valueRange = 12f..32f)
+        Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink)
+        Slider(buttonHeight.toFloat(), { buttonHeight = it.toInt(); saveInt("button_height_dp", buttonHeight) }, valueRange = 56f..120f)
+        Text("اندازه نوشته دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink)
+        Slider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
+        Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
+        Slider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
+        Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
+        Slider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
+        CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
+        CallColorPicker("رنگ دکمه اصلی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
+        CallColorPicker("رنگ دکمه دوم", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
+        Text("متن دکمه‌ها", color = Ink, fontWeight = FontWeight.Bold)
+        OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن لغو تماس" else "متن تغییر به بلندگو") }, singleLine = true)
+        if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true)
+        if (profile == "active") OutlinedTextField(alternateLabel, { alternateLabel = it; saveText("alternate_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("متن تغییر به تلفن") }, singleLine = true)
+        Divider()
+        Text("پیش‌نمایش زنده", color = Ink, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        val bgColor = Color(android.graphics.Color.parseColor(bgHex))
+        val primaryColor = Color(android.graphics.Color.parseColor(primaryHex))
+        val secondaryColor = Color(android.graphics.Color.parseColor(secondaryHex))
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bgColor), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.size(minOf(avatarSize, 210).dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
+                }
+                Text(previewName.ifBlank { "مخاطب نمونه" }, color = Color.White, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
+                Text(previewNumber, color = Color.White, fontSize = numberSize.sp)
+                if (profile == "incoming") {
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Spacer(Modifier.height(spacing.dp))
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                } else if (profile == "outgoing") {
+                    Spacer(Modifier.height(spacing.dp))
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
+                } else {
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("🔊  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Spacer(Modifier.height(spacing.dp))
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CallColorPicker(title: String, selected: String, options: List<String>, onSelected: (String) -> Unit) {
+    Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.take(5).forEach { hex ->
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(10.dp)).clickable { onSelected(hex) })
+        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.drop(5).forEach { hex ->
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(10.dp)).clickable { onSelected(hex) })
+        }
+    }
+}
+
 @Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
