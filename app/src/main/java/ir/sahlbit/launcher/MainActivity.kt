@@ -115,6 +115,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val prefs = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
+        window.attributes = window.attributes.apply {
+            screenBrightness = prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)
+        }
         val recoveryPrefs = getSharedPreferences(SahlBitApplication.PREFS_NAME, MODE_PRIVATE)
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
         if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
