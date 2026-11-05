@@ -612,6 +612,7 @@ private fun SahlBitApp(
             }
         }
         "pages" -> SettingsPage("مدیریت صفحه‌ها", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
+            val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, 12) { requested ->
                 val next = requested.coerceIn(1, 12)
@@ -689,7 +690,9 @@ private fun SahlBitApp(
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                            val previewWidth = when (count) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                            val previewFraction = when (count) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                            val previewMaxWidth = when (count) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                            val previewWidth = minOf(previewContentWidth * previewFraction, previewMaxWidth)
                             repeat(count) {
                                 Box(Modifier.width(previewWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             }
