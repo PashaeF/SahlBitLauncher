@@ -585,7 +585,7 @@ private fun SahlBitApp(
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
-        "callcustom" -> CallCustomizationPage(prefs = prefs, onBack = { route = "dashboard" })
+        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1230,10 +1230,14 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
 }
 
 @Composable
-private fun CallCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+private fun CallCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, onBack: () -> Unit) {
+    val context = LocalContext.current
     var profile by remember { mutableStateOf("incoming") }
     var previewName by remember { mutableStateOf("مخاطب نمونه") }
     var previewNumber by remember { mutableStateOf("۰۹۱۲۱۲۳۴۵۶۷") }
+    var selectedContactId by remember { mutableStateOf<String?>(null) }
+    var previewPhotoUri by remember { mutableStateOf<String?>(null) }
+    var contactMenuExpanded by remember { mutableStateOf(false) }
     val prefix = "call_${profile}_"
     fun intValue(key: String, fallback: Int) = prefs.getInt(prefix + key, fallback)
     fun textValue(key: String, fallback: String) = prefs.getString(prefix + key, fallback) ?: fallback
@@ -1261,7 +1265,26 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, onBa
             FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("خروجی", fontSize = 11.sp) })
             FilterChip(profile == "active", { profile = "active" }, label = { Text("مکالمه", fontSize = 11.sp) })
         }
-        Text("مخاطب نمونه برای پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
+        Text("مخاطب پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
+        if (contacts.isNotEmpty()) {
+            Box {
+                OutlinedButton(onClick = { contactMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(contacts.firstOrNull { it.id == selectedContactId }?.title ?: "انتخاب یکی از مخاطبان ذخیره‌شده", modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.ArrowDropDown, null)
+                }
+                DropdownMenu(expanded = contactMenuExpanded, onDismissRequest = { contactMenuExpanded = false }) {
+                    contacts.forEach { contact ->
+                        DropdownMenuItem(text = { Text(contact.title) }, onClick = {
+                            selectedContactId = contact.id
+                            previewName = contact.title
+                            previewNumber = contact.phoneNumber.orEmpty()
+                            previewPhotoUri = contact.photoUri
+                            contactMenuExpanded = false
+                        })
+                    }
+                }
+            }
+        } else Text("هنوز مخاطبی در صفحهٔ اصلی ذخیره نشده است؛ نام و شمارهٔ نمونه را می‌توانید دستی وارد کنید.", color = Color(0xFF64748B), fontSize = 12.sp)
         OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
         OutlinedTextField(previewNumber, { previewNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
         Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
@@ -1294,8 +1317,12 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, onBa
         val secondaryColor = Color(android.graphics.Color.parseColor(secondaryHex))
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bgColor), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val previewBitmap = remember(previewPhotoUri) {
+                    previewPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() }
+                }
                 Box(Modifier.size(minOf(avatarSize, 210).dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
+                    if (previewBitmap != null) Image(previewBitmap, contentDescription = previewName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(avatarRadius.dp)))
+                    else Icon(Icons.Default.Person, null, tint = Color.White, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
                 }
                 Text(previewName.ifBlank { "مخاطب نمونه" }, color = Color.White, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
                 Text(previewNumber, color = Color.White, fontSize = numberSize.sp)
