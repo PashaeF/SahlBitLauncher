@@ -1053,17 +1053,11 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             val categoryIcon = when (icon) {
-                "pages" -> Icons.Default.ViewList
-                "contacts" -> Icons.Default.People
-                "apps" -> Icons.Default.Apps
-                "appearance" -> Icons.Default.Palette
-                "clock" -> Icons.Default.AccessTime
-                "audio" -> Icons.Default.VolumeUp
-                "security" -> Icons.Default.Lock
-                "permissions" -> Icons.Default.Security
-                "home" -> Icons.Default.Home
-                "settings" -> Icons.Default.Settings
-                else -> Icons.Default.Info
+                "contacts" -> Icons.Default.Person
+                "apps" -> Icons.Default.Search
+                "audio" -> Icons.Default.Call
+                "about" -> Icons.Default.Info
+                else -> Icons.Default.Settings
             }
             Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(16.dp))
@@ -1145,7 +1139,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
             }
             if (charging) {
                 Spacer(Modifier.width(12.dp))
-                Icon(Icons.Default.Bolt, contentDescription = "در حال شارژ", tint = Color(0xFFFFB300), modifier = Modifier.size(48.dp))
+                Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(2.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
