@@ -184,6 +184,13 @@ class CallActivity : Activity(), SensorEventListener {
         speakerLabel.textSize = buttonTextSize
         val speakerBadgeSize = dp((styleInt("button_height_dp", 82).coerceIn(56, 120) - 16).coerceIn(36, 52))
         speakerIcon.layoutParams = speakerIcon.layoutParams.apply { width = speakerBadgeSize; height = speakerBadgeSize }
+        fun contrastText(color: Int): Int {
+            val lum = (Color.red(color) * 0.299f + Color.green(color) * 0.587f + Color.blue(color) * 0.114f) / 255f
+            return if (lum > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
+        }
+        primaryAction.setTextColor(contrastText(if (ringing) primaryColor else secondaryColor))
+        declineAction.setTextColor(contrastText(secondaryColor))
+        speakerLabel.setTextColor(contrastText(primaryColor))
         primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }

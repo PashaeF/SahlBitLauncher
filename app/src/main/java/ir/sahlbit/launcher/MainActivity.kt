@@ -1334,6 +1334,13 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         val bgColor = Color(android.graphics.Color.parseColor(bgHex))
         val primaryColor = Color(android.graphics.Color.parseColor(primaryHex))
         val secondaryColor = Color(android.graphics.Color.parseColor(secondaryHex))
+        fun readableTextColor(colorHex: String): Color {
+            val value = android.graphics.Color.parseColor(colorHex)
+            val lum = (android.graphics.Color.red(value) * 0.299f + android.graphics.Color.green(value) * 0.587f + android.graphics.Color.blue(value) * 0.114f) / 255f
+            return if (lum > 0.62f) Ink else Color.White
+        }
+        val primaryTextColor = readableTextColor(primaryHex)
+        val secondaryTextColor = readableTextColor(secondaryHex)
         val previewBgInt = android.graphics.Color.parseColor(bgHex)
         val previewLuminance = (android.graphics.Color.red(previewBgInt) * 0.299f + android.graphics.Color.green(previewBgInt) * 0.587f + android.graphics.Color.blue(previewBgInt) * 0.114f) / 255f
         val previewForeground = if (previewLuminance > 0.62f) Ink else Color.White
@@ -1351,14 +1358,14 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                 Text(previewName.ifBlank { "مخاطب نمونه" }, color = previewForeground, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
                 Text(previewNumber, color = previewForeground, fontSize = numberSize.sp)
                 if (profile == "incoming") {
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
                     Spacer(Modifier.height(spacing.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
                     Spacer(Modifier.height(spacing.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
-                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor)) {
+                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
                                 Text(if (previewSpeakerOn) "☎" else "🔊", color = Color(0xFF1976D2), fontSize = 27.sp)
@@ -1368,7 +1375,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                         }
                     }
                     Spacer(Modifier.height(spacing.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 }
             }
         }
