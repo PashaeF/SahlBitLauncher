@@ -497,7 +497,7 @@ private fun SahlBitApp(
             if (permissionGranted) {
                 wizardStep += 1
                 prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                if (wizardStep > 6) {
+                if (wizardStep > 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 1).apply()
                     route = if (initialized && pinHash != null) "home" else "setpin"
                 }
@@ -567,7 +567,7 @@ private fun SahlBitApp(
                 wizardRequestRevision = -1
                 wizardStep += 1
                 prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                if (wizardStep > 6) {
+                if (wizardStep > 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 1).apply()
                     route = if (initialized && pinHash != null) "home" else "setpin"
                 }
