@@ -41,7 +41,7 @@ object SahlBitUpdateManager {
     }
 
     suspend fun checkGitHub(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        parseManifest(JSONObject(httpGet(GITHUB_MANIFEST_URL)), "GitHub")
+        parseManifest(JSONObject(httpGet(GITHUB_MANIFEST_URL)), "گیت‌هاب")
     }
 
     private fun parseManifest(json: JSONObject, source: String): SahlBitUpdate {

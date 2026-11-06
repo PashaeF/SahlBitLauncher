@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -121,7 +122,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         }
         Text("منبع بررسی نسخه", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 17.sp)
         OutlinedButton(onClick = { checkFrom(true) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
-            Icon(Icons.Default.Refresh, null)
+            Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
             Spacer(Modifier.width(8.dp))
             Text("بررسی از وب‌سایت رسمی pashaef.ir")
         }
