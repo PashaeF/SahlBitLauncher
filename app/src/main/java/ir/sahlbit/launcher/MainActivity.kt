@@ -129,11 +129,15 @@ private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = wh
     else -> true
 }
 private fun openUsageAccessSettings(context: Context) {
-    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-        .setData(Uri.fromParts("package", context.packageName, null))
-        .putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
-    runCatching { context.startActivity(intent) }.onFailure {
-        runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val appUsageIntent = Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+        if (appUsageIntent.resolveActivity(context.packageManager) != null) {
+            runCatching { context.startActivity(appUsageIntent) }.onSuccess { return }
+        }
+    }
+    val generic = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+    runCatching { context.startActivity(generic) }.onFailure {
+        runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }
     }
 }
 
@@ -255,6 +259,8 @@ private fun SahlBitApp(
     battery: Int,
     charging: Boolean,
     crashRecovery: Boolean,
+    callEnded: Boolean,
+    onCallEndedHandled: () -> Unit,
     onSelectLauncher: () -> Unit,
     onSelectDialer: () -> Unit,
     onAndroidSettings: () -> Unit,
@@ -452,6 +458,17 @@ private fun SahlBitApp(
         hostActivity?.lifecycle?.addObserver(observer)
         onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
+    LaunchedEffect(callEnded) {
+        if (callEnded) {
+            pendingCall = null
+            pendingCallNumber = null
+            adminAuthenticated = false
+            pinInput = ""
+            error = ""
+            route = "home"
+            onCallEndedHandled()
+        }
+    }
     LaunchedEffect(resumeRevision, wizardStep, route, wizardRequestRevision) {
         if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
             val permissionGranted = isWizardPermissionGranted(context, wizardStep)
@@ -505,7 +522,7 @@ private fun SahlBitApp(
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "updates")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -597,9 +614,11 @@ private fun SahlBitApp(
             onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
             onPermissions = { route = "permissions" }, onAbout = { route = "about" }, onAudio = { route = "audio" },
             onCallCustomization = { route = "callcustom" },
+            onUpdates = { route = "updates" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
+        "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
         "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
@@ -705,8 +724,9 @@ private fun SahlBitApp(
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                            val previewFraction = when (count) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
-                            val previewMaxWidth = when (count) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                            val uniformPreviewCount = rowCardCounts.maxOrNull()?.coerceIn(1, 4) ?: 1
+                            val previewFraction = when (uniformPreviewCount) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                            val previewMaxWidth = when (uniformPreviewCount) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
                             val previewWidth = minOf(previewContentWidth * previewFraction, previewMaxWidth)
                             repeat(count) {
                                 Box(Modifier.width(previewWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
@@ -1224,17 +1244,17 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
 }
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
-        Spacer(Modifier.height(12.dp)); Text("یک پین عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 17.sp)
-        Spacer(Modifier.height(18.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(12.dp)); PinField("تکرار پین", confirm, onConfirm)
-        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 10.dp))
-        Spacer(Modifier.height(22.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("ذخیره پین") }
+        Spacer(Modifier.height(6.dp)); Text("یک پین عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 16.sp)
+        Spacer(Modifier.height(10.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(8.dp)); PinField("تکرار پین", confirm, onConfirm)
+        if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 6.dp))
+        Spacer(Modifier.height(10.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("تنظیم پین") }
     }
 }
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onBack, modifier = Modifier.size(72.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(48.dp)) }
+        IconButton(onClick = onBack, modifier = Modifier.size(84.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(58.dp)) }
         Text("ورود مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(14.dp)); PinField("پین مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 8.dp))
@@ -1399,7 +1419,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
@@ -1411,6 +1431,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock", onClock) }
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر سه وضعیت تماس و پیش‌نمایش", "callcustom", onCallCustomization) }
+            item { DashboardCard("بررسی بروزرسانی", "دریافت نسخه جدید از وب‌سایت یا GitHub", "updates", onUpdates) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "security", onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "permissions", onPermissions) }
             item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", "home", onSelectLauncher) }
@@ -1433,9 +1454,10 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.CheckCircle
                 "home" -> Icons.Default.Home
-                "settings" -> Icons.Default.Settings
+                "settings" -> Icons.Default.Tune
                 "about" -> Icons.Default.Info
-                else -> Icons.Default.Settings
+                "updates" -> Icons.Default.Update
+                else -> Icons.Default.MoreHoriz
             }
             Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(16.dp))
@@ -1532,6 +1554,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 val storedRows = rowRoot.optJSONArray(index.toString())
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 4) }
+                val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 4) ?: 1
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
@@ -1544,8 +1567,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
                             if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                                val itemFraction = when (rowCount) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
-                                val itemMaxWidth = when (rowCount) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
+                                val itemFraction = when (uniformCardsPerRow) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
+                                val itemMaxWidth = when (uniformCardsPerRow) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
                                 val itemWidth = minOf(contentWidth * itemFraction, itemMaxWidth)
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.width(itemWidth).padding(horizontal = 4.dp)) {
@@ -1593,7 +1616,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) }
                     Spacer(Modifier.width(72.dp))
                     Button(onClick = onCancelCall, modifier = Modifier.height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") }
