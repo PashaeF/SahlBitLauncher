@@ -36,7 +36,7 @@ class CallActivity : Activity(), SensorEventListener {
     private lateinit var primaryAction: Button
     private lateinit var declineAction: Button
     private lateinit var speakerAction: LinearLayout
-    private lateinit var speakerIcon: TextView
+    private lateinit var speakerIcon: ImageView
     private lateinit var speakerLabel: TextView
     private var callState = Call.STATE_NEW
     private var incoming = false
@@ -129,9 +129,10 @@ class CallActivity : Activity(), SensorEventListener {
         root.addView(primaryAction, LinearLayout.LayoutParams(-1, dp(78)).apply { topMargin = dp(10) })
         declineAction = makeButton("✕  رد تماس", 22f, Color.rgb(190, 35, 45)) { SahlBitInCallService.reject() }
         root.addView(declineAction, LinearLayout.LayoutParams(-1, dp(76)).apply { topMargin = dp(76) })
-        speakerIcon = TextView(this).apply {
-            text = "🔊"; textSize = 30f; gravity = Gravity.CENTER
-            setTextColor(Color.rgb(25, 105, 190))
+        speakerIcon = ImageView(this).apply {
+            setImageResource(R.drawable.ic_speaker)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(9), dp(9), dp(9), dp(9))
             background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
         }
         speakerLabel = TextView(this).also { styleText(it, 21f, Color.WHITE, true) }
@@ -208,8 +209,7 @@ class CallActivity : Activity(), SensorEventListener {
         }
         declineAction.text = "✕  " + styleText("second_label", "رد تماس")
         val speakerEnabled = SahlBitInCallService.isSpeakerOn()
-        speakerIcon.text = if (speakerEnabled) "☎" else "🔊"
-        speakerIcon.setTextColor(Color.rgb(25, 105, 190))
+        speakerIcon.setImageResource(if (speakerEnabled) R.drawable.ic_phone_handset else R.drawable.ic_speaker)
         speakerLabel.text = if (speakerEnabled) styleText("alternate_label", "تغییر به تلفن") else styleText("first_label", "تغییر به بلندگو")
         speakerAction.contentDescription = speakerLabel.text
         root.removeView(primaryAction)
