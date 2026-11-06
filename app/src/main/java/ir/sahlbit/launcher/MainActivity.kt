@@ -1012,7 +1012,7 @@ private fun SahlBitApp(
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(92.dp)) }
+                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Box(Modifier.size(104.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) } }
                     Text("سهل‌بیت", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
                     Text("سادگی در دسترسی؛ آرامش در استفاده", color = Color(0xFFE4F2E9), fontSize = 17.sp, fontWeight = FontWeight.Medium)
                     Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) { Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) }
@@ -1266,7 +1266,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (step == 0) {
             Spacer(Modifier.height(24.dp))
-            Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) }
+            Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) }
             Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
