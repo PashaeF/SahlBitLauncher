@@ -218,8 +218,6 @@ class CallActivity : Activity(), SensorEventListener {
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
         speakerIcon.background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
-        primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
-        declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         statusView.text = when { ringing -> "تماس ورودی"; dialing -> "در حال شماره‌گیری"; active -> "تماس برقرار است"; held -> "تماس در انتظار"; callState == Call.STATE_DISCONNECTING -> "در حال پایان تماس"; else -> "وضعیت تماس" }
         nameView.text = displayName.ifBlank { "تماس ناشناس" }; statusView.setTextColor(foreground); nameView.setTextColor(foreground)
         numberView.text = number; numberView.setTextColor(foreground); loadContactPhoto()
