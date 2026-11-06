@@ -1314,7 +1314,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     var buttonHeight by remember(profile) { mutableIntStateOf(intValue("button_height_dp", 82)) }
     var buttonTextSize by remember(profile) { mutableIntStateOf(intValue("button_text_sp", 22)) }
     var buttonRadius by remember(profile) { mutableIntStateOf(intValue("button_radius", 20)) }
-    var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 72)) }
+    var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 88)) }
     var bgHex by remember(profile) { mutableStateOf(textValue("background", if (profile == "incoming") "#6B9FC9" else if (profile == "outgoing") "#FFC94D" else "#2E7D32")) }
     var primaryHex by remember(profile) { mutableStateOf(textValue("primary", if (profile == "active") "#1976D2" else "#168A45")) }
     var secondaryHex by remember(profile) { mutableStateOf(textValue("secondary", "#BE232D")) }
