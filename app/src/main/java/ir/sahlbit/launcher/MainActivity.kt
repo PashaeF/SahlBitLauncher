@@ -1487,8 +1487,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "contacts" -> Icons.Default.Person
                 "apps" -> Icons.Default.Search
                 "appearance" -> Icons.Default.Edit
-                "clock" -> Icons.Default.Alarm
-                "audio" -> Icons.Default.VolumeUp
+                "clock" -> Icons.Default.DateRange
+                "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.CheckCircle
@@ -1498,7 +1498,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "updates" -> Icons.Default.Refresh
                 else -> Icons.Default.MoreVert
             }
-            Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
+            if (icon == "clock") Text("◷", color = Forest, fontSize = 30.sp, modifier = Modifier.size(28.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center) else Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
             Spacer(Modifier.width(16.dp))
             Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }
             Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal)
