@@ -126,7 +126,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             Text("بررسی از وب‌سایت رسمی pashaef.ir")
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
-            Icon(Icons.Default.CloudDownload, null)
+            Icon(Icons.Default.Refresh, null)
             Text("بررسی آخرین انتشار در GitHub")
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
@@ -148,7 +148,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     if (found.changelog.isNotBlank()) Text(found.changelog.take(1800), color = Color(0xFF172033), fontSize = 13.sp, lineHeight = 21.sp)
                     if (SahlBitUpdateManager.isNewer(context, found)) {
                         Button(onClick = { installUpdate(found) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
-                            Icon(Icons.Default.CloudDownload, null)
+                            Icon(Icons.Default.Refresh, null)
                             Text("دانلود و نصب به‌روزرسانی")
                         }
                     } else {

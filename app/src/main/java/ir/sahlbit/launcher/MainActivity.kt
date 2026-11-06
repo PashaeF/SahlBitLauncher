@@ -1481,10 +1481,10 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.CheckCircle
                 "home" -> Icons.Default.Home
-                "settings" -> Icons.Default.Tune
+                "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
-                "updates" -> Icons.Default.Update
-                else -> Icons.Default.MoreHoriz
+                "updates" -> Icons.Default.Refresh
+                else -> Icons.Default.MoreVert
             }
             Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(16.dp))
