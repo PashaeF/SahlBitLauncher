@@ -232,6 +232,7 @@ class CallActivity : Activity(), SensorEventListener {
         declineAction.text = "✕  " + styleText("second_label", "رد تماس")
         val speakerEnabled = SahlBitInCallService.isSpeakerOn()
         speakerIcon.setImageResource(if (speakerEnabled) R.drawable.ic_phone_handset else R.drawable.ic_speaker)
+        speakerIcon.scaleX = -1f
         speakerLabel.text = if (speakerEnabled) styleText("alternate_label", "تغییر به تلفن") else styleText("first_label", "تغییر به بلندگو")
         speakerAction.contentDescription = speakerLabel.text
         root.removeView(primaryAction)
