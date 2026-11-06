@@ -1640,7 +1640,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } else { android.widget.Toast.makeText(context, "فقط ${(adminTapThreshold - settingsTaps).coerceAtLeast(0).toPersianDigits()} بار دیگر روی آیکون چرخ‌دنده ضربه بزنید تا صفحه ورود مدیر به تنظیمات برنامه باز شود.", android.widget.Toast.LENGTH_SHORT).show() } }, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } else { android.widget.Toast.makeText(context, "فقط ${(adminTapThreshold - settingsTaps).coerceAtLeast(0).toPersianDigits()} بار دیگر روی آیکون چرخ‌دنده ضربه بزنید تا صفحه ورود مدیر به تنظیمات برنامه باز شود.", android.widget.Toast.LENGTH_SHORT).show() } }, modifier = Modifier.size(40.dp).offset(x = (-12).dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
             }
         }
