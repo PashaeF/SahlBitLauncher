@@ -4,6 +4,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val releaseStorePath = providers.environmentVariable("SAHLBIT_KEYSTORE_PATH").orNull
+val releaseStorePassword = providers.environmentVariable("SAHLBIT_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("SAHLBIT_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("SAHLBIT_KEY_PASSWORD").orNull
+
 android {
     namespace = "ir.sahlbit.launcher"
     compileSdk = 35
@@ -16,12 +21,31 @@ android {
         versionName = "0.5.6"
     }
 
+    signingConfigs {
+        if (!releaseStorePath.isNullOrBlank() && !releaseStorePassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(releaseStorePath)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (!releaseStorePath.isNullOrBlank() && !releaseStorePassword.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
