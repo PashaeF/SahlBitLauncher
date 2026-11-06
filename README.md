@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.5.6
+# SahlBit Launcher 0.5.7
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.6`
-- **Version Code:** `22`
+- **Version:** `0.5.7`
+- **Version Code:** `23`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -91,7 +91,7 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
 
-## Version 0.5.6 changes
+## Version 0.5.7 changes
 
 - Added secure website and GitHub update sources with APK signature checks and Android installation confirmation.
 - Added the update-install permission as a new wizard step and permission card; existing 0.5.5 installs are sent directly to that new step.

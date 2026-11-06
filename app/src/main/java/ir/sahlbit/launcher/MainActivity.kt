@@ -136,16 +136,19 @@ private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = wh
     else -> true
 }
 private fun openUsageAccessSettings(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val appUsageIntent = Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
-        if (appUsageIntent.resolveActivity(context.packageManager) != null) {
-            runCatching { context.startActivity(appUsageIntent) }.onSuccess { return }
-        }
+    val packageUri = Uri.fromParts("package", context.packageName, null)
+    val appSpecific = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+        data = packageUri
+        putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    val generic = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
-    runCatching { context.startActivity(generic) }.onFailure {
-        runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }
-    }
+    val generic = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+    val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+    val opened = runCatching {
+        if (appSpecific.resolveActivity(context.packageManager) != null) context.startActivity(appSpecific)
+        else throw IllegalStateException("App-specific usage settings unavailable")
+    }.isSuccess
+    if (!opened) runCatching { context.startActivity(generic) }.onFailure { runCatching { context.startActivity(appDetails) } }
 }
 
 @Composable
@@ -293,7 +296,7 @@ private fun SahlBitApp(
     val completedWizardVersion = remember { prefs.getInt("setup_wizard_version", 0) }
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion == 1) 7 else 0).coerceIn(0, 7)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by remember { mutableStateOf(if (completedWizardVersion < 2) "wizard" else if (!initialized || pinHash == null) "setpin" else if (crashRecovery) "recovery" else "home") }
+    var route by remember { mutableStateOf(if (pinHash == null && !initialized && completedWizardVersion < 2) "wizard" else if (pinHash == null || !initialized) "setpin" else if (crashRecovery) "recovery" else "home") }
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -497,11 +500,12 @@ private fun SahlBitApp(
             val permissionGranted = isWizardPermissionGranted(context, wizardStep)
             wizardRequestRevision = -1
             if (permissionGranted) {
-                wizardStep += 1
-                prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                if (wizardStep > 7) {
+                if (wizardStep >= 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).apply()
-                    route = if (initialized && pinHash != null) "home" else "setpin"
+                    route = if (pinHash != null && initialized) "home" else "setpin"
+                } else {
+                    wizardStep += 1
+                    prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
                 }
             }
         }
@@ -539,7 +543,7 @@ private fun SahlBitApp(
             "pinchange", "pinverify" -> "security"
             "mathrecovery" -> "login"
             "login" -> "home"
-            "setpin" -> { wizardStep = 6; prefs.edit().putInt("setup_wizard_step", 6).apply(); "wizard" }
+            "setpin" -> if (pinHash != null) "home" else "setpin"
             "callcustom" -> "dashboard"
             else -> "dashboard"
         }
@@ -553,7 +557,7 @@ private fun SahlBitApp(
     when (route) {
         "wizard" -> SetupWizardScreen(
             step = wizardStep,
-            granted = isWizardPermissionGranted(context, wizardStep),
+            granted = runCatching { isWizardPermissionGranted(context, wizardStep) }.getOrNull(),
             onGrant = {
                 wizardRequestRevision = resumeRevision
                 when (wizardStep) {
@@ -1199,20 +1203,17 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.media.RingtoneManager.getActualDefaultRingtoneUri(context, type)))
     }
     SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
-        Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_RING).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
-        Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(notification, { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION))
-        Text("صدای رسانه: ${media.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای رسانه: ${media.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_MUSIC).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(media, { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC))
-        Text("صدای سیستم: ${system.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای سیستم: ${system.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_SYSTEM).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(system, { system = it; audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_SYSTEM))
-        Text("صدای مکالمه در حالت تلفن: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای مکالمه: ${voice.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_VOICE_CALL).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
-        Text("صدای مکالمه در حالت بلندگو: ${voice.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
-        Text("اندروید مسیر کنترل عمومی مشترکی برای صدای مکالمه در حالت گوشی و بلندگو ارائه می‌کند؛ بنابراین این دو نوار همگام هستند. صدای زنگ هشدار مسیر جداگانه‌ای دارد و با صدای زنگ تماس یکسان نیست.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
-        Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_ALARM).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         Slider(alarm, { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM))
         Divider()
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
@@ -1228,7 +1229,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 }
 
 @Composable
-private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
+private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
     val titles = listOf("خوش‌آمدگویی", "انتخاب لانچر پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها", "اجازهٔ نصب به‌روزرسانی‌های سهل‌بیت")
     val descriptions = listOf(
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
@@ -1258,13 +1259,13 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
                 Text(descriptions[step], color = Ink, fontSize = 16.sp, lineHeight = 27.sp)
                 if (step > 0) {
                     Text("اگر اکنون به هر دلیل نتوانستید این اجازه را بدهید، اشکالی ندارد؛ بعداً از بخش «مجوزها و دسترسی‌ها» در تنظیمات سهل‌بیت می‌توانید آن را فعال کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                    Text(if (granted) "این دسترسی قبلاً فعال شده است." else "وضعیت فعلی: هنوز فعال نشده است.", color = if (granted) Color(0xFF168A45) else Color(0xFFB45309), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    OutlinedButton(onClick = onGrant, modifier = Modifier.fillMaxWidth().height(54.dp)) { Text(if (granted) "بررسی / بازکردن تنظیم مربوط" else "رفتن به صفحهٔ اعطای اجازه") }
+                    Text(when (granted) { true -> "این دسترسی فعال شده است."; false -> "این دسترسی هنوز فعال نشده است."; null -> "وضعیت این دسترسی در حال حاضر قابل بررسی نیست." }, color = when (granted) { true -> Color(0xFF168A45); false -> Color(0xFFB45309); null -> Color(0xFF64748B) }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    OutlinedButton(onClick = onGrant, modifier = Modifier.fillMaxWidth().height(54.dp)) { Text(if (granted == true) "بررسی تنظیم مربوط" else "رفتن به صفحهٔ اعطای اجازه") }
                 }
             }
         }
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(58.dp)) {
-            Text(if (step == 7) "پایان ویزارد" else if (step == 0) "شروع راه‌اندازی" else "ادامه بدون اعطای اجازه")
+            Text(if (step == 7) "پایان مراحل راه‌اندازی" else if (step == 0) "شروع راه‌اندازی" else when (granted) { true -> "ادامه به مرحله بعد"; false -> "ادامه بدون اعطای اجازه"; null -> "ادامه به مرحله بعدی" })
         }
         if (step > 0) Text("می‌توانید مراحل را بدون اعطای دسترسی ورق بزنید؛ هیچ مرحله‌ای شما را مجبور به فعال‌سازی مجوز نمی‌کند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
     }
@@ -1279,9 +1280,9 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
 }
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 4.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 24.dp, bottom = 12.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
-        Spacer(Modifier.height(6.dp)); Text("یک پین عددی با حداقل ۴ رقم انتخاب کن. فقط مدیر باید آن را بداند.", color = Ink, fontSize = 16.sp)
+        Spacer(Modifier.height(6.dp)); Text("لطفاً یک پین عددی با حداقل ۴ رقم انتخاب کنید. این پین را فقط در اختیار مدیر دستگاه قرار دهید.", color = Ink, fontSize = 16.sp)
         Spacer(Modifier.height(10.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(8.dp)); PinField("تکرار پین", confirm, onConfirm)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.height(10.dp)); Button(onClick = onSave, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("تنظیم پین") }
