@@ -158,6 +158,12 @@ private fun PermissionCard(title: String, description: String, buttonLabel: Stri
 class MainActivity : ComponentActivity() {
     private val battery = mutableIntStateOf(100)
     private val charging = mutableStateOf(false)
+    private val callEndedFlag = mutableStateOf(false)
+    private val callEndedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == CallActivity.ACTION_CALL_ENDED) callEndedFlag.value = true
+        }
+    }
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent ?: return
@@ -173,6 +179,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerReceiver(receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val callEndedFilter = IntentFilter(CallActivity.ACTION_CALL_ENDED)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(callEndedReceiver, callEndedFilter, RECEIVER_NOT_EXPORTED)
+        else registerReceiver(callEndedReceiver, callEndedFilter)
         val prefs = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
         window.attributes = window.attributes.apply {
             screenBrightness = prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)
@@ -190,6 +199,8 @@ class MainActivity : ComponentActivity() {
                         battery = battery.intValue,
                         charging = charging.value,
                         crashRecovery = pending,
+                        callEnded = callEndedFlag.value,
+                        onCallEndedHandled = { callEndedFlag.value = false },
                         onSelectLauncher = { selectLauncher() },
                         onSelectDialer = { selectDialer() },
                         onAndroidSettings = { openAndroidSettings() },
@@ -250,7 +261,11 @@ class MainActivity : ComponentActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) applyImmersiveMode(true)
     }
-    override fun onDestroy() { runCatching { unregisterReceiver(receiver) }; super.onDestroy() }
+    override fun onDestroy() {
+        runCatching { unregisterReceiver(receiver) }
+        runCatching { unregisterReceiver(callEndedReceiver) }
+        super.onDestroy()
+    }
 }
 
 @Composable
