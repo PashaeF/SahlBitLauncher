@@ -41,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +49,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.Slider as MaterialSlider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +77,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+
+@Composable
+private fun CompactSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f
+) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        MaterialSlider(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(0.70f),
+            valueRange = valueRange
+        )
+    }
+}
 
 private fun Int.toPersianDigits(): String = toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + (ch.code - '0'.code)).toChar() else ch
@@ -297,6 +315,7 @@ private fun SahlBitApp(
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion == 1) 7 else 0).coerceIn(0, 7)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
     var route by remember { mutableStateOf(if (pinHash == null && !initialized && completedWizardVersion < 2) "wizard" else if (pinHash == null || !initialized) "setpin" else if (crashRecovery) "recovery" else "home") }
+    val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -637,6 +656,7 @@ private fun SahlBitApp(
             }
         }
         "dashboard" -> DashboardScreen(
+            listState = dashboardListState,
             onExit = { adminAuthenticated = false; route = "home" },
             onPages = { route = "pages" }, onContacts = { route = "contacts" }, onAllApps = { route = "allapps" },
             onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
@@ -651,17 +671,17 @@ private fun SahlBitApp(
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
-            Slider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
+            CompactSlider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
             Text("اندازهٔ اعداد ساعت: ${clockDigitSizeSp.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
-            Slider(value = clockDigitSizeSp.toFloat(), onValueChange = { v -> clockDigitSizeSp = v.toInt(); prefs.edit().putInt("clock_digit_size_sp", clockDigitSizeSp).apply() }, valueRange = 20f..56f)
+            CompactSlider(value = clockDigitSizeSp.toFloat(), onValueChange = { v -> clockDigitSizeSp = v.toInt(); prefs.edit().putInt("clock_digit_size_sp", clockDigitSizeSp).apply() }, valueRange = 20f..56f)
             Text("زبان اعداد ساعت", color = Ink, fontWeight = FontWeight.Bold)
             listOf("english" to "انگلیسی (123)", "persian" to "فارسی (۱۲۳)").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(clockDigitLanguage == key, { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }); Text(label, color = Ink) } }
             Text("طول عقربهٔ ساعت‌شمار: ${(clockHourLength * 100).toInt().toPersianDigits()}٪", color = Ink, fontWeight = FontWeight.SemiBold)
-            Slider(value = clockHourLength, onValueChange = { clockHourLength = it; prefs.edit().putFloat("clock_hour_hand_length", it).apply() }, valueRange = 0.25f..0.70f)
+            CompactSlider(value = clockHourLength, onValueChange = { clockHourLength = it; prefs.edit().putFloat("clock_hour_hand_length", it).apply() }, valueRange = 0.25f..0.70f)
             Text("طول عقربهٔ دقیقه‌شمار: ${(clockMinuteLength * 100).toInt().toPersianDigits()}٪", color = Ink, fontWeight = FontWeight.SemiBold)
-            Slider(value = clockMinuteLength, onValueChange = { clockMinuteLength = it; prefs.edit().putFloat("clock_minute_hand_length", it).apply() }, valueRange = 0.35f..0.88f)
+            CompactSlider(value = clockMinuteLength, onValueChange = { clockMinuteLength = it; prefs.edit().putFloat("clock_minute_hand_length", it).apply() }, valueRange = 0.35f..0.88f)
             Text("طول عقربهٔ ثانیه‌شمار: ${(clockSecondLength * 100).toInt().toPersianDigits()}٪", color = Ink, fontWeight = FontWeight.SemiBold)
-            Slider(value = clockSecondLength, onValueChange = { clockSecondLength = it; prefs.edit().putFloat("clock_second_hand_length", it).apply() }, valueRange = 0.40f..0.92f)
+            CompactSlider(value = clockSecondLength, onValueChange = { clockSecondLength = it; prefs.edit().putFloat("clock_second_hand_length", it).apply() }, valueRange = 0.40f..0.92f)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش ثانیه‌شمار", modifier = Modifier.weight(1f), color = Ink); Switch(showSecondHand, { showSecondHand = it; prefs.edit().putBoolean("clock_show_seconds", it).apply() }) }
             Text("پیش‌نمایش ساعت صفحهٔ اصلی", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             val previewClockSize = minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 64).coerceAtLeast(180)
@@ -894,7 +914,7 @@ private fun SahlBitApp(
             Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
             Text("${(windowBrightness * 100).toInt().toPersianDigits()}٪", color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل گوشی دست نمی‌زند.", color = Ink, fontSize = 12.sp)
-            Slider(value = windowBrightness, onValueChange = { value ->
+            CompactSlider(value = windowBrightness, onValueChange = { value ->
                 windowBrightness = value
                 prefs.edit().putFloat("window_brightness", value).apply()
                 (context as? ComponentActivity)?.window?.let { w ->
@@ -1204,17 +1224,17 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     }
     SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_RING).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
+        CompactSlider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
         Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(notification, { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION))
+        CompactSlider(notification, { notification = it; audio.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_NOTIFICATION))
         Text("صدای رسانه: ${media.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_MUSIC).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(media, { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC))
+        CompactSlider(media, { media = it; audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_MUSIC))
         Text("صدای سیستم: ${system.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_SYSTEM).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(system, { system = it; audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_SYSTEM))
+        CompactSlider(system, { system = it; audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_SYSTEM))
         Text("صدای مکالمه: ${voice.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_VOICE_CALL).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
+        CompactSlider(voice, { voice = it; audio.setStreamVolume(android.media.AudioManager.STREAM_VOICE_CALL, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_VOICE_CALL))
         Text("صدای زنگ هشدار: ${alarm.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_ALARM).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-        Slider(alarm, { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM))
+        CompactSlider(alarm, { alarm = it; audio.setStreamVolume(android.media.AudioManager.STREAM_ALARM, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_ALARM))
         Divider()
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
@@ -1364,23 +1384,23 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
         OutlinedTextField(previewNumber, { previewNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
         Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
-        Slider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
+        CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
         Text("گردی گوشه‌های تصویر: ${avatarRadius.toPersianDigits()} dp", color = Ink)
-        Slider(avatarRadius.toFloat(), { avatarRadius = it.toInt(); saveInt("avatar_radius", avatarRadius) }, valueRange = 0f..40f)
+        CompactSlider(avatarRadius.toFloat(), { avatarRadius = it.toInt(); saveInt("avatar_radius", avatarRadius) }, valueRange = 0f..40f)
         Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = Ink)
-        Slider(nameSize.toFloat(), { nameSize = it.toInt(); saveInt("name_sp", nameSize) }, valueRange = 16f..40f)
+        CompactSlider(nameSize.toFloat(), { nameSize = it.toInt(); saveInt("name_sp", nameSize) }, valueRange = 16f..40f)
         Text("اندازه شماره تماس: ${numberSize.toPersianDigits()} sp", color = Ink)
-        Slider(numberSize.toFloat(), { numberSize = it.toInt(); saveInt("number_sp", numberSize) }, valueRange = 12f..32f)
+        CompactSlider(numberSize.toFloat(), { numberSize = it.toInt(); saveInt("number_sp", numberSize) }, valueRange = 12f..32f)
         Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink)
-        Slider(buttonHeight.toFloat(), { buttonHeight = it.toInt(); saveInt("button_height_dp", buttonHeight) }, valueRange = 56f..120f)
+        CompactSlider(buttonHeight.toFloat(), { buttonHeight = it.toInt(); saveInt("button_height_dp", buttonHeight) }, valueRange = 56f..120f)
         Text("عرض دکمه‌ها: ${buttonWidthPct.toPersianDigits()}٪", color = Ink)
-        Slider(buttonWidthPct.toFloat(), { buttonWidthPct = it.toInt(); saveInt("button_width_pct", buttonWidthPct) }, valueRange = 60f..100f)
+        CompactSlider(buttonWidthPct.toFloat(), { buttonWidthPct = it.toInt(); saveInt("button_width_pct", buttonWidthPct) }, valueRange = 60f..100f)
         Text("اندازه نوشته دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink)
-        Slider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
+        CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
         Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
-        Slider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
+        CompactSlider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
         Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
-        Slider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
+        CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
         CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
         CallColorPicker("رنگ دکمه اصلی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
         CallColorPicker("رنگ دکمه دوم", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
@@ -1458,11 +1478,11 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", "pages", onPages) }
             item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", "contacts", onContacts) }
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", "apps", onAllApps) }
