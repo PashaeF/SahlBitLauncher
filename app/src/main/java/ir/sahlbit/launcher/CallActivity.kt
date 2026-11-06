@@ -55,6 +55,7 @@ class CallActivity : Activity(), SensorEventListener {
                     runCatching { startActivity(Intent(this@CallActivity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)) }
                     finish()
                 }
+                ACTION_AUDIO_ROUTE_FAILED -> android.widget.Toast.makeText(this@CallActivity, "تغییر مسیر صدا انجام نشد؛ دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
                 ACTION_CALL_STATE -> {
                     callState = intent.getIntExtra(EXTRA_STATE, Call.STATE_NEW)
                     incoming = intent.getBooleanExtra(EXTRA_INCOMING, false)
@@ -86,7 +87,7 @@ class CallActivity : Activity(), SensorEventListener {
             proximityWakeLock = powerManager?.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "${packageName}:CallProximity")?.apply { setReferenceCounted(false) }
         }
         buildUi()
-        val filter = IntentFilter().apply { addAction(ACTION_CALL_STATE); addAction(ACTION_CALL_ENDED) }
+        val filter = IntentFilter().apply { addAction(ACTION_CALL_STATE); addAction(ACTION_CALL_ENDED); addAction(ACTION_AUDIO_ROUTE_FAILED) }
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED) else registerReceiver(receiver, filter)
         SahlBitInCallService.activeCall?.let { call ->
             callState = call.state; incoming = SahlBitInCallService.isIncoming(call)
@@ -178,12 +179,12 @@ class CallActivity : Activity(), SensorEventListener {
         val buttonHeight = dp(styleInt("button_height_dp", 82).coerceIn(56, 120))
         val buttonTextSize = styleInt("button_text_sp", 22).coerceIn(14, 30).toFloat()
         val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
-        val spacing = dp(styleInt("spacing_dp", 72).coerceIn(8, 120))
+        val spacing = dp(styleInt("spacing_dp", 88).coerceIn(8, 120))
         root.setBackgroundColor(background)
         primaryAction.textSize = buttonTextSize
         declineAction.textSize = buttonTextSize
         speakerLabel.textSize = buttonTextSize
-        val speakerBadgeSize = dp((styleInt("button_height_dp", 82).coerceIn(56, 120) - 16).coerceIn(36, 52))
+        val speakerBadgeSize = dp((styleInt("button_height_dp", 82).coerceIn(56, 120) - 12).coerceIn(48, 64))
         speakerIcon.layoutParams = speakerIcon.layoutParams.apply { width = speakerBadgeSize; height = speakerBadgeSize }
         fun contrastText(color: Int): Int {
             val lum = (Color.red(color) * 0.299f + Color.green(color) * 0.587f + Color.blue(color) * 0.114f) / 255f
@@ -268,6 +269,7 @@ class CallActivity : Activity(), SensorEventListener {
     companion object {
         const val ACTION_CALL_STATE = "ir.sahlbit.launcher.CALL_STATE"
         const val ACTION_CALL_ENDED = "ir.sahlbit.launcher.CALL_ENDED"
+        const val ACTION_AUDIO_ROUTE_FAILED = "ir.sahlbit.launcher.AUDIO_ROUTE_FAILED"
         const val EXTRA_STATE = "state"
         const val EXTRA_NUMBER = "number"
         const val EXTRA_NAME = "name"
