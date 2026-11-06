@@ -1320,6 +1320,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     var nameSize by remember(profile) { mutableIntStateOf(intValue("name_sp", 27)) }
     var numberSize by remember(profile) { mutableIntStateOf(intValue("number_sp", 20)) }
     var buttonHeight by remember(profile) { mutableIntStateOf(intValue("button_height_dp", 82)) }
+    var buttonWidthPct by remember(profile) { mutableIntStateOf(intValue("button_width_pct", 100)) }
     var buttonTextSize by remember(profile) { mutableIntStateOf(intValue("button_text_sp", 22)) }
     var buttonRadius by remember(profile) { mutableIntStateOf(intValue("button_radius", 20)) }
     var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 88)) }
@@ -1371,6 +1372,8 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         Slider(numberSize.toFloat(), { numberSize = it.toInt(); saveInt("number_sp", numberSize) }, valueRange = 12f..32f)
         Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink)
         Slider(buttonHeight.toFloat(), { buttonHeight = it.toInt(); saveInt("button_height_dp", buttonHeight) }, valueRange = 56f..120f)
+        Text("عرض دکمه‌ها: ${buttonWidthPct.toPersianDigits()}٪", color = Ink)
+        Slider(buttonWidthPct.toFloat(), { buttonWidthPct = it.toInt(); saveInt("button_width_pct", buttonWidthPct) }, valueRange = 60f..100f)
         Text("اندازه نوشته دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink)
         Slider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
         Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
@@ -1414,15 +1417,15 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                 Text(previewNumber, color = previewForeground, fontSize = numberSize.sp)
                 if (profile == "incoming") {
                     Spacer(Modifier.height(2.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
                     Spacer(Modifier.height(26.dp))
-                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
+                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
                                 Text(if (previewSpeakerOn) "☎" else "🔊", color = Color(0xFF1976D2), fontSize = 27.sp)
@@ -1432,7 +1435,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                         }
                     }
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 }
             }
         }
