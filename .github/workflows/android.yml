@@ -9,6 +9,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      SAHLBIT_KEYSTORE_BASE64: ${{ secrets.SAHLBIT_KEYSTORE_BASE64 }}
+      SAHLBIT_KEYSTORE_PASSWORD: ${{ secrets.SAHLBIT_KEYSTORE_PASSWORD }}
+      SAHLBIT_KEY_ALIAS: ${{ secrets.SAHLBIT_KEY_ALIAS }}
+      SAHLBIT_KEY_PASSWORD: ${{ secrets.SAHLBIT_KEY_PASSWORD }}
 
     steps:
       - name: Checkout source
@@ -25,11 +30,33 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Prepare persistent release signing key
+        shell: bash
+        run: |
+          if [ -n "$SAHLBIT_KEYSTORE_BASE64" ] && [ -n "$SAHLBIT_KEYSTORE_PASSWORD" ] && [ -n "$SAHLBIT_KEY_ALIAS" ] && [ -n "$SAHLBIT_KEY_PASSWORD" ]; then
+            echo "$SAHLBIT_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sahlbit-release.jks"
+            echo "SAHLBIT_KEYSTORE_PATH=$RUNNER_TEMP/sahlbit-release.jks" >> "$GITHUB_ENV"
+            echo "SAHLBIT_SIGNING_AVAILABLE=true" >> "$GITHUB_ENV"
+          else
+            echo "SAHLBIT_SIGNING_AVAILABLE=false" >> "$GITHUB_ENV"
+          fi
+
       - name: Build debug APK
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Build signed release APK
+        if: env.SAHLBIT_SIGNING_AVAILABLE == 'true'
+        run: gradle assembleRelease
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
           name: sahlbit-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload signed release APK
+        if: env.SAHLBIT_SIGNING_AVAILABLE == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: sahlbit-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
