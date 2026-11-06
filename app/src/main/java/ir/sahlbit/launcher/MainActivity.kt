@@ -673,7 +673,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "pages" -> SettingsPage("مدیریت صفحه‌ها", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
+        "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, 12) { requested ->
@@ -764,7 +764,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
+        "contacts" -> SettingsPage("مدیریت مخاطبان و برنامه‌ها", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
@@ -990,7 +990,7 @@ private fun SahlBitApp(
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(116.dp)) }
+                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(92.dp)) }
                     Text("سهل‌بیت", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
                     Text("سادگی در دسترسی؛ آرامش در استفاده", color = Color(0xFFE4F2E9), fontSize = 17.sp, fontWeight = FontWeight.Medium)
                     Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) { Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) }
@@ -1244,7 +1244,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (step == 0) {
             Spacer(Modifier.height(24.dp))
-            Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(122.dp)) }
+            Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.mipmap.ic_launcher), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) }
             Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1487,8 +1487,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "contacts" -> Icons.Default.Person
                 "apps" -> Icons.Default.Search
                 "appearance" -> Icons.Default.Edit
-                "clock" -> Icons.Default.DateRange
-                "audio" -> Icons.Default.Call
+                "clock" -> Icons.Default.Alarm
+                "audio" -> Icons.Default.VolumeUp
                 "callcustom" -> Icons.Default.Phone
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.CheckCircle
@@ -1551,7 +1551,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } }, modifier = Modifier.size(40.dp)) {
+            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } else { android.widget.Toast.makeText(context, "فقط ${(adminTapThreshold - settingsTaps).coerceAtLeast(0).toPersianDigits()} بار دیگر روی آیکون چرخ‌دنده ضربه بزنید تا صفحه ورود مدیر به تنظیمات برنامه باز شود.", android.widget.Toast.LENGTH_SHORT).show() } }, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
             }
         }
@@ -1598,7 +1598,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
-                    Text("هنوز موردی به این صفحه اضافه نشده است", color = fg, fontSize = 15.sp)
+                    Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 } else {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         var entryOffset = 0
