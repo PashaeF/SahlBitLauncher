@@ -67,9 +67,13 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 
 ## Build with GitHub Actions
 
-The repository workflow builds a debug APK using JDK 17 and Gradle 8.11.1. It runs automatically on pushes to `development` and can also be started manually.
+The repository workflow always builds a test APK using JDK 17 and Gradle 8.11.1. If persistent signing secrets are configured, it also builds a signed release APK. It runs on pushes to `development` and can also be started manually.
 
-The uploaded artifact is named `sahlbit-debug-apk`.
+Artifacts:
+- `sahlbit-debug-apk`: test build; its debug signing key can change between hosted runners.
+- `sahlbit-release-apk`: stable-signed build, available after the four signing secrets are configured.
+
+A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` tag is pushed.
 
 ## Verification status
 
