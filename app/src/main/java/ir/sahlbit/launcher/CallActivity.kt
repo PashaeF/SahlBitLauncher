@@ -177,6 +177,13 @@ class CallActivity : Activity(), SensorEventListener {
         nameView.layoutParams = nameView.layoutParams.apply { height = dp((nameTextSize * 2.35f).toInt().coerceIn(50, 100)) }
         numberView.layoutParams = numberView.layoutParams.apply { height = dp((numberTextSize * 1.8f).toInt().coerceIn(36, 60)) }
         val buttonHeight = dp(styleInt("button_height_dp", 82).coerceIn(56, 120))
+        val buttonWidthPercent = styleInt("button_width_pct", 100).coerceIn(60, 100)
+        val availableButtonWidthDp = ((resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() - 40).coerceAtLeast(180)
+        val buttonWidth = dp(availableButtonWidthDp * buttonWidthPercent / 100)
+        fun buttonParams(topMargin: Int) = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            this.topMargin = topMargin
+        }
         val buttonTextSize = styleInt("button_text_sp", 22).coerceIn(14, 30).toFloat()
         val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
         val spacing = dp(styleInt("spacing_dp", 88).coerceIn(8, 120))
@@ -217,13 +224,13 @@ class CallActivity : Activity(), SensorEventListener {
         root.removeView(declineAction)
         root.removeView(speakerAction)
         if (ringing) {
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = dp(10) })
-            root.addView(declineAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
+            root.addView(primaryAction, buttonParams(dp(10)))
+            root.addView(declineAction, buttonParams(spacing))
         } else if (dialing) {
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
+            root.addView(primaryAction, buttonParams(spacing))
         } else {
-            root.addView(speakerAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = dp(34) })
-            root.addView(primaryAction, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = spacing })
+            root.addView(speakerAction, buttonParams(dp(34)))
+            root.addView(primaryAction, buttonParams(spacing))
         }
         updateProximityMonitoring(); applyImmersive()
     }
