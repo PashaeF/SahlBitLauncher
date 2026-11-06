@@ -22,7 +22,6 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 
@@ -147,7 +146,7 @@ class CallActivity : Activity(), SensorEventListener {
             setOnClickListener { SahlBitInCallService.toggleSpeaker() }
         }
         root.addView(speakerAction, LinearLayout.LayoutParams(-1, dp(82)).apply { topMargin = dp(34) })
-        setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
+        setContentView(root)
     }
 
     private fun render() {
@@ -167,16 +166,31 @@ class CallActivity : Activity(), SensorEventListener {
         val secondaryColor = styleColor("secondary", Color.rgb(190, 35, 45))
         val luminance = (android.graphics.Color.red(background) * 0.299f + android.graphics.Color.green(background) * 0.587f + android.graphics.Color.blue(background) * 0.114f) / 255f
         val foreground = if (luminance > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
-        val avatarSize = dp(styleInt("avatar_dp", 250).coerceIn(140, 340))
-        avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
-        avatarView.background = GradientDrawable().apply { cornerRadius = dp(styleInt("avatar_radius", 20).coerceIn(0, 40)).toFloat() }
+        val requestedAvatarDp = styleInt("avatar_dp", 250).coerceIn(140, 340)
         val nameTextSize = styleInt("name_sp", 27).coerceIn(16, 40)
         val numberTextSize = styleInt("number_sp", 20).coerceIn(12, 32)
+        val nameHeightDp = (nameTextSize * 2.35f).toInt().coerceIn(50, 100)
+        val numberHeightDp = (numberTextSize * 1.8f).toInt().coerceIn(36, 60)
         nameView.textSize = nameTextSize.toFloat()
         numberView.textSize = numberTextSize.toFloat()
-        nameView.layoutParams = nameView.layoutParams.apply { height = dp((nameTextSize * 2.35f).toInt().coerceIn(50, 100)) }
-        numberView.layoutParams = numberView.layoutParams.apply { height = dp((numberTextSize * 1.8f).toInt().coerceIn(36, 60)) }
-        val buttonHeight = dp(styleInt("button_height_dp", 82).coerceIn(56, 120))
+        nameView.layoutParams = nameView.layoutParams.apply { height = dp(nameHeightDp) }
+        numberView.layoutParams = numberView.layoutParams.apply { height = dp(numberHeightDp) }
+        val availableHeightDp = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt().coerceAtLeast(400)
+        val buttonCount = if (ringing) 2 else 1
+        val extraActionHeightDp = if (ringing || dialing) 0 else 82
+        val fixedTopMarginDp = if (ringing) 10 else if (dialing) 0 else 34
+        val requestedButtonHeightDp = styleInt("button_height_dp", 82).coerceIn(56, 120)
+        val fixedWithoutButtons = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + 56 + 8
+        val buttonHeightDp = minOf(requestedButtonHeightDp, ((availableHeightDp - fixedWithoutButtons) / buttonCount).coerceAtLeast(48))
+        val fixedContentDp = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + buttonHeightDp * buttonCount
+        val requestedSpacingDp = styleInt("spacing_dp", 88).coerceIn(8, 120)
+        val spacingDp = minOf(requestedSpacingDp, (availableHeightDp - fixedContentDp - 48).coerceAtLeast(8))
+        val avatarAvailableDp = (availableHeightDp - fixedContentDp - spacingDp).coerceAtLeast(48)
+        val availableWidthDp = ((resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() - 40).coerceAtLeast(120)
+        val avatarSize = dp(minOf(requestedAvatarDp, avatarAvailableDp, availableWidthDp))
+        avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
+        avatarView.background = GradientDrawable().apply { cornerRadius = dp(styleInt("avatar_radius", 20).coerceIn(0, 40)).toFloat() }
+        val buttonHeight = dp(buttonHeightDp)
         val buttonWidthPercent = styleInt("button_width_pct", 100).coerceIn(60, 100)
         val availableButtonWidthDp = ((resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() - 40).coerceAtLeast(180)
         val buttonWidth = dp(availableButtonWidthDp * buttonWidthPercent / 100)
@@ -186,7 +200,7 @@ class CallActivity : Activity(), SensorEventListener {
         }
         val buttonTextSize = styleInt("button_text_sp", 22).coerceIn(14, 30).toFloat()
         val buttonRadius = dp(styleInt("button_radius", 20).coerceIn(0, 40)).toFloat()
-        val spacing = dp(styleInt("spacing_dp", 88).coerceIn(8, 120))
+        val spacing = dp(spacingDp)
         root.setBackgroundColor(background)
         primaryAction.textSize = buttonTextSize
         declineAction.textSize = buttonTextSize
