@@ -1,0 +1,69 @@
+name: Publish signed SahlBit release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      SAHLBIT_KEYSTORE_BASE64: ${{ secrets.SAHLBIT_KEYSTORE_BASE64 }}
+      SAHLBIT_KEYSTORE_PASSWORD: ${{ secrets.SAHLBIT_KEYSTORE_PASSWORD }}
+      SAHLBIT_KEY_ALIAS: ${{ secrets.SAHLBIT_KEY_ALIAS }}
+      SAHLBIT_KEY_PASSWORD: ${{ secrets.SAHLBIT_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Require persistent signing key
+        shell: bash
+        run: |
+          if [ -z "$SAHLBIT_KEYSTORE_BASE64" ] || [ -z "$SAHLBIT_KEYSTORE_PASSWORD" ] || [ -z "$SAHLBIT_KEY_ALIAS" ] || [ -z "$SAHLBIT_KEY_PASSWORD" ]; then
+            echo "Persistent release-signing secrets are missing." >&2
+            exit 1
+          fi
+          echo "$SAHLBIT_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/sahlbit-release.jks"
+          echo "SAHLBIT_KEYSTORE_PATH=$RUNNER_TEMP/sahlbit-release.jks" >> "$GITHUB_ENV"
+
+      - name: Read app version
+        shell: bash
+        run: |
+          VERSION_NAME=$(grep -oE 'versionName = "[^"]+"' app/build.gradle.kts | cut -d '"' -f 2)
+          VERSION_CODE=$(grep -oE 'versionCode = [0-9]+' app/build.gradle.kts | awk '{print $3}')
+          echo "SAHLBIT_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "SAHLBIT_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        run: gradle assembleRelease
+
+      - name: Name release APK
+        run: cp app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/sahlbit-${SAHLBIT_VERSION_NAME}.apk"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: SahlBit ${{ env.SAHLBIT_VERSION_NAME }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            Version Code: ${{ env.SAHLBIT_VERSION_CODE }}
+
+            This APK is signed with the persistent SahlBit release key.
+          files: app/build/outputs/apk/release/sahlbit-*.apk
+          generate_release_notes: true
