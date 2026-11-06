@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -121,7 +122,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         Text("منبع بررسی نسخه", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 17.sp)
         OutlinedButton(onClick = { checkFrom(true) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null)
-            Spacer(Modifier.height(1.dp))
+            Spacer(Modifier.width(8.dp))
             Text("بررسی از وب‌سایت رسمی pashaef.ir")
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
@@ -148,6 +149,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     if (SahlBitUpdateManager.isNewer(context, found)) {
                         Button(onClick = { installUpdate(found) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
                             Icon(Icons.Default.Refresh, null)
+                            Spacer(Modifier.width(8.dp))
                             Text("دانلود و نصب به‌روزرسانی")
                         }
                     } else {
