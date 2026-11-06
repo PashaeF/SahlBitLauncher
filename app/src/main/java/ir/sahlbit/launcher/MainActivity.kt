@@ -1601,7 +1601,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(Modifier.height(2.dp)); Text("$dayText   $marks", color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(2.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(8.dp)); Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp)) }
         Spacer(Modifier.height(1.dp))
         val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
@@ -1618,7 +1618,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
-                    Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         var entryOffset = 0
