@@ -33,40 +33,15 @@ class InstallPermissionRequired : Exception("برای نصب نسخهٔ دانل
 
 object SahlBitUpdateManager {
     const val WEBSITE_MANIFEST_URL = "https://pashaef.ir/sahlbit/update.json"
-    private const val GITHUB_RELEASE_API = "https://api.github.com/repos/PashaeF/SahlBitLauncher/releases/latest"
+    private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/development/update.json"
     private const val MAX_APK_SIZE = 120L * 1024L * 1024L
 
     suspend fun checkWebsite(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        val json = JSONObject(httpGet(WEBSITE_MANIFEST_URL))
-        parseManifest(json, "وب‌سایت سهل‌بیت")
+        parseManifest(JSONObject(httpGet(WEBSITE_MANIFEST_URL)), "وب‌سایت سهل‌بیت")
     }
 
     suspend fun checkGitHub(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        val release = JSONObject(httpGet(GITHUB_RELEASE_API))
-        val tag = release.optString("tag_name").removePrefix("v").trim()
-        val body = release.optString("body")
-        val codeMatch = Regex("(?im)^\\s*(?:version\\s*code|versionCode)\\s*[:=]\\s*(\\d+)").find(body)
-            ?: throw IllegalStateException("در توضیحات آخرین انتشار GitHub مقدار Version Code درج نشده است.")
-        val code = codeMatch.groupValues[1].toLong()
-        val assets = release.optJSONArray("assets") ?: throw IllegalStateException("فایل APK در آخرین انتشار GitHub وجود ندارد.")
-        var selected: JSONObject? = null
-        for (i in 0 until assets.length()) {
-            val asset = assets.optJSONObject(i) ?: continue
-            val name = asset.optString("name")
-            if (name.endsWith(".apk", ignoreCase = true) && (selected == null || name.contains("sahlbit", true))) selected = asset
-            if (name.equals("sahlbit.apk", true)) { selected = asset; break }
-        }
-        val asset = selected ?: throw IllegalStateException("فایل APK در آخرین انتشار GitHub پیدا نشد.")
-        SahlBitUpdate(
-            packageName = "ir.sahlbit.launcher",
-            versionName = tag,
-            versionCode = code,
-            minSdk = 21,
-            apkUrl = asset.optString("browser_download_url").also { require(it.startsWith("https://")) { "نشانی دانلود APK معتبر نیست." } },
-            sha256 = asset.optString("digest").removePrefix("sha256:"),
-            changelog = body.ifBlank { "یادداشت انتشار برای این نسخه ثبت نشده است." },
-            source = "GitHub"
-        )
+        parseManifest(JSONObject(httpGet(GITHUB_MANIFEST_URL)), "GitHub")
     }
 
     private fun parseManifest(json: JSONObject, source: String): SahlBitUpdate {

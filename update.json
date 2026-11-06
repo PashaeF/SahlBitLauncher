@@ -1,0 +1,9 @@
+{
+  "packageName": "ir.sahlbit.launcher",
+  "versionName": "0.5.7",
+  "versionCode": 23,
+  "minSdk": 21,
+  "apkUrl": "https://github.com/PashaeF/SahlBitLauncher/releases/download/v0.5.7/sahlbit-0.5.7.apk",
+  "sha256": "",
+  "changelog": "اصلاح مسیر مراحل راه‌اندازی و جلوگیری از بازگشت ناخواسته به آن؛ بهبود بررسی مجوزها و دسترسی آمار مصرف؛ اصلاح تنظیمات صدا و متن‌های رابط کاربری."
+}
