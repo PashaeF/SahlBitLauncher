@@ -12,6 +12,7 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.proximity" android:required="false" />
     <application
@@ -44,5 +45,6 @@
             <meta-data android:name="android.telecom.IN_CALL_SERVICE_RINGING" android:value="false" />
             <intent-filter><action android:name="android.telecom.InCallService" /></intent-filter>
         </service>
+        <receiver android:name=".PackageInstallStatusReceiver" android:exported="false" />
     </application>
 </manifest>
