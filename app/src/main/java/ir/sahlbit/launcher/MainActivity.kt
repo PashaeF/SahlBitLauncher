@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package ir.sahlbit.launcher
 
 import android.app.role.RoleManager
