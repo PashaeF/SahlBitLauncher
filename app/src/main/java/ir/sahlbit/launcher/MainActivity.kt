@@ -1226,7 +1226,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 
 @Composable
 private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
-    val titles = listOf("خوش‌آمدگویی", "انتخاب لانچر پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها")
+    val titles = listOf("خوش‌آمدگویی", "انتخاب لانچر پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها", "اجازهٔ نصب به‌روزرسانی‌های سهل‌بیت")
     val descriptions = listOf(
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
         "با انتخاب سهل‌بیت به‌عنوان لانچر پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید لانچر دیگری را در تنظیمات اندروید انتخاب کنید.",
@@ -1234,7 +1234,8 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
         "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. این انتخاب جایگزین برنامهٔ تلفن قبلی می‌شود و هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
         "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است تا مدیر بتواند افراد موردنظر را به صفحهٔ اصلی اضافه کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
         "این اجازه برای تماس مستقیم با مخاطبی که مدیر روی صفحهٔ اصلی انتخاب کرده است استفاده می‌شود. اگر اجازه داده نشود، سهل‌بیت می‌تواند شماره‌گیر سیستم را باز کند و تماس از آنجا انجام شود.",
-        "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است."
+        "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است.",
+        "این اجازه به سهل‌بیت امکان می‌دهد فایل APK به‌روزرسانی را که مدیر از وب‌سایت رسمی یا GitHub انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. اندروید یک صفحهٔ ویژه باز می‌کند؛ گزینهٔ «اجازه از این منبع» را برای سهل‌بیت روشن کنید. نصب نهایی همچنان با تأیید مدیر انجام می‌شود و برنامه بدون اجازهٔ شما به‌روزرسانی نمی‌شود."
     )
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (step == 0) {
@@ -1245,7 +1246,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, null); Text("مرحلهٔ قبل") }
                 Spacer(Modifier.weight(1f))
-                Text("مرحلهٔ ${step.toPersianDigits()} از ۶", color = Teal, fontWeight = FontWeight.Bold)
+                Text("مرحلهٔ ${step.toPersianDigits()} از ۷", color = Teal, fontWeight = FontWeight.Bold)
             }
             Text(titles[step], color = Forest, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         }
@@ -1260,7 +1261,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean, onGrant: () -> Unit, 
             }
         }
         Button(onClick = onNext, modifier = Modifier.fillMaxWidth().height(58.dp)) {
-            Text(if (step == 6) "پایان ویزارد" else if (step == 0) "شروع راه‌اندازی" else "ادامه بدون اعطای اجازه")
+            Text(if (step == 7) "پایان ویزارد" else if (step == 0) "شروع راه‌اندازی" else "ادامه بدون اعطای اجازه")
         }
         if (step > 0) Text("می‌توانید مراحل را بدون اعطای دسترسی ورق بزنید؛ هیچ مرحله‌ای شما را مجبور به فعال‌سازی مجوز نمی‌کند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
     }
