@@ -1408,7 +1408,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         CallColorPicker("رنگ دکمه پایینی", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
         Text("متن دکمه‌ها", color = Ink, fontWeight = FontWeight.Bold)
         OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن لغو تماس" else "متن تغییر به بلندگو") }, singleLine = true)
-        if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true)
+        OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else if (profile == "outgoing") "متن دکمه پایینی" else "متن پایان تماس") }, singleLine = true)
         if (profile == "active") OutlinedTextField(alternateLabel, { alternateLabel = it; saveText("alternate_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("متن تغییر به تلفن") }, singleLine = true)
         Divider()
         Text("پیش‌نمایش زنده", color = Ink, fontSize = 19.sp, fontWeight = FontWeight.Bold)
