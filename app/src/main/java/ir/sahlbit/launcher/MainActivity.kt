@@ -1402,8 +1402,8 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
         CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
         CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
-        CallColorPicker("رنگ دکمه اصلی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
-        CallColorPicker("رنگ دکمه دوم", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
+        CallColorPicker("رنگ دکمه بالایی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
+        CallColorPicker("رنگ دکمه پایینی", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
         Text("متن دکمه‌ها", color = Ink, fontWeight = FontWeight.Bold)
         OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن لغو تماس" else "متن تغییر به بلندگو") }, singleLine = true)
         if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true)
@@ -1442,8 +1442,9 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else {
                     Spacer(Modifier.height(26.dp))
                     Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
@@ -1678,10 +1679,10 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیر", fontSize = 17.sp) }
-                    Spacer(Modifier.width(72.dp))
-                    Button(onClick = onCancelCall, modifier = Modifier.height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") }
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth().height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیرید", fontSize = 17.sp) }
+                    Spacer(Modifier.height(26.dp))
+                    Button(onClick = onCancelCall, modifier = Modifier.fillMaxWidth(0.62f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") }
                 }
             }, dismissButton = { })
         }
