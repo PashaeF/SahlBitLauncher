@@ -72,7 +72,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     statusColor = Color(0xFF167342)
                 }
             } catch (error: Exception) {
-                status = error.message ?: "بررسی به‌روزرسانی ناموفق بود. اتصال اینترنت و نشانی منبع را بررسی کنید."
+                status = error.message?.takeIf { message -> message.any { it.code in 0x0600..0x06FF } } ?: "بررسی به‌روزرسانی ناموفق بود. لطفاً اتصال اینترنت و نشانی منبع را بررسی کنید."
                 statusColor = Color(0xFFB3261E)
             } finally {
                 checking = false
@@ -98,7 +98,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     }
                 }
             } catch (error: Exception) {
-                status = error.message ?: "دانلود یا آماده‌سازی نصب ناموفق بود."
+                status = error.message?.takeIf { message -> message.any { it.code in 0x0600..0x06FF } } ?: "دانلود یا آماده‌سازی نصب ناموفق بود. لطفاً دوباره تلاش کنید."
                 statusColor = Color(0xFFB3261E)
             } finally {
                 installing = false
