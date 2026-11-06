@@ -45,6 +45,36 @@
             <meta-data android:name="android.telecom.IN_CALL_SERVICE_RINGING" android:value="false" />
             <intent-filter><action android:name="android.telecom.InCallService" /></intent-filter>
         </service>
+        <service android:name=".SahlBitTile1" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۱" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile2" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۲" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile3" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۳" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile4" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۴" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile5" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۵" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile6" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۶" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile7" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۷" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile8" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۸" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile9" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۹" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service android:name=".SahlBitTile10" android:enabled="@bool/sahlbit_qs_tiles_enabled" android:exported="true" android:icon="@mipmap/ic_launcher" android:label="سهل‌بیت ۱۰" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
         <receiver android:name=".PackageInstallStatusReceiver" android:exported="false" />
     </application>
 </manifest>
