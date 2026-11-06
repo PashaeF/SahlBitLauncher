@@ -793,7 +793,7 @@ private fun SahlBitApp(
                 }
             }
             var appSearch by remember { mutableStateOf("") }
-            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null) })
+            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
             Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
             val visibleApps = installedApps.filter { it.loadLabel(pm).toString().contains(appSearch, ignoreCase = true) }
             LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1498,7 +1498,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "updates" -> Icons.Default.Refresh
                 else -> Icons.Default.MoreVert
             }
-            Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp))
+            Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
             Spacer(Modifier.width(16.dp))
             Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }
             Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal)
@@ -1617,8 +1617,11 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                                 Column(Modifier.fillMaxSize().padding(vertical = 10.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
-                                    Box(Modifier.size(78.dp), contentAlignment = Alignment.Center) {
-                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)))
+                                    val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
+                                    val contactWithoutName = entry.kind == "contact" && !showEntryName
+                                    val contactPhotoSize = if (contactWithoutName) 104.dp else 72.dp
+                                    Box(Modifier.size(if (contactWithoutName) 108.dp else 78.dp), contentAlignment = Alignment.Center) {
+                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(contactPhotoSize).clip(RoundedCornerShape(14.dp)))
                                         else if (entry.kind == "app") {
                                             val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
                                                 val drawable = context.packageManager.getApplicationIcon(pkg)
@@ -1626,11 +1629,11 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                                                 val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                             }.getOrNull() } }
                                             if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp))
-                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(58.dp))
-                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(58.dp))
+                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(58.dp).scale(scaleX = -1f, scaleY = 1f))
+                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 82.dp else 58.dp))
                                     }
-                                    Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
-                                        if ((entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames)) {
+                                    if (showEntryName) {
+                                        Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
                                             Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                         }
                                     }
