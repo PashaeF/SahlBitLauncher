@@ -31,6 +31,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -903,18 +907,21 @@ private fun SahlBitApp(
                     runCatching { Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, screenTimeoutSeconds * 1000) }
                 }
             }
+            val timeoutScope = rememberCoroutineScope()
+            val minutesBringIntoView = remember { BringIntoViewRequester() }
+            val secondsBringIntoView = remember { BringIntoViewRequester() }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(value = timeoutMinutesText, onValueChange = { value ->
                     timeoutMinutesText = value.toPersianDigitsText().filter(Char::isDigit).take(2)
                     screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toEnglishDigits().toIntOrNull() ?: 0)).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
-                }, modifier = Modifier.weight(1f), label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }, modifier = Modifier.weight(1f).bringIntoViewRequester(minutesBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); minutesBringIntoView.bringIntoView() } }, label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = timeoutSecondsText, onValueChange = { value ->
                     val seconds = value.toEnglishDigits().filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
                     timeoutSecondsText = seconds.toPersianDigits()
                     screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
-                }, modifier = Modifier.weight(1f), label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
             Text("برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کنید.", color = Ink, fontSize = 13.sp)
