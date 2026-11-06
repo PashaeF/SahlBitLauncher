@@ -568,7 +568,7 @@ private fun SahlBitApp(
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "updates")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -662,12 +662,14 @@ private fun SahlBitApp(
             onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
             onPermissions = { route = "permissions" }, onAbout = { route = "about" }, onAudio = { route = "audio" },
             onCallCustomization = { route = "callcustom" },
+            onCallConfirmation = { route = "callconfirm" },
             onUpdates = { route = "updates" },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
         "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
         "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
+        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, onBack = { route = "dashboard" })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1465,6 +1467,59 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
 }
 
 @Composable
+private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+    val palette = listOf("#168A45", "#B3261E", "#1976D2", "#455A64", "#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#FFFFFF", "#BE232D")
+    fun intValue(key: String, fallback: Int) = prefs.getInt("confirm_call_$key", fallback)
+    fun textValue(key: String, fallback: String) = prefs.getString("confirm_call_$key", fallback) ?: fallback
+    var yesColor by remember { mutableStateOf(textValue("yes_color", "#168A45")) }
+    var noColor by remember { mutableStateOf(textValue("no_color", "#B3261E")) }
+    var yesLabel by remember { mutableStateOf(textValue("yes_label", "بله، تماس بگیرید")) }
+    var noLabel by remember { mutableStateOf(textValue("no_label", "خیر")) }
+    var buttonHeight by remember { mutableIntStateOf(intValue("button_height", 62).coerceIn(48, 88)) }
+    var buttonTextSize by remember { mutableIntStateOf(intValue("button_text_size", 17).coerceIn(14, 24)) }
+    var avatarSize by remember { mutableIntStateOf(intValue("avatar_size", 112).coerceIn(64, 160)) }
+    var avatarRadius by remember { mutableIntStateOf(intValue("avatar_radius", 20).coerceIn(0, 40)) }
+    var buttonRadius by remember { mutableIntStateOf(intValue("button_radius", 16).coerceIn(0, 40)) }
+    var buttonSpacing by remember { mutableIntStateOf(intValue("button_spacing", 26).coerceIn(8, 80)) }
+    fun saveInt(key: String, value: Int) { prefs.edit().putInt("confirm_call_$key", value).apply() }
+    fun saveText(key: String, value: String) { prefs.edit().putString("confirm_call_$key", value).apply() }
+
+    SettingsPage("سفارشی‌سازی کادر تأیید تماس", "ظاهر پنجره‌ای را تنظیم کنید که پس از انتخاب کارت مخاطب نمایش داده می‌شود. تغییرها بلافاصله ذخیره می‌شوند.", onBack) {
+        CallColorPicker("رنگ دکمهٔ بله", yesColor, palette) { yesColor = it; saveText("yes_color", it) }
+        CallColorPicker("رنگ دکمهٔ خیر", noColor, palette) { noColor = it; saveText("no_color", it) }
+        OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true)
+        OutlinedTextField(noLabel, { noLabel = it; saveText("no_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ خیر") }, singleLine = true)
+        Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(buttonHeight.toFloat(), { buttonHeight = it.toInt().coerceIn(48, 88); saveInt("button_height", buttonHeight) }, 48f..88f)
+        Text("اندازهٔ متن دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt().coerceIn(14, 24); saveInt("button_text_size", buttonTextSize) }, 14f..24f)
+        Text("اندازهٔ تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt().coerceIn(64, 160); saveInt("avatar_size", avatarSize) }, 64f..160f)
+        Text("گردی تصویر مخاطب: ${avatarRadius.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(avatarRadius.toFloat(), { avatarRadius = it.toInt().coerceIn(0, 40); saveInt("avatar_radius", avatarRadius) }, 0f..40f)
+        Text("گردی گوشهٔ دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(buttonRadius.toFloat(), { buttonRadius = it.toInt().coerceIn(0, 40); saveInt("button_radius", buttonRadius) }, 0f..40f)
+        Text("فاصلهٔ عمودی دکمه‌ها: ${buttonSpacing.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(buttonSpacing.toFloat(), { buttonSpacing = it.toInt().coerceIn(8, 80); saveInt("button_spacing", buttonSpacing) }, 8f..80f)
+        Divider()
+        Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
+                Text("مخاطب نمونه", color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(yesColor)))) {
+                    Text(yesLabel.ifBlank { "بله" }, fontSize = buttonTextSize.sp)
+                }
+                Spacer(Modifier.height(buttonSpacing.dp))
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth(0.62f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(noColor)))) {
+                    Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text(noLabel.ifBlank { "خیر" }, fontSize = buttonTextSize.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CallColorPicker(title: String, selected: String, options: List<String>, onSelected: (String) -> Unit) {
     Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1479,7 +1534,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
@@ -1491,6 +1546,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock", onClock) }
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر سه وضعیت تماس و پیش‌نمایش", "callcustom", onCallCustomization) }
+            item { DashboardCard("سفارشی‌سازی کادر تأیید تماس", "تنظیم دکمه‌ها، تصویر مخاطب و فاصله‌ها", "callconfirm", onCallConfirmation) }
             item { DashboardCard("بررسی بروزرسانی", "دریافت نسخه جدید از وب‌سایت یا GitHub", "updates", onUpdates) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "security", onSecurity) }
             item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "permissions", onPermissions) }
@@ -1511,6 +1567,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
+                "callconfirm" -> Icons.Default.CheckCircle
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.CheckCircle
                 "home" -> Icons.Default.Home
@@ -1564,6 +1621,17 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", false)
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
+    fun confirmColor(key: String, fallback: String): Color = runCatching { Color(android.graphics.Color.parseColor(launcherPrefs.getString("confirm_call_$key", fallback) ?: fallback)) }.getOrDefault(Color(android.graphics.Color.parseColor(fallback)))
+    val confirmYesColor = confirmColor("yes_color", "#168A45")
+    val confirmNoColor = confirmColor("no_color", "#B3261E")
+    val confirmYesLabel = launcherPrefs.getString("confirm_call_yes_label", "بله، تماس بگیرید") ?: "بله، تماس بگیرید"
+    val confirmNoLabel = launcherPrefs.getString("confirm_call_no_label", "خیر") ?: "خیر"
+    val confirmButtonHeight = launcherPrefs.getInt("confirm_call_button_height", 62).coerceIn(48, 88)
+    val confirmButtonTextSize = launcherPrefs.getInt("confirm_call_button_text_size", 17).coerceIn(14, 24)
+    val confirmAvatarSize = launcherPrefs.getInt("confirm_call_avatar_size", 112).coerceIn(64, 160)
+    val confirmAvatarRadius = launcherPrefs.getInt("confirm_call_avatar_radius", 20).coerceIn(0, 40)
+    val confirmButtonRadius = launcherPrefs.getInt("confirm_call_button_radius", 16).coerceIn(0, 40)
+    val confirmButtonSpacing = launcherPrefs.getInt("confirm_call_button_spacing", 26).coerceIn(8, 80)
     val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); "sage" -> Color(0xFFE5EDE5); "lavender" -> Color(0xFFEDE7F6); "mint" -> Color(0xFFE2F2EC); "sand" -> Color(0xFFF3EBDD); "rose" -> Color(0xFFF7E7E9); else -> Color(0xFFFFF8E7) }
     val fg = if (background == "forest") Color.White else Ink
     val day = LocalDate.now().dayOfWeek.value // Monday=1 ... Sunday=7
@@ -1677,13 +1745,13 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
         if (pendingCall != null) {
             AlertDialog(onDismissRequest = onCancelCall, title = {
                 val avatar = remember(pendingCall.photoUri) { pendingCall.photoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
-                if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(112.dp).clip(RoundedCornerShape(20.dp)))
-                else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(72.dp), tint = Teal)
+                if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(confirmAvatarSize.dp).clip(RoundedCornerShape(confirmAvatarRadius.dp)))
+                else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(confirmAvatarSize.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth().height(62.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF168A45))) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text("بله، تماس بگیرید", fontSize = 17.sp) }
-                    Spacer(Modifier.height(26.dp))
-                    Button(onClick = onCancelCall, modifier = Modifier.fillMaxWidth(0.62f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text("خیر") }
+                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth().height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmYesColor)) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text(confirmYesLabel, fontSize = confirmButtonTextSize.sp) }
+                    Spacer(Modifier.height(confirmButtonSpacing.dp))
+                    Button(onClick = onCancelCall, modifier = Modifier.fillMaxWidth(0.62f).height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmNoColor)) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text(confirmNoLabel, fontSize = confirmButtonTextSize.sp) }
                 }
             }, dismissButton = { })
         }
