@@ -771,13 +771,13 @@ private fun SahlBitApp(
                 Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
                             val uniformPreviewCount = rowCardCounts.maxOrNull()?.coerceIn(1, 4) ?: 1
-                            val previewFraction = when (uniformPreviewCount) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
-                            val previewMaxWidth = when (uniformPreviewCount) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
-                            val previewWidth = minOf(previewContentWidth * previewFraction, previewMaxWidth)
+                            val previewSlotWidth = previewContentWidth / uniformPreviewCount.toFloat()
+                            val previewLeadingSlots = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> 1f; "center" -> 0.5f; else -> 0f }
+                            Spacer(Modifier.width(previewSlotWidth * previewLeadingSlots))
                             repeat(count) {
-                                Box(Modifier.width(previewWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                                Box(Modifier.width(previewSlotWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             }
                         }
                     }
@@ -1626,12 +1626,13 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
-                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "left" -> Arrangement.Absolute.Left; "right" -> Arrangement.Absolute.Right; else -> Arrangement.Center }) {
-                                val itemFraction = when (uniformCardsPerRow) { 1 -> 0.44f; 2 -> 0.42f; 3 -> 0.30f; else -> 0.25f }
-                                val itemMaxWidth = when (uniformCardsPerRow) { 1 -> 180.dp; 2 -> 165.dp; 3 -> 120.dp; else -> 95.dp }
-                                val itemWidth = minOf(contentWidth * itemFraction, itemMaxWidth)
+                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+                                val rowAlignment = pageRowAlignments.getOrElse(rowIndex) { "center" }
+                                val slotWidth = contentWidth / uniformCardsPerRow.toFloat()
+                                val leadingSlots = when (rowAlignment) { "left" -> 1f; "center" -> 0.5f; else -> 0f }
+                                Spacer(Modifier.width(slotWidth * leadingSlots))
                                 rowEntries.forEach { entry ->
-                                    Box(Modifier.width(itemWidth).padding(horizontal = 4.dp)) {
+                                    Box(Modifier.width(slotWidth).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
                                 modifier = Modifier.fillMaxWidth().height(154.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
