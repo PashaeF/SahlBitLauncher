@@ -77,7 +77,7 @@ A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` 
 
 ## Verification status
 
-Version 0.5.5 adds the multi-page first-run wizard (also shown once to existing 0.5.4 installations), package-specific Usage Access navigation, Android-synchronized audio controls, auto-applied screen timeout, equal-size home cards and layout previews, app reordering/removal, and administrator-controlled call-screen layouts with previews. The wizard preserves an existing administrator PIN when upgrading; a fresh installation is asked to create one after the wizard.
+Version 0.5.5 adds the multi-page first-run setup flow (also shown once to existing 0.5.4 installations), package-specific Usage Access navigation, Android-synchronized audio controls, auto-applied screen timeout, equal-size home cards and layout previews, app reordering/removal, and administrator-controlled call-screen layouts with previews. The setup flow preserves an existing administrator PIN when upgrading; a fresh installation is asked to create one after the setup flow.
 
 A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
 
@@ -93,16 +93,22 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 ## Version 0.5.7 changes
 
-- Added secure website and GitHub update sources with APK signature checks and Android installation confirmation.
-- Added the update-install permission as a new wizard step and permission card; existing 0.5.5 installs are sent directly to that new step.
-- Added configurable call-button width and matched the live call preview.
-- Improved call audio routing with Android 14+ call endpoint APIs and a more visible speaker/handset icon.
-- Returns to the launcher home screen after calls and clears any pending contact-call confirmation.
+- Prevented completed first-run setup from reopening after process death, task dismissal, or navigation back; existing administrator PINs are preserved.
+- Added a three-state permission status (granted, not granted, and unavailable) and corrected package-specific Usage Access Settings navigation.
+- Added ten SahlBit Quick Settings tiles on Android 7.0+; each tile starts the launcher home screen. Android 5 and 6 remain supported, with the tiles disabled on those versions.
+- Added a dedicated contact-confirmation dialog customization page with live preview for button colors, labels, height, text size, contact-image size/radius, button radius, and vertical spacing.
+- Added a two-button outgoing-call customization preview and clarified upper/lower button color labels.
+- Merged the shared earpiece/speaker call-volume control into one slider and display current/max volume values.
+- Standardized numeric slider width, preserved the management dashboard scroll position, and aligned home rows to fixed columns.
+- Improved unnamed contact cards, home empty-state alignment, weekday indicators, and call-confirmation button spacing.
+- Removed scrolling from the full-screen call activity and made its avatar size responsive to available screen height; cropped preview photos to avoid exposed background bands.
+- Changed GitHub update checks to use the repository's shared update.json manifest. The same JSON schema is used by the website update endpoint at https://pashaef.ir/sahlbit/update.json.
+- Updated the app version to 0.5.7 (versionCode 23). Minimum Android remains API 21 (Android 5.0).
 
 ## Version 0.5.5 changes
 
-- Added a seven-page first-run wizard: welcome/logo, default launcher, system-settings access, default Dialer, contacts, direct calling, and Usage Access. Each permission step explains its purpose, supports skipping, resumes after Android Settings, and remains available in the permissions page.
-- Existing 0.5.4 installations see the new wizard once; completing it does not reset the administrator PIN. New installations set the PIN after completing the wizard.
+- Added a seven-page first-run setup flow: welcome/logo, default launcher, system-settings access, default Dialer, contacts, direct calling, and Usage Access. Each permission step explains its purpose, supports skipping, resumes after Android Settings, and remains available in the permissions page.
+- Existing 0.5.4 installations see the new setup flow once; completing it does not reset the administrator PIN. New installations set the PIN after completing the setup flow.
 - Added three call customization profiles (incoming ringing, outgoing dialing, and connected call) with editable labels, sizes, spacing, corner radii, color swatches, and a live preview using a saved launcher contact.
 - Added asynchronous speaker-route UI refresh and return-to-home behavior after calls end.
 - Equalized home-card dimensions independent of contact photo/app icon and aligned the page-layout preview with the home-card sizing calculation.
