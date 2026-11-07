@@ -56,7 +56,7 @@ Call behavior still depends on the selected default Dialer role, Android Telecom
 ### Permissions and privacy
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
-- App usage ordering can use Android Usage Access; the package-specific Settings URI is used to open the SahlBit entry directly where the device Settings app supports it.
+- App usage ordering can use Android Usage Access; SahlBit opens the package-specific Settings entry where supported. Exact focus/scroll behavior inside Android Settings is controlled by the device manufacturer and cannot be guaranteed by a third-party app.
 - Direct calling requires the Android call permission.
 - Screen-timeout modification and saving custom ringtone choices require Android's special `WRITE_SETTINGS` access.
 - Volume sliders write to Android `AudioManager` streams and refresh from system volume-change events and when the app resumes.
@@ -93,10 +93,15 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 ## Version 0.5.9 changes
 
-- Removed the remaining vertical offset from the first-run logo so it is geometrically centered in its blue circle.
-- Corrected outgoing-call customization: the pre-connection screen and live preview now contain one red end-call button only. The second button, its label/color controls, and the irrelevant spacing control are not shown for this state.
-- Set the outgoing end-call label to “پایان تماس” and aligned the configured button color with the live call interface.
+- Removed the remaining vertical offset from the first-run logo so it is centered in its blue circle.
+- Made first-run setup completion atomic: after the final step, the completion flag is saved before PIN setup, and an existing administrator PIN always routes the app to home rather than reopening setup.
+- Rechecked each setup-step permission when the step is displayed and retained a distinct unknown state when a permission query fails.
+- Corrected outgoing-call customization: the pre-connection screen and live preview contain one red “پایان تماس” button only. The second button and its label/color controls are removed for this state; the remaining spacing control adjusts the single button's distance from the contact details.
+- Matched the outgoing button's configured color, label, and spacing between preview and the actual call screen; corrected the vertical space reserved for the speaker control to keep call buttons within the screen.
+- Added a GitHub Contents API fallback if the raw update manifest cannot be fetched or parsed; kept update status messages in Persian and corrected the counterclockwise refresh icon in both source buttons.
+- Replaced the last informal administrator-facing phrases and removed an obsolete unused welcome-screen composable.
 - This release continues to target Android 5.0 (API 21) and newer.
+
 
 ## Version 0.5.8 changes
 
