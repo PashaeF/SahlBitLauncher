@@ -320,10 +320,10 @@ private fun SahlBitApp(
 ) {
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
-    val completedWizardVersion = remember { prefs.getInt("setup_wizard_version", 0) }
+    val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion == 1) 7 else 0).coerceIn(0, 7)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by remember { mutableStateOf(if (pinHash == null && !initialized && completedWizardVersion < 2) "wizard" else if (pinHash == null) "setpin" else if (crashRecovery) "recovery" else "home") }
+    var route by remember { mutableStateOf(if (pinHash != null) { if (crashRecovery) "recovery" else "home" } else if (!initialized && completedWizardVersion < 2) "wizard" else "setpin") }
     val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
@@ -332,8 +332,8 @@ private fun SahlBitApp(
     var immersive by remember { mutableStateOf(true) }
     var backgroundChoice by remember { mutableStateOf((prefs.getString("background", "cream") ?: "cream").let { if (it == "forest") "cream" else it }) }
     var settingsTapThreshold by remember { mutableIntStateOf(prefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)) }
-    var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 5).coerceIn(1, 12)) }
-    var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 5).coerceIn(1, 12)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
+    var pageCount by remember { mutableIntStateOf(prefs.getInt("page_count", 3).coerceAtLeast(1)) }
+    var pageNames by remember { mutableStateOf(runCatching { org.json.JSONArray(prefs.getString("page_names", "[]") ?: "[]").let { a -> (0 until a.length()).map { a.optString(it) } } }.getOrDefault(emptyList()).let { saved -> (0 until prefs.getInt("page_count", 3).coerceAtLeast(1)).map { saved.getOrNull(it)?.ifBlank { "صفحه ${(it + 1).toPersianDigits()}" } ?: "صفحه ${(it + 1).toPersianDigits()}" } }) }
     var clockSizeDp by remember { mutableIntStateOf(prefs.getInt("clock_size_dp", 360).coerceIn(180, 360)) }
     var clockDigitSizeSp by remember { mutableIntStateOf(prefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)) }
     var clockDigitLanguage by remember { mutableStateOf(prefs.getString("clock_digit_language", "english") ?: "english") }
@@ -356,17 +356,17 @@ private fun SahlBitApp(
     var entries by remember { mutableStateOf(LauncherEntryStore.load(prefs)) }
     var selectedPage by remember { mutableIntStateOf(0) }
     var confirmPageDeletion by remember { mutableStateOf(false) }
-    var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 4)) }
+    var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 6)) }
     fun loadRowsPerPage(page: Int): Int = runCatching {
         val configured = org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}").opt(page.toString())
         when (configured) {
             is Number -> configured.toInt().coerceIn(1, 6)
             else -> {
                 val legacyRows = org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}").optJSONArray(page.toString())
-                (legacyRows?.length() ?: prefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+                (legacyRows?.length() ?: prefs.getInt("grid_rows", 2)).coerceIn(1, 6)
             }
         }
-    }.getOrDefault(3)
+    }.getOrDefault(2)
     fun saveRowsPerPage(page: Int, count: Int) {
         val root = runCatching { org.json.JSONObject(prefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
         root.put(page.toString(), count.coerceIn(1, 6))
@@ -377,7 +377,7 @@ private fun SahlBitApp(
     fun loadRowCounts(page: Int): List<Int> = runCatching {
         val root = org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}")
         val a = root.optJSONArray(page.toString()) ?: org.json.JSONArray()
-        (0 until a.length()).map { a.optInt(it, gridColumns).coerceIn(1, 4) }
+        (0 until a.length()).map { a.optInt(it, gridColumns).coerceIn(1, 6) }
     }.getOrDefault(emptyList()).ifEmpty { List(loadRowsPerPage(page)) { gridColumns } }
     var rowCardCounts by remember(selectedPage) { mutableStateOf(loadRowCounts(selectedPage).take(gridRows).let { it + List((gridRows - it.size).coerceAtLeast(0)) { gridColumns } }) }
     fun loadRowAlignments(page: Int): List<String> = runCatching {
@@ -523,19 +523,13 @@ private fun SahlBitApp(
             onCallEndedHandled()
         }
     }
-    LaunchedEffect(resumeRevision, wizardStep, route, wizardRequestRevision) {
-        if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
-            val permissionGranted = isWizardPermissionGranted(context, wizardStep)
+    LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
+        if (pinHash != null && (route == "wizard" || route == "setpin")) {
+            prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
+            route = "home"
+        } else if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
+            isWizardPermissionGranted(context, wizardStep)
             wizardRequestRevision = -1
-            if (permissionGranted) {
-                if (wizardStep >= 7) {
-                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).apply()
-                    route = if (pinHash != null) "home" else "setpin"
-                } else {
-                    wizardStep += 1
-                    prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                }
-            }
         }
     }
     LaunchedEffect(resumeRevision) {
@@ -708,8 +702,8 @@ private fun SahlBitApp(
         "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
-            NumberSetting("تعداد صفحه‌ها", pageCount, 1, 12) { requested ->
-                val next = requested.coerceIn(1, 12)
+            NumberSetting("تعداد صفحه‌ها", pageCount, 1, Int.MAX_VALUE) { requested ->
+                val next = requested.coerceAtLeast(1)
                 if (next < pageCount) {
                     entries = entries.map { e -> if (e.page >= next) e.copy(page = next - 1) else e }
                     remapPageLayoutPreferences(prefs, (0 until next).associateWith { it })
@@ -721,7 +715,7 @@ private fun SahlBitApp(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
-                    if (pageCount < 12) {
+                    if (pageCount < Int.MAX_VALUE) {
                         val copyItems = entries.filter { it.page == selectedPage }.map { it.copy(id = java.util.UUID.randomUUID().toString(), page = pageCount) }
                         entries = entries + copyItems
                         remapPageLayoutPreferences(prefs, (0 until pageCount).associateWith { it }, selectedPage to pageCount)
@@ -729,7 +723,7 @@ private fun SahlBitApp(
                         pageCount += 1; selectedPage = pageCount - 1
                         LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
                     }
-                }, enabled = pageCount < 12) { Text("تکثیر صفحه") }
+                }, enabled = pageCount < Int.MAX_VALUE) { Text("تکثیر صفحه") }
                 OutlinedButton(onClick = { confirmPageDeletion = true }, enabled = pageCount > 1) { Text("حذف صفحه") }
             }
             Text("نام صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
@@ -742,7 +736,7 @@ private fun SahlBitApp(
                 AlertDialog(
                     onDismissRequest = { confirmPageDeletion = false },
                     title = { Text("حذف صفحهٔ ${(selectedPage + 1).toPersianDigits()}؟") },
-                    text = { Text("کارت‌های این صفحه حذف نمی‌شوند و به صفحهٔ قبلی منتقل خواهند شد. اگر صفحهٔ اول را حذف کنید، کارت‌ها در صفحهٔ اولِ باقی‌مانده می‌مانند.") },
+                    text = { Text("کارت‌های این صفحه حذف نمی‌شوند و به صفحهٔ قبلی منتقل خواهند شد. اگر صفحهٔ اول را حذف کنید، کارت‌ها در صفحهٔ اولِ باقی‌مانده، می‌مانند.") },
                     confirmButton = { Button(onClick = {
                         entries = entries.map { e ->
                             when {
@@ -772,7 +766,7 @@ private fun SahlBitApp(
             rowCardCounts.forEachIndexed { row, count ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 4) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
                         Text("تراز ردیف ${(row + 1).toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
                         listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(rowAlignments.getOrElse(row) { "center" } == key, { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }); Text(label, color = Ink) } }
                     }
@@ -891,7 +885,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "appearance" -> SettingsPage("ظاهر و صفحه اصلی", "رنگ‌ها و پس‌زمینه به‌صورت محلی ذخیره می‌شوند.", { route = "dashboard" }) {
+        "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { route = "dashboard" }) {
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
             listOf("cream" to "کِرِم", "white" to "سفید", "gray" to "طوسی", "blue" to "آبی ملایم", "sage" to "سبز مریم‌گلی", "lavender" to "یاسی ملایم", "mint" to "نعنایی", "sand" to "شنی روشن", "rose" to "صورتی آرام").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -976,6 +970,8 @@ private fun SahlBitApp(
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
+            Spacer(Modifier.height(14.dp))
+            TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) { Text("پین را فراموش کرده‌ام") }
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 val salt = prefs.getString("admin_pin_salt", "") ?: ""
@@ -998,7 +994,7 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("مجوزها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { route = "dashboard" }) {
+        "permissions" -> SettingsPage("دسترسی‌ها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { route = "dashboard" }) {
             val contactsGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
             val callGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
             val writeGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
@@ -1008,7 +1004,7 @@ private fun SahlBitApp(
             val dialerGranted = isDialerRoleHeld(context)
             PermissionCard("نقش لانچر پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان لانچر پیش‌فرض", homeGranted, onSelectLauncher)
             PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
-            PermissionCard("دسترسی مخاطبان", "این دسترسی برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. بدون آن، انتخاب و نمایش مخاطبان در صفحهٔ اصلی محدود می‌شود. سهل‌بیت دفترچه تلفن را تغییر نمی‌دهد.", "اعطای دسترسی مخاطبان", contactsGranted, { if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
+            PermissionCard("دسترسی به مخاطبان", "این دسترسی برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. بدون آن، انتخاب و نمایش مخاطبان در صفحهٔ اصلی محدود می‌شود. سهل‌بیت دفترچه تلفن را تغییر نمی‌دهد.", "اعطای دسترسی مخاطبان", contactsGranted, { if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
             PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
             PermissionCard("اجازهٔ نصب به‌روزرسانی‌ها", "این دسترسی ویژه فقط برای آن است که سهل‌بیت فایل APK نسخه‌ای را که مدیر از منبع رسمی انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. بدون آن، دانلود و بررسی نسخه ممکن است اما نصب از داخل برنامه انجام نمی‌شود. تأیید نهایی نصب همیشه با مدیر است.", "اجازهٔ نصب برنامه‌های ناشناس", installGranted, { if (installGranted) android.widget.Toast.makeText(context, "اجازهٔ نصب برنامه‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) } })
@@ -1034,7 +1030,8 @@ private fun SahlBitApp(
                     Text("سهل‌بیت محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری است؛ با هدف کمک به سالمندان، کودکان و افرادی که به رابطی خلوت‌تر و خواناتر نیاز دارند.", color = Ink, fontSize = 15.sp, lineHeight = 26.sp)
                     Divider()
                     Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 15.sp)
-                    Text("وب‌سایت: pashaeft.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("وب‌سایت: pashaef.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                     Text("ایمیل: Pashae@iran.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -1360,10 +1357,12 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     val palette = listOf("#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#F1F5F9", "#FFFFFF", "#168A45", "#BE232D", "#1976D2", "#455A64")
     SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("تماس ورودی قبل از مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("تماس خروجی قبل از مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "active", { profile = "active" }, label = { Text("تماس پس از برقراری مکالمه", fontSize = 11.sp) })
+        val statusChipScroll = rememberScrollState()
+        LaunchedEffect(profile) { if (profile == "incoming") statusChipScroll.animateScrollTo(0) else statusChipScroll.animateScrollTo(statusChipScroll.maxValue) }
+        Row(Modifier.fillMaxWidth().horizontalScroll(statusChipScroll), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("تماس ورودی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("تماس خروجی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "active", { profile = "active" }, label = { Text("تماس ورودی و خروجی پس از برقراری مکالمه", fontSize = 11.sp) })
         }
         Text("مخاطب پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
         if (contacts.isNotEmpty()) {
@@ -1624,7 +1623,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
 
 @Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
     var settingsTaps by remember { mutableIntStateOf(0) }
-    LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0 } }
+    var settingsHintShown by remember { mutableStateOf(false) }
+    LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0; settingsHintShown = false } }
     val context = LocalContext.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = (screenWidth - 32.dp).coerceAtLeast(240.dp)
@@ -1651,7 +1651,14 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { settingsTaps++; if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; onAdminEntry() } else { android.widget.Toast.makeText(context, "فقط ${(adminTapThreshold - settingsTaps).coerceAtLeast(0).toPersianDigits()} بار دیگر روی آیکون چرخ‌دنده ضربه بزنید تا صفحه ورود مدیر به تنظیمات برنامه باز شود.", android.widget.Toast.LENGTH_SHORT).show() } }, modifier = Modifier.size(40.dp).offset(x = (-12).dp)) {
+            IconButton(onClick = {
+                if (!settingsHintShown) {
+                    android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
+                    settingsHintShown = true
+                }
+                settingsTaps++
+                if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
+            }, modifier = Modifier.size(40.dp).offset(x = (-12).dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
             }
         }
@@ -1683,7 +1690,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
         }
         Spacer(Modifier.height(2.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(8.dp)); Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp)) }
         Spacer(Modifier.height(1.dp))
-        val pager = rememberPagerState(pageCount = { pageCount.coerceIn(1, 12) })
+        val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -1692,26 +1699,22 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
-                val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 4) }
-                val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 4) ?: 1
+                val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
+                val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         var entryOffset = 0
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
-                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                                val rowAlignment = pageRowAlignments.getOrElse(rowIndex) { "center" }
-                                val slotWidth = contentWidth / uniformCardsPerRow.toFloat()
-                                val leadingSlots = when (rowAlignment) { "left" -> 1f; "center" -> 0.5f; else -> 0f }
-                                Spacer(Modifier.width(slotWidth * leadingSlots))
+                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "right" -> Arrangement.Start; "left" -> Arrangement.End; else -> Arrangement.Center }) {
                                 rowEntries.forEach { entry ->
-                                    Box(Modifier.width(slotWidth).padding(horizontal = 4.dp)) {
+                                    Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
                                 modifier = Modifier.fillMaxWidth().height(154.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
