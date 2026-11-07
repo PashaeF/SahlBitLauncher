@@ -1629,7 +1629,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         actionCard("برنامه‌ها", "مدیریت برنامه‌های نصب‌شده و مجوزهای آن‌ها.", "بازکردن تنظیمات برنامه‌ها", Settings.ACTION_APPLICATION_SETTINGS)
         actionCard("مدیریت عمومی دستگاه", "ورود به بخش‌های عمومی تنظیمات؛ عنوان دقیق این بخش در دستگاه‌ها متفاوت است.", "بازکردن تنظیمات عمومی", Settings.ACTION_SETTINGS)
         actionCard("تاریخ و ساعت", "تنظیم منطقهٔ زمانی، تاریخ، ساعت و قالب نمایش.", "بازکردن تنظیمات تاریخ و ساعت", Settings.ACTION_DATE_SETTINGS)
-        actionCard("به‌روزرسانی نرم‌افزار", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی سیستم", Settings.ACTION_SYSTEM_UPDATE_SETTINGS)
+        actionCard("به‌روزرسانی نرم‌افزار", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی سیستم", "android.settings.SYSTEM_UPDATE_SETTINGS")
         actionCard("دربارهٔ تلفن", "نمایش مدل دستگاه، شمارهٔ ساخت و اطلاعات سیستم‌عامل.", "بازکردن دربارهٔ تلفن", Settings.ACTION_DEVICE_INFO_SETTINGS)
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1685,9 +1685,9 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
-                "callconfirm" -> Icons.Default.Tune
+                "callconfirm" -> Icons.Default.Edit
                 "security" -> Icons.Default.Lock
-                "permissions" -> Icons.Default.Security
+                "permissions" -> Icons.Default.Lock
                 "home" -> Icons.Default.Home
                 "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
