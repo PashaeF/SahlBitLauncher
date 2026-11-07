@@ -158,18 +158,24 @@ private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = wh
 }
 private fun openUsageAccessSettings(context: Context) {
     val packageUri = Uri.fromParts("package", context.packageName, null)
-    val appSpecific = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-        data = packageUri
-        putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    val candidates = listOf(
+        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            data = packageUri
+            putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+            addFlags(flags)
+        },
+        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            putExtra(Intent.EXTRA_PACKAGE_NAME, context.packageName)
+            addFlags(flags)
+        },
+        Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(flags),
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri).addFlags(flags)
+    )
+    for (intent in candidates) {
+        if (runCatching { context.startActivity(intent) }.isSuccess) return
     }
-    val generic = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-    val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
-    val opened = runCatching {
-        if (appSpecific.resolveActivity(context.packageManager) != null) context.startActivity(appSpecific)
-        else throw IllegalStateException("App-specific usage settings unavailable")
-    }.isSuccess
-    if (!opened) runCatching { context.startActivity(generic) }.onFailure { runCatching { context.startActivity(appDetails) } }
+    android.widget.Toast.makeText(context, "بازکردن تنظیمات دسترسی آمار مصرف برنامه‌ها ممکن نشد. لطفاً از تنظیمات اندروید این دسترسی را برای سهل‌بیت فعال کنید.", android.widget.Toast.LENGTH_LONG).show()
 }
 
 @Composable
