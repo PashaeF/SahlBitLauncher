@@ -1682,7 +1682,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "pages" -> Icons.Default.List
                 "contacts" -> Icons.Default.Person
                 "apps" -> Icons.Default.Search
-                "appearance" -> Icons.Default.Image
+                "appearance" -> Icons.Default.Edit
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
