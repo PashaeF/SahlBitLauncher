@@ -181,11 +181,14 @@ class CallActivity : Activity(), SensorEventListener {
         val fixedTopMarginDp = if (ringing) 10 else if (dialing) 0 else 34
         val requestedButtonHeightDp = styleInt("button_height_dp", 82).coerceIn(56, 120)
         val fixedWithoutButtons = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + 8
-        val buttonHeightDp = minOf(requestedButtonHeightDp, ((availableHeightDp - fixedWithoutButtons) / buttonCount).coerceAtLeast(48))
-        val fixedContentDp = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + buttonHeightDp * buttonCount
+        val minimumAvatarDp = 48
+        val minimumSpacingDp = 8
+        val availableForButtonsDp = (availableHeightDp - fixedWithoutButtons - minimumAvatarDp - minimumSpacingDp).coerceAtLeast(buttonCount * 48)
+        val buttonHeightDp = minOf(requestedButtonHeightDp, (availableForButtonsDp / buttonCount).coerceAtLeast(48))
+        val fixedContentDp = fixedWithoutButtons + buttonHeightDp * buttonCount
         val requestedSpacingDp = styleInt("spacing_dp", 88).coerceIn(8, 120)
-        val spacingDp = minOf(requestedSpacingDp, (availableHeightDp - fixedContentDp - 48).coerceAtLeast(8))
-        val avatarAvailableDp = (availableHeightDp - fixedContentDp - spacingDp).coerceAtLeast(48)
+        val spacingDp = minOf(requestedSpacingDp, (availableHeightDp - fixedContentDp - minimumAvatarDp).coerceAtLeast(minimumSpacingDp))
+        val avatarAvailableDp = (availableHeightDp - fixedContentDp - spacingDp).coerceAtLeast(minimumAvatarDp)
         val availableWidthDp = ((resources.displayMetrics.widthPixels / resources.displayMetrics.density).toInt() - 40).coerceAtLeast(120)
         val avatarSize = dp(minOf(requestedAvatarDp, avatarAvailableDp, availableWidthDp))
         avatarView.layoutParams = avatarView.layoutParams.apply { width = avatarSize; height = avatarSize }
