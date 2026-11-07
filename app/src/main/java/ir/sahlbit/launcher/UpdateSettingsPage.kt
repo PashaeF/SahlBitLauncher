@@ -127,7 +127,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             Text("بررسی از وب‌سایت رسمی pashaeft.ir")
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
-            Icon(Icons.Default.Refresh, null)
+            Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
             Text("بررسی آخرین انتشار در GitHub")
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
