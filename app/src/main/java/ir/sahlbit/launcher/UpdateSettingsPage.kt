@@ -120,6 +120,21 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                 Text("نسخهٔ نصب‌شدهٔ برنامه روی این دستگاه", color = Color(0xFFE4F2E9), fontSize = 14.sp)
             }
         }
+        val installPermissionGranted = Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("اجازهٔ نصب به‌روزرسانی‌ها", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("برای نصب نسخهٔ جدید از داخل سهل‌بیت، اندروید باید اجازهٔ نصب برنامه از این منبع را بدهد. فعال‌سازی این اجازه اختیاری است و تأیید نهایی هر نصب همچنان با شماست.", color = Color(0xFF52645B), fontSize = 13.sp, lineHeight = 21.sp)
+                Text(if (installPermissionGranted) "وضعیت: اجازهٔ نصب فعال است." else "وضعیت: اجازهٔ نصب هنوز فعال نشده است.", color = if (installPermissionGranted) Color(0xFF167342) else Color(0xFFB45309), fontSize = 13.sp)
+                OutlinedButton(onClick = {
+                    if (Build.VERSION.SDK_INT >= 26 && !installPermissionGranted) {
+                        runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) }
+                    } else {
+                        android.widget.Toast.makeText(context, "اجازهٔ نصب به‌روزرسانی‌ها فعال است.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }, modifier = Modifier.fillMaxWidth()) { Text(if (installPermissionGranted) "بررسی وضعیت اجازهٔ نصب" else "اعطای اجازهٔ نصب به‌روزرسانی‌ها") }
+            }
+        }
         Text("منبع بررسی نسخه", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 17.sp)
         OutlinedButton(onClick = { checkFrom(true) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
