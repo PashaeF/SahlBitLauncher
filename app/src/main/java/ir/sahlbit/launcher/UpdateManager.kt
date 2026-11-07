@@ -32,7 +32,7 @@ data class SahlBitUpdate(
 class InstallPermissionRequired : Exception("برای نصب نسخهٔ دانلودشده، اجازهٔ «نصب برنامه‌های ناشناس» را برای سهل‌بیت فعال کنید و دوباره دکمهٔ نصب را بزنید.")
 
 object SahlBitUpdateManager {
-    const val WEBSITE_MANIFEST_URL = "https://pashaeft.ir/sahlbit/update.json"
+    const val WEBSITE_MANIFEST_URL = "https://pashaef.ir/sahlbit/update.json"
     private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/development/update.json"
     private const val GITHUB_API_MANIFEST_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/contents/update.json?ref=development"
     private const val MAX_APK_SIZE = 120L * 1024L * 1024L
