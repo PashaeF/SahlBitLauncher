@@ -1687,8 +1687,8 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
                 "callconfirm" -> Icons.Default.CheckCircle
-                "security" -> Icons.Default.Key
-                "permissions" -> Icons.Default.Lock
+                "security" -> Icons.Default.Lock
+                "permissions" -> Icons.Default.Build
                 "home" -> Icons.Default.Home
                 "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
