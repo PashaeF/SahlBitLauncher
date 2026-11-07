@@ -792,6 +792,7 @@ private fun SahlBitApp(
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
+            PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "در صورت تمایل، سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب کنید تا رابط تماس اختصاصی آن نمایش داده شود.", "انتخاب برنامهٔ تلفن پیش‌فرض", isDialerRoleHeld(context), onSelectDialer)
             PermissionCard(
                 title = "دسترسی به مخاطبان",
                 description = "برای نمایش نام کامل، شماره تماس و تصویر مخاطب‌ها در صفحهٔ اصلی و رابط تماس لازم است. این اجازه فقط امکان خواندن دفترچه تلفن را می‌دهد؛ سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
@@ -799,6 +800,7 @@ private fun SahlBitApp(
                 granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
                 onClick = { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
             )
+            PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
@@ -883,6 +885,14 @@ private fun SahlBitApp(
             }
         }
         "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { route = "dashboard" }) {
+            DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { route = "clock" }
+            DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { route = "callconfirm" }
+            val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
+            PermissionCard("دسترسی تغییر تنظیمات سیستمی", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستمی", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
+            var homeContactRadius by remember { mutableIntStateOf(prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)) }
+            var homeAppRadius by remember { mutableIntStateOf(prefs.getInt("home_app_radius", 20).coerceIn(0, 50)) }
+            NumberSetting("گردی گوشهٔ تصویر مخاطبان: ${homeContactRadius.toPersianDigits()} dp", homeContactRadius, 0, 50) { homeContactRadius = it; prefs.edit().putInt("home_contact_radius", it).apply() }
+            NumberSetting("گردی گوشهٔ لوگوی برنامه‌ها: ${homeAppRadius.toPersianDigits()} dp", homeAppRadius, 0, 50) { homeAppRadius = it; prefs.edit().putInt("home_app_radius", it).apply() }
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
             listOf("cream" to "کِرِم", "white" to "سفید", "gray" to "طوسی", "blue" to "آبی ملایم", "sage" to "سبز مریم‌گلی", "lavender" to "یاسی ملایم", "mint" to "نعنایی", "sand" to "شنی روشن", "rose" to "صورتی آرام").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1233,6 +1243,8 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
             .putExtra(android.media.RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, android.media.RingtoneManager.getActualDefaultRingtoneUri(context, type)))
     }
     SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
+        val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
+        PermissionCard("دسترسی تغییر تنظیمات سیستمی", "برای ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این دسترسی فقط با تأیید شما در تنظیمات اندروید فعال می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستمی", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_RING).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
         Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1706,6 +1718,8 @@ private fun UninstallPage(onBack: () -> Unit) {
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
     val homeContactRadius = launcherPrefs.getInt("home_contact_radius", 20).coerceIn(0, 50)
     val homeAppRadius = launcherPrefs.getInt("home_app_radius", 20).coerceIn(0, 50)
+    val homeContactRadius = launcherPrefs.getInt("home_contact_radius", 20).coerceIn(0, 50)
+    val homeAppRadius = launcherPrefs.getInt("home_app_radius", 20).coerceIn(0, 50)
     fun confirmColor(key: String, fallback: String): Color = runCatching { Color(android.graphics.Color.parseColor(launcherPrefs.getString("confirm_call_$key", fallback) ?: fallback)) }.getOrDefault(Color(android.graphics.Color.parseColor(fallback)))
     val confirmYesColor = confirmColor("yes_color", "#168A45")
     val confirmNoColor = confirmColor("no_color", "#B3261E")
@@ -1772,7 +1786,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 val rowCountRoot = remember(layoutPrefs.getString("row_counts_per_page", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val storedRows = rowRoot.optJSONArray(index.toString())
-                val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 3)).coerceIn(1, 6)
+                val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val savedAlignments = alignRoot.opt(index.toString())
