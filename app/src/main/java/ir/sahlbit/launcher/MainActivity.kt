@@ -1328,6 +1328,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(12.dp))
         Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(58.dp)) { Text("ورود به پیشخان مدیریت") }
+        Spacer(Modifier.height(14.dp))
         TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) { Text("پین را فراموش کرده‌ام") }
     }
 }
