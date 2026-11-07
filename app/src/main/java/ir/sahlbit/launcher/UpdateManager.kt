@@ -34,6 +34,7 @@ class InstallPermissionRequired : Exception("برای نصب نسخهٔ دانل
 object SahlBitUpdateManager {
     const val WEBSITE_MANIFEST_URL = "https://pashaeft.ir/sahlbit/update.json"
     private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/development/update.json"
+    private const val GITHUB_API_MANIFEST_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/contents/update.json?ref=development"
     private const val MAX_APK_SIZE = 120L * 1024L * 1024L
 
     suspend fun checkWebsite(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
@@ -41,7 +42,12 @@ object SahlBitUpdateManager {
     }
 
     suspend fun checkGitHub(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        parseManifest(JSONObject(httpGet(GITHUB_MANIFEST_URL)), "گیت‌هاب")
+        val manifestText = runCatching { httpGet(GITHUB_MANIFEST_URL) }.getOrElse {
+            val apiResponse = JSONObject(httpGet(GITHUB_API_MANIFEST_URL))
+            val encoded = apiResponse.getString("content")
+            android.util.Base64.decode(encoded, android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
+        }
+        parseManifest(JSONObject(manifestText), "گیت‌هاب")
     }
 
     private fun parseManifest(json: JSONObject, source: String): SahlBitUpdate {
