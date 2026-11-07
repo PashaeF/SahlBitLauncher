@@ -162,7 +162,9 @@ class CallActivity : Activity(), SensorEventListener {
         fun styleColor(key: String, fallback: Int): Int = runCatching { Color.parseColor(styleText(key, String.format("#%06X", 0xFFFFFF and fallback))) }.getOrDefault(fallback)
         val defaultBackground = when { ringing -> Color.rgb(107, 159, 201); dialing -> Color.rgb(255, 201, 77); active -> Color.rgb(46, 125, 50); held -> Color.rgb(69, 90, 100); else -> Color.rgb(55, 71, 79) }
         val background = styleColor("background", defaultBackground)
-        val primaryColor = styleColor("primary", if (profile == "active") Color.rgb(25, 118, 210) else Color.rgb(22, 138, 69))
+        val speakerEnabled = SahlBitInCallService.isSpeakerOn()
+        val primaryColor = styleColor("primary", when (profile) { "outgoing" -> Color.rgb(190, 35, 45); "active" -> Color.rgb(25, 118, 210); else -> Color.rgb(22, 138, 69) })
+        val speakerColor = if (profile == "active") styleColor(if (speakerEnabled) "speaker_on" else "speaker_off", if (speakerEnabled) Color.rgb(255, 193, 7) else primaryColor) else primaryColor
         val secondaryColor = styleColor("secondary", Color.rgb(190, 35, 45))
         val luminance = (android.graphics.Color.red(background) * 0.299f + android.graphics.Color.green(background) * 0.587f + android.graphics.Color.blue(background) * 0.114f) / 255f
         val foreground = if (luminance > 0.62f) Color.rgb(23, 32, 51) else Color.WHITE
@@ -216,10 +218,10 @@ class CallActivity : Activity(), SensorEventListener {
         }
         primaryAction.setTextColor(contrastText(if (ringing) primaryColor else secondaryColor))
         declineAction.setTextColor(contrastText(secondaryColor))
-        speakerLabel.setTextColor(contrastText(primaryColor))
+        speakerLabel.setTextColor(contrastText(speakerColor))
         primaryAction.background = GradientDrawable().apply { setColor(if (ringing || dialing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
-        speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
+        speakerAction.background = GradientDrawable().apply { setColor(speakerColor); cornerRadius = buttonRadius }
         speakerIcon.background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
         statusView.text = when { ringing -> "تماس ورودی"; dialing -> "در حال شماره‌گیری"; active -> "تماس برقرار است"; held -> "تماس در انتظار"; callState == Call.STATE_DISCONNECTING -> "در حال پایان تماس"; else -> "وضعیت تماس" }
         nameView.text = displayName.ifBlank { "تماس ناشناس" }; statusView.setTextColor(foreground); nameView.setTextColor(foreground)
@@ -231,7 +233,6 @@ class CallActivity : Activity(), SensorEventListener {
             else -> "✕  " + styleText("second_label", "پایان تماس")
         }
         declineAction.text = "✕  " + styleText("second_label", "رد تماس")
-        val speakerEnabled = SahlBitInCallService.isSpeakerOn()
         speakerIcon.setImageResource(if (speakerEnabled) R.drawable.ic_phone_handset else R.drawable.ic_speaker)
         speakerIcon.scaleX = -1f
         speakerLabel.text = if (speakerEnabled) styleText("alternate_label", "تغییر به تلفن") else styleText("first_label", "تغییر به بلندگو")
