@@ -1,9 +1,9 @@
 {
   "packageName": "ir.sahlbit.launcher",
-  "versionName": "0.5.8",
-  "versionCode": 24,
+  "versionName": "0.5.9",
+  "versionCode": 25,
   "minSdk": 21,
-  "apkUrl": "https://pashaeft.ir/sahlbit/sahlbit-0.5.8.apk",
+  "apkUrl": "https://pashaeft.ir/sahlbit/sahlbit-0.5.9.apk",
   "sha256": "",
-  "changelog": "اصلاح نشانی بررسی به‌روزرسانی وب‌سایت؛ وسط‌چین‌کردن لوگوها؛ اصلاح آیکون‌های ساعت، صدا و جستجو؛ افزایش فاصلهٔ بالای صفحهٔ تنظیم پین مدیر."
+  "changelog": "تماس خروجی پیش از برقراری مکالمه فقط یک دکمهٔ قرمز پایان تماس دارد؛ تنظیمات و پیش‌نمایش آن نیز با رابط واقعی یکسان شد."
 }
