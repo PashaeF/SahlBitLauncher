@@ -149,7 +149,10 @@ private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = wh
     3 -> isDialerRoleHeld(context)
     4 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     5 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
-    6 -> hasUsageAccess(context)
+    6 -> {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
+    }
     7 -> Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
     else -> true
 }
@@ -1401,10 +1404,8 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
         Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
         CompactSlider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
-        if (profile != "outgoing") {
-            Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
-            CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
-        }
+        Text(if (profile == "outgoing") "فاصلهٔ دکمهٔ پایان تماس از اطلاعات تماس: ${spacing.toPersianDigits()} dp" else "فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
+        CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
         CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
         if (profile == "outgoing") {
             CallColorPicker("رنگ دکمه پایان تماس", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
