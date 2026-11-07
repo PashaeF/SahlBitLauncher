@@ -1034,7 +1034,7 @@ private fun SahlBitApp(
                     Text("سهل‌بیت محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری است؛ با هدف کمک به سالمندان، کودکان و افرادی که به رابطی خلوت‌تر و خواناتر نیاز دارند.", color = Ink, fontSize = 15.sp, lineHeight = 26.sp)
                     Divider()
                     Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 15.sp)
-                    Text("وب‌سایت: pashaef.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("وب‌سایت: pashaeft.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
