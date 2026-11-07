@@ -214,7 +214,7 @@ class CallActivity : Activity(), SensorEventListener {
         primaryAction.setTextColor(contrastText(if (ringing) primaryColor else secondaryColor))
         declineAction.setTextColor(contrastText(secondaryColor))
         speakerLabel.setTextColor(contrastText(primaryColor))
-        primaryAction.background = GradientDrawable().apply { setColor(if (ringing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
+        primaryAction.background = GradientDrawable().apply { setColor(if (ringing || dialing) primaryColor else secondaryColor); cornerRadius = buttonRadius }
         declineAction.background = GradientDrawable().apply { setColor(secondaryColor); cornerRadius = buttonRadius }
         speakerAction.background = GradientDrawable().apply { setColor(primaryColor); cornerRadius = buttonRadius }
         speakerIcon.background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
@@ -223,7 +223,7 @@ class CallActivity : Activity(), SensorEventListener {
         numberView.text = number; numberView.setTextColor(foreground); loadContactPhoto()
         primaryAction.text = when {
             ringing -> "☎  " + styleText("first_label", "پاسخ به تماس")
-            dialing -> "✕  " + styleText("first_label", "لغو تماس")
+            dialing -> "✕  " + styleText("first_label", "پایان تماس")
             held -> "☎  بازگشت به تماس"
             else -> "✕  " + styleText("second_label", "پایان تماس")
         }
