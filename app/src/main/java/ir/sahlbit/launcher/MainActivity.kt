@@ -1476,6 +1476,8 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
     var yesLabel by remember { mutableStateOf(textValue("yes_label", "بله، تماس بگیرید")) }
     var noLabel by remember { mutableStateOf(textValue("no_label", "خیر")) }
     var buttonHeight by remember { mutableIntStateOf(intValue("button_height", 62).coerceIn(48, 88)) }
+    var yesButtonWidth by remember { mutableIntStateOf(intValue("yes_width_pct", 100).coerceIn(50, 100)) }
+    var noButtonWidth by remember { mutableIntStateOf(intValue("no_width_pct", 62).coerceIn(50, 100)) }
     var buttonTextSize by remember { mutableIntStateOf(intValue("button_text_size", 17).coerceIn(14, 24)) }
     var avatarSize by remember { mutableIntStateOf(intValue("avatar_size", 112).coerceIn(64, 160)) }
     var avatarRadius by remember { mutableIntStateOf(intValue("avatar_radius", 20).coerceIn(0, 40)) }
@@ -1491,6 +1493,10 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         OutlinedTextField(noLabel, { noLabel = it; saveText("no_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ خیر") }, singleLine = true)
         Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(buttonHeight.toFloat(), { buttonHeight = it.toInt().coerceIn(48, 88); saveInt("button_height", buttonHeight) }, 48f..88f)
+        Text("عرض دکمهٔ بله: ${yesButtonWidth.toPersianDigits()} درصد", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(yesButtonWidth.toFloat(), { yesButtonWidth = it.toInt().coerceIn(50, 100); saveInt("yes_width_pct", yesButtonWidth) }, 50f..100f)
+        Text("عرض دکمهٔ خیر: ${noButtonWidth.toPersianDigits()} درصد", color = Ink, fontWeight = FontWeight.SemiBold)
+        CompactSlider(noButtonWidth.toFloat(), { noButtonWidth = it.toInt().coerceIn(50, 100); saveInt("no_width_pct", noButtonWidth) }, 50f..100f)
         Text("اندازهٔ متن دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt().coerceIn(14, 24); saveInt("button_text_size", buttonTextSize) }, 14f..24f)
         Text("اندازهٔ تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1507,11 +1513,11 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
                 Text("مخاطب نمونه", color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth().height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(yesColor)))) {
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth(yesButtonWidth / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(yesColor)))) {
                     Text(yesLabel.ifBlank { "بله" }, fontSize = buttonTextSize.sp)
                 }
                 Spacer(Modifier.height(buttonSpacing.dp))
-                Button(onClick = {}, modifier = Modifier.fillMaxWidth(0.62f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(noColor)))) {
+                Button(onClick = {}, modifier = Modifier.fillMaxWidth(noButtonWidth / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(noColor)))) {
                     Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text(noLabel.ifBlank { "خیر" }, fontSize = buttonTextSize.sp)
                 }
             }
@@ -1749,9 +1755,9 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(confirmAvatarSize.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth().height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmYesColor)) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text(confirmYesLabel, fontSize = confirmButtonTextSize.sp) }
+                    Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth(launcherPrefs.getInt("confirm_call_yes_width_pct", 100).coerceIn(50, 100) / 100f).height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmYesColor)) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text(confirmYesLabel, fontSize = confirmButtonTextSize.sp) }
                     Spacer(Modifier.height(confirmButtonSpacing.dp))
-                    Button(onClick = onCancelCall, modifier = Modifier.fillMaxWidth(0.62f).height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmNoColor)) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text(confirmNoLabel, fontSize = confirmButtonTextSize.sp) }
+                    Button(onClick = onCancelCall, modifier = Modifier.fillMaxWidth(launcherPrefs.getInt("confirm_call_no_width_pct", 62).coerceIn(50, 100) / 100f).height(confirmButtonHeight.dp), shape = RoundedCornerShape(confirmButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmNoColor)) { Icon(Icons.Default.Close, null); Spacer(Modifier.width(6.dp)); Text(confirmNoLabel, fontSize = confirmButtonTextSize.sp) }
                 }
             }, dismissButton = { })
         }
