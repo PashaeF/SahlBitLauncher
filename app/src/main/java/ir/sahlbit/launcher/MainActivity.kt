@@ -1348,9 +1348,9 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     var buttonRadius by remember(profile) { mutableIntStateOf(intValue("button_radius", 20)) }
     var spacing by remember(profile) { mutableIntStateOf(intValue("spacing_dp", 88)) }
     var bgHex by remember(profile) { mutableStateOf(textValue("background", if (profile == "incoming") "#6B9FC9" else if (profile == "outgoing") "#FFC94D" else "#2E7D32")) }
-    var primaryHex by remember(profile) { mutableStateOf(textValue("primary", if (profile == "active") "#1976D2" else "#168A45")) }
+    var primaryHex by remember(profile) { mutableStateOf(textValue("primary", when (profile) { "active" -> "#1976D2"; "outgoing" -> "#BE232D"; else -> "#168A45" })) }
     var secondaryHex by remember(profile) { mutableStateOf(textValue("secondary", "#BE232D")) }
-    var firstLabel by remember(profile) { mutableStateOf(textValue("first_label", if (profile == "incoming") "پاسخ به تماس" else if (profile == "outgoing") "لغو تماس" else "تغییر به بلندگو")) }
+    var firstLabel by remember(profile) { mutableStateOf(textValue("first_label", if (profile == "incoming") "پاسخ به تماس" else if (profile == "outgoing") "پایان تماس" else "تغییر به بلندگو")) }
     var secondLabel by remember(profile) { mutableStateOf(textValue("second_label", if (profile == "incoming") "رد تماس" else "پایان تماس")) }
     var alternateLabel by remember(profile) { mutableStateOf(textValue("alternate_label", "تغییر به تلفن")) }
     fun saveInt(key: String, value: Int) { prefs.edit().putInt(prefix + key, value).apply() }
@@ -1401,14 +1401,20 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
         Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
         CompactSlider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
-        Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
-        CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
+        if (profile != "outgoing") {
+            Text("فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
+            CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
+        }
         CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
-        CallColorPicker("رنگ دکمه بالایی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
-        CallColorPicker("رنگ دکمه پایینی", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
+        if (profile == "outgoing") {
+            CallColorPicker("رنگ دکمه پایان تماس", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
+        } else {
+            CallColorPicker("رنگ دکمه بالایی", primaryHex, palette) { primaryHex = it; saveText("primary", it) }
+            CallColorPicker("رنگ دکمه پایینی", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
+        }
         Text("متن دکمه‌ها", color = Ink, fontWeight = FontWeight.Bold)
-        OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن لغو تماس" else "متن تغییر به بلندگو") }, singleLine = true)
-        OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else if (profile == "outgoing") "متن دکمه پایینی" else "متن پایان تماس") }, singleLine = true)
+        OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن دکمه پایان تماس" else "متن تغییر به بلندگو") }, singleLine = true)
+        if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true)
         if (profile == "active") OutlinedTextField(alternateLabel, { alternateLabel = it; saveText("alternate_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("متن تغییر به تلفن") }, singleLine = true)
         Divider()
         Text("پیش‌نمایش زنده", color = Ink, fontSize = 19.sp, fontWeight = FontWeight.Bold)
@@ -1444,9 +1450,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
-                    Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
+                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
                     Spacer(Modifier.height(26.dp))
                     Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
