@@ -42,12 +42,13 @@ object SahlBitUpdateManager {
     }
 
     suspend fun checkGitHub(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        val manifestText = runCatching { httpGet(GITHUB_MANIFEST_URL) }.getOrElse {
+        val manifest = runCatching { JSONObject(httpGet(GITHUB_MANIFEST_URL)) }.getOrElse {
             val apiResponse = JSONObject(httpGet(GITHUB_API_MANIFEST_URL))
             val encoded = apiResponse.getString("content")
-            android.util.Base64.decode(encoded, android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
+            val decoded = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
+            JSONObject(decoded)
         }
-        parseManifest(JSONObject(manifestText), "گیت‌هاب")
+        parseManifest(manifest, "گیت‌هاب")
     }
 
     private fun parseManifest(json: JSONObject, source: String): SahlBitUpdate {
