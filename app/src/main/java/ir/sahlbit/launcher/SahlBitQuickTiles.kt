@@ -10,11 +10,13 @@ import android.service.quicksettings.TileService
  */
 abstract class SahlBitQuickTileService : TileService() {
     protected abstract val tileTitle: String
+    protected open val tileIcon: Int = R.drawable.sahlbit_logo_transparent
 
     override fun onStartListening() {
         super.onStartListening()
         qsTile?.let { tile ->
             tile.label = tileTitle
+            tile.icon = android.graphics.drawable.Icon.createWithResource(this, tileIcon)
             tile.state = Tile.STATE_ACTIVE
             tile.updateTile()
         }
