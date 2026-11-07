@@ -112,7 +112,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Color(0xFF2563EB)) }
-            Text("بررسی بروزرسانی", color = Color(0xFF2563EB), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("بررسی به‌روزرسانی برنامه", color = Color(0xFF2563EB), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -128,6 +128,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
+            Spacer(Modifier.width(8.dp))
             Text("بررسی آخرین انتشار در GitHub")
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
@@ -154,7 +155,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                             Text("دانلود و نصب به‌روزرسانی")
                         }
                     } else {
-                        Text("نسخهٔ ارائه‌شده جدیدتر از نسخهٔ نصب‌شده نیست.", color = Color(0xFF167342), fontSize = 13.sp)
+                        Unit
                     }
                 }
             }
