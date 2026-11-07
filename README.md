@@ -6,7 +6,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 
 - **Application ID:** `ir.sahlbit.launcher`
 - **Version:** `0.5.9`
-- **Version Code:** `24`
+- **Version Code:** `25`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -105,7 +105,7 @@ Keep the device's existing system launcher available during testing. Do not remo
 
 ## Version 0.5.8 changes
 
-- Corrected the website update-manifest address to the project's pashaeft.ir domain.
+- Corrected the website update-manifest address to the project's pashaef.ir domain.
 - Centered the launcher logo in the About page.
 - Replaced the clock-category calendar glyph with a clock icon and the audio-category bell with a volume icon.
 - Corrected the remaining unflipped search icon and increased the top spacing on the administrator PIN setup screen.
@@ -122,7 +122,7 @@ Keep the device's existing system launcher available during testing. Do not remo
 - Standardized numeric slider width, preserved the management dashboard scroll position, and aligned home rows to fixed columns.
 - Improved unnamed contact cards, home empty-state alignment, weekday indicators, and call-confirmation button spacing.
 - Removed scrolling from the full-screen call activity and made its avatar size responsive to available screen height; cropped preview photos to avoid exposed background bands.
-- Changed GitHub update checks to use the repository's shared update.json manifest. The same JSON schema is used by the website update endpoint at https://pashaeft.ir/sahlbit/update.json.
+- Changed GitHub update checks to use the repository's shared update.json manifest. The same JSON schema is used by the website update endpoint at https://pashaef.ir/sahlbit/update.json.
 - Updated the app version to 0.5.7 (versionCode 23). Minimum Android remains API 21 (Android 5.0).
 
 ## Version 0.5.5 changes
