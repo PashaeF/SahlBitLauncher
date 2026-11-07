@@ -1009,7 +1009,7 @@ private fun SahlBitApp(
             val installGranted = Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
             val homeGranted = isHomeRoleHeld(context)
             val dialerGranted = isDialerRoleHeld(context)
-            PermissionCard("نقش برنامه صفحه اصلی (لانچر) پیش‌فرض پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض پیش‌فرض", homeGranted, onSelectLauncher)
+            PermissionCard("نقش برنامه صفحه اصلی (لانچر) پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض", homeGranted, onSelectLauncher)
             PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
             PermissionCard("دسترسی به مخاطبان", "این دسترسی برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. بدون آن، انتخاب و نمایش مخاطبان در صفحهٔ اصلی محدود می‌شود. سهل‌بیت دفترچه تلفن را تغییر نمی‌دهد.", "اعطای دسترسی به مخاطبان", contactsGranted, { if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
             PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
@@ -1022,8 +1022,6 @@ private fun SahlBitApp(
             Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات گوشی به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
             OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
-        "uninstall" -> UninstallPage(onBack = { route = "dashboard" })
         "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
         "uninstall" -> UninstallPage(onBack = { route = "dashboard" })
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
@@ -1272,10 +1270,10 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 
 @Composable
 private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
-    val titles = listOf("خوش‌آمدگویی", "انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها", "اجازهٔ نصب به‌روزرسانی‌های سهل‌بیت")
+    val titles = listOf("خوش‌آمدگویی", "انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها", "اجازهٔ نصب به‌روزرسانی‌های سهل‌بیت")
     val descriptions = listOf(
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
-        "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
+        "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
         "این اجازه برای تغییر زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. اندروید صفحه‌ای جداگانه باز می‌کند؛ نام سهل‌بیت را پیدا کنید و اجازهٔ تغییر تنظیمات سیستم را روشن کنید.",
         "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. این انتخاب جایگزین برنامهٔ تلفن قبلی می‌شود و هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
         "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است تا مدیر بتواند افراد موردنظر را به صفحهٔ اصلی اضافه کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
@@ -1477,7 +1475,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
                     Spacer(Modifier.height(26.dp))
-                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) {
+                    Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = activeSpeakerColor, contentColor = Color.White)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                             Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
                                 Text(if (previewSpeakerOn) "☎" else "🔊", color = Color(0xFF1976D2), fontSize = 27.sp)
