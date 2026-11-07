@@ -314,7 +314,7 @@ private fun SahlBitApp(
     val completedWizardVersion = remember { prefs.getInt("setup_wizard_version", 0) }
     var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion == 1) 7 else 0).coerceIn(0, 7)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by remember { mutableStateOf(if (pinHash == null && !initialized && completedWizardVersion < 2) "wizard" else if (pinHash == null || !initialized) "setpin" else if (crashRecovery) "recovery" else "home") }
+    var route by remember { mutableStateOf(if (pinHash == null && !initialized && completedWizardVersion < 2) "wizard" else if (pinHash == null) "setpin" else if (crashRecovery) "recovery" else "home") }
     val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
@@ -521,7 +521,7 @@ private fun SahlBitApp(
             if (permissionGranted) {
                 if (wizardStep >= 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).apply()
-                    route = if (pinHash != null && initialized) "home" else "setpin"
+                    route = if (pinHash != null) "home" else "setpin"
                 } else {
                     wizardStep += 1
                     prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
@@ -595,7 +595,7 @@ private fun SahlBitApp(
                 prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
                 if (wizardStep > 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).apply()
-                    route = if (initialized && pinHash != null) "home" else "setpin"
+                    route = if (pinHash != null) "home" else "setpin"
                 }
             },
             onBack = {
