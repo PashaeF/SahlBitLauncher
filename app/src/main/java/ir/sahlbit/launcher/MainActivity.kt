@@ -1451,6 +1451,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 } else if (profile == "outgoing") {
+                    Spacer(Modifier.height((spacing - 8).coerceAtLeast(0).dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("✕  $firstLabel", fontSize = buttonTextSize.sp) }
                 } else {
                     Spacer(Modifier.height(26.dp))
