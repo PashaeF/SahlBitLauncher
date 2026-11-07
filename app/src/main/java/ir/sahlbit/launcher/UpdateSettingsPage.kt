@@ -149,7 +149,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     if (found.changelog.isNotBlank()) Text(found.changelog.take(1800), color = Color(0xFF172033), fontSize = 13.sp, lineHeight = 21.sp)
                     if (SahlBitUpdateManager.isNewer(context, found)) {
                         Button(onClick = { installUpdate(found) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
-                            Icon(Icons.Default.Refresh, null)
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
                             Spacer(Modifier.width(8.dp))
                             Text("دانلود و نصب به‌روزرسانی")
                         }
