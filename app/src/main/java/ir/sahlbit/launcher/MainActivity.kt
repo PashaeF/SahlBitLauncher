@@ -1864,7 +1864,7 @@ private fun UninstallPage(onBack: () -> Unit) {
             }
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            repeat(pageCount.coerceIn(1, 12)) { index ->
+            repeat(pageCount.coerceAtLeast(1)) { index ->
                 Box(Modifier.padding(horizontal = 4.dp).size(if (pager.currentPage == index) 9.dp else 7.dp).clip(CircleShape).background(if (pager.currentPage == index) fg else fg.copy(alpha = .28f)))
             }
         }
