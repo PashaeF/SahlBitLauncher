@@ -124,7 +124,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         OutlinedButton(onClick = { checkFrom(true) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
             Spacer(Modifier.width(8.dp))
-            Text("بررسی از وب‌سایت رسمی pashaef.ir")
+            Text("بررسی از وب‌سایت رسمی pashaeft.ir")
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null)
