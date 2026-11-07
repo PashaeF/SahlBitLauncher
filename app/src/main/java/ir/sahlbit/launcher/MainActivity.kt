@@ -1012,7 +1012,7 @@ private fun SahlBitApp(
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Box(Modifier.size(104.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp).offset(y = (-8).dp)) } }
+                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Box(Modifier.size(104.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) } }
                     Text("سهل‌بیت", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
                     Text("سادگی در دسترسی؛ آرامش در استفاده", color = Color(0xFFE4F2E9), fontSize = 17.sp, fontWeight = FontWeight.Medium)
                     Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) { Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) }
@@ -1302,7 +1302,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
 }
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 24.dp, bottom = 12.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 40.dp, bottom = 12.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
         Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(6.dp)); Text("لطفاً یک پین عددی با حداقل ۴ رقم انتخاب کنید. این پین را فقط در اختیار مدیر دستگاه قرار دهید.", color = Ink, fontSize = 16.sp)
         Spacer(Modifier.height(10.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(8.dp)); PinField("تکرار پین", confirm, onConfirm)
@@ -1564,8 +1564,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "contacts" -> Icons.Default.Person
                 "apps" -> Icons.Default.Search
                 "appearance" -> Icons.Default.Edit
-                "clock" -> Icons.Default.DateRange
-                "audio" -> Icons.Default.Notifications
+                "clock" -> Icons.Default.AccessTime
+                "audio" -> Icons.Default.VolumeUp
                 "callcustom" -> Icons.Default.Phone
                 "callconfirm" -> Icons.Default.CheckCircle
                 "security" -> Icons.Default.Lock
