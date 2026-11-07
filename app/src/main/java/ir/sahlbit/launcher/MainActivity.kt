@@ -788,7 +788,6 @@ private fun SahlBitApp(
             }
         }
         "contacts" -> SettingsPage("مدیریت مخاطبان و برنامه‌ها", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
-            PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
@@ -801,6 +800,7 @@ private fun SahlBitApp(
                 onClick = { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
             )
             PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
+            PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             Button(onClick = {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                     contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
