@@ -177,10 +177,10 @@ class CallActivity : Activity(), SensorEventListener {
         numberView.layoutParams = numberView.layoutParams.apply { height = dp(numberHeightDp) }
         val availableHeightDp = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt().coerceAtLeast(400)
         val buttonCount = if (dialing) 1 else 2
-        val extraActionHeightDp = 0
+        val extraActionHeightDp = if (ringing || dialing) 0 else 82
         val fixedTopMarginDp = if (ringing) 10 else if (dialing) 0 else 34
         val requestedButtonHeightDp = styleInt("button_height_dp", 82).coerceIn(56, 120)
-        val fixedWithoutButtons = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + 56 + 8
+        val fixedWithoutButtons = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + 8
         val buttonHeightDp = minOf(requestedButtonHeightDp, ((availableHeightDp - fixedWithoutButtons) / buttonCount).coerceAtLeast(48))
         val fixedContentDp = 24 + 38 + 12 + nameHeightDp + numberHeightDp + extraActionHeightDp + fixedTopMarginDp + buttonHeightDp * buttonCount
         val requestedSpacingDp = styleInt("spacing_dp", 88).coerceIn(8, 120)
