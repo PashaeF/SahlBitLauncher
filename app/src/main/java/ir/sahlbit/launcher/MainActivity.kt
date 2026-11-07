@@ -1682,13 +1682,13 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "pages" -> Icons.Default.List
                 "contacts" -> Icons.Default.Person
                 "apps" -> Icons.Default.Search
-                "appearance" -> Icons.Default.Edit
+                "appearance" -> Icons.Default.Image
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
-                "callconfirm" -> Icons.Default.Edit
+                "callconfirm" -> Icons.Default.CheckCircle
                 "security" -> Icons.Default.Lock
-                "permissions" -> Icons.Default.Lock
+                "permissions" -> Icons.Default.VerifiedUser
                 "home" -> Icons.Default.Home
                 "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
