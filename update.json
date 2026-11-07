@@ -1,9 +1,9 @@
 {
   "packageName": "ir.sahlbit.launcher",
-  "versionName": "0.5.9",
-  "versionCode": 25,
+  "versionName": "0.6.0",
+  "versionCode": 26,
   "minSdk": 21,
-  "apkUrl": "https://pashaef.ir/sahlbit/sahlbit-0.5.9.apk",
-  "sha256": "f2268174eaf9bbc21f866262fb85c2385ea651da30187957d4a3558b46b1a2d5",
-  "changelog": "تکمیل پایدار مراحل راه‌اندازی و حفظ مسیر صفحه اصلی؛ بررسی وضعیت مجوزها؛ اصلاح پیش‌نمایش تماس خروجی به یک دکمه پایان تماس؛ بهبود چیدمان صفحه تماس و بررسی به‌روزرسانی گیت‌هاب."
+  "apkUrl": "https://pashaef.ir/sahlbit/sahlbit-0.6.0.apk",
+  "sha256": "",
+  "changelog": "بازبینی مراحل راه‌اندازی و مجوزها؛ اصلاح چیدمان کارت‌ها و رابط تماس؛ بهبود تنظیمات و تجربهٔ کاربری."
 }
