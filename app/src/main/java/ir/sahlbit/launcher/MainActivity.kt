@@ -594,11 +594,12 @@ private fun SahlBitApp(
             },
             onNext = {
                 wizardRequestRevision = -1
-                wizardStep += 1
-                prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
-                if (wizardStep > 7) {
-                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).apply()
+                if (wizardStep >= 7) {
+                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
                     route = if (pinHash != null) "home" else "setpin"
+                } else {
+                    wizardStep += 1
+                    prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
                 }
             },
             onBack = {
