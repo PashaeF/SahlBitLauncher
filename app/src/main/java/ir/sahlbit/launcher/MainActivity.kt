@@ -701,7 +701,7 @@ private fun SahlBitApp(
         }
         "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
-            PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
+            PermissionCard("برنامه صفحه اصلی (لانچر) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, Int.MAX_VALUE) { requested ->
                 val next = requested.coerceAtLeast(1)
                 if (next < pageCount) {
@@ -713,6 +713,7 @@ private fun SahlBitApp(
                 pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1)
                 LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
             }
+            PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (pageCount < Int.MAX_VALUE) {
@@ -777,13 +778,9 @@ private fun SahlBitApp(
                 Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     var n = 1
                     rowCardCounts.forEachIndexed { row, count ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-                            val uniformPreviewCount = rowCardCounts.maxOrNull()?.coerceIn(1, 4) ?: 1
-                            val previewSlotWidth = previewContentWidth / uniformPreviewCount.toFloat()
-                            val previewLeadingSlots = when (rowAlignments.getOrElse(row) { "center" }) { "left" -> 1f; "center" -> 0.5f; else -> 0f }
-                            Spacer(Modifier.width(previewSlotWidth * previewLeadingSlots))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "right" -> Arrangement.Start; "left" -> Arrangement.End; else -> Arrangement.Center }) {
                             repeat(count) {
-                                Box(Modifier.width(previewSlotWidth).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                                Box(Modifier.weight(1f).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
                             }
                         }
                     }
@@ -1632,6 +1629,8 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", false)
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
+    val homeContactRadius = launcherPrefs.getInt("home_contact_radius", 20).coerceIn(0, 50)
+    val homeAppRadius = launcherPrefs.getInt("home_app_radius", 20).coerceIn(0, 50)
     fun confirmColor(key: String, fallback: String): Color = runCatching { Color(android.graphics.Color.parseColor(launcherPrefs.getString("confirm_call_$key", fallback) ?: fallback)) }.getOrDefault(Color(android.graphics.Color.parseColor(fallback)))
     val confirmYesColor = confirmColor("yes_color", "#168A45")
     val confirmNoColor = confirmColor("no_color", "#B3261E")
@@ -1724,17 +1723,17 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
                                     val contactPhotoSize = if (contactWithoutName) 104.dp else 72.dp
-                                    Box(Modifier.size(if (contactWithoutName) 108.dp else 78.dp), contentAlignment = Alignment.Center) {
-                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.size(contactPhotoSize).clip(RoundedCornerShape(14.dp)))
+                                    Box(Modifier.size(contactPhotoSize), contentAlignment = Alignment.Center) {
+                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else if (entry.kind == "app") {
                                             val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
                                                 val drawable = context.packageManager.getApplicationIcon(pkg)
                                                 val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
                                                 val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                             }.getOrNull() } }
-                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp))
+                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                                             else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(58.dp).scale(scaleX = -1f, scaleY = 1f))
-                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 82.dp else 58.dp))
+                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 82.dp else 58.dp).clip(RoundedCornerShape(homeContactRadius.dp)))
                                     }
                                     if (showEntryName) {
                                         Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
