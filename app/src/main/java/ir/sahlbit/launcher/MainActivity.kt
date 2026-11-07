@@ -701,7 +701,7 @@ private fun SahlBitApp(
         }
         "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
-            PermissionCard("برنامه صفحه اصلی (برنامه صفحه اصلی (لانچر) پیش‌فرض) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
+            PermissionCard("برنامه صفحه اصلی (لانچر) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, Int.MAX_VALUE) { requested ->
                 val next = requested.coerceAtLeast(1)
                 if (next < pageCount) {
@@ -1645,7 +1645,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
 @Composable
 private fun UninstallPage(onBack: () -> Unit) {
     val context = LocalContext.current
-    SettingsPage("حذف برنامه", "اگر دیگر به سهل‌بیت نیاز ندارید، ابتدا برنامهٔ صفحهٔ اصلی (برنامه صفحه اصلی (لانچر) پیش‌فرض) پیش‌فرض را به برنامهٔ دیگری تغییر دهید و سپس حذف را تأیید کنید. اندروید پس از حذف، خود برنامه و داده‌های اختصاصی آن را پاک می‌کند؛ سهل‌بیت امکان حذف مستقیم داده‌های برنامهٔ نصب‌شده را از داخل خودش ندارد.", onBack) {
+    SettingsPage("حذف برنامه", "اگر دیگر به سهل‌بیت نیاز ندارید، ابتدا برنامهٔ صفحهٔ اصلی (لانچر) پیش‌فرض را به برنامهٔ دیگری تغییر دهید و سپس حذف را تأیید کنید. اندروید پس از حذف، خود برنامه و داده‌های اختصاصی آن را پاک می‌کند؛ سهل‌بیت امکان حذف مستقیم داده‌های برنامهٔ نصب‌شده را از داخل خودش ندارد.", onBack) {
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("پاک‌کردن حافظهٔ پنهان", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
