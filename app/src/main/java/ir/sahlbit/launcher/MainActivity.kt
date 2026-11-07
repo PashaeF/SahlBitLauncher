@@ -984,7 +984,7 @@ private fun SahlBitApp(
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }
-                else { error = "پاسخ درست نیست. دوباره تلاش کن."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
+                else { error = "پاسخ درست نیست. لطفاً دوباره تلاش کنید."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین پین جدید") }
         }
         "pinchange" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
@@ -1033,7 +1033,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمه زیر برای انتخاب لانچر جایگزین استفاده کن. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
+        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب لانچر جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار لانچر گوشی را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب لانچر اندروید / One UI Home") }
         }
     }
