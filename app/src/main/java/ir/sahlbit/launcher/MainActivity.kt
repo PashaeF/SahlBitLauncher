@@ -571,7 +571,7 @@ private fun SahlBitApp(
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -668,13 +668,13 @@ private fun SahlBitApp(
             onCallCustomization = { route = "callcustom" },
             onCallConfirmation = { route = "callconfirm" },
             onUpdates = { route = "updates" },
-            onSelectLauncher = onSelectLauncher, onAndroidSettings = onAndroidSettings
+            onSelectLauncher = onSelectLauncher, onAndroidSettings = { route = "androidsettings" }, onUninstall = { route = "uninstall" }
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
         "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
-        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
-        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, onBack = { route = "dashboard" })
-        "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } })
+        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = { callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }, onBack = { route = "dashboard" })
+        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
+        "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
             CompactSlider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
@@ -1012,6 +1012,10 @@ private fun SahlBitApp(
             Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات گوشی به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
             OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
+        "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
+        "uninstall" -> UninstallPage(onBack = { route = "dashboard" })
+        "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
+        "uninstall" -> UninstallPage(onBack = { route = "dashboard" })
         "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1103,7 +1107,7 @@ private fun SahlBitApp(
 }
 
 @Composable
-private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
+private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDetails: (String) -> Unit) {
     val context = LocalContext.current
     val pm = context.packageManager
     fun hasUsageAccess(): Boolean = runCatching {
@@ -1138,18 +1142,18 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Text("برنامه‌های سیستمی ابتدا نمایش داده می‌شوند؛ سایر برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر مرتب شده‌اند.", color = Ink, modifier = Modifier.padding(bottom = 8.dp))
-        if (!usageAccessGranted) {
-            Text("برای مرتب‌سازی دقیق بر اساس میزان استفاده، دسترسی آمار مصرف برنامه‌ها را فعال کنید.", color = Teal, fontSize = 13.sp)
-            OutlinedButton(onClick = { openUsageAccessSettings(context) }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی آمار استفاده") }
-        }
+        PermissionCard("دسترسی آمار مصرف برنامه‌ها", "برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده در ۳۰ روز اخیر لازم است. این دسترسی ویژه در تنظیمات اندروید فعال می‌شود.", "فعال‌سازی دسترسی آمار مصرف", usageAccessGranted, { openUsageAccessSettings(context) })
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
         Spacer(Modifier.height(12.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filteredApps, key = { it.activityInfo.packageName }) { item ->
                 val pkg = item.activityInfo.packageName
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White).border(1.dp, Color(0xFFD8C9A8), RoundedCornerShape(14.dp)).clickable { onLaunch(pkg) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.loadLabel(pm).toString(), color = Ink, modifier = Modifier.weight(1f))
-                    Text("اجرا", color = Teal, fontWeight = FontWeight.SemiBold)
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White).border(1.dp, Color(0xFFD8C9A8), RoundedCornerShape(14.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(item.loadLabel(pm).toString(), color = Ink, fontWeight = FontWeight.SemiBold)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedButton(onClick = { onDetails(pkg) }, modifier = Modifier.weight(1f)) { Text("جزئیات") }
+                        Button(onClick = { onLaunch(pkg) }, modifier = Modifier.weight(1f)) { Text("اجرا") }
+                    }
                 }
             }
         }
@@ -1322,7 +1326,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
 }
 
 @Composable
-private fun CallCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, onBack: () -> Unit) {
+private fun CallCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, callPermissionGranted: Boolean, onRequestCallPermission: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     var profile by remember { mutableStateOf("incoming") }
     var previewName by remember { mutableStateOf("مخاطب نمونه") }
@@ -1353,6 +1357,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     fun saveText(key: String, value: String) { prefs.edit().putString(prefix + key, value).apply() }
     val palette = listOf("#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#F1F5F9", "#FFFFFF", "#168A45", "#BE232D", "#1976D2", "#455A64")
     SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
+        PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم از صفحهٔ اصلی لازم است. این دسترسی فقط پس از تأیید شما در پنجرهٔ اندروید فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", callPermissionGranted, onRequestCallPermission)
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
         val statusChipScroll = rememberScrollState()
         LaunchedEffect(profile) { if (profile == "incoming") statusChipScroll.animateScrollTo(0) else statusChipScroll.animateScrollTo(statusChipScroll.maxValue) }
@@ -1468,7 +1473,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
 }
 
 @Composable
-private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, onBack: () -> Unit) {
     val palette = listOf("#168A45", "#B3261E", "#1976D2", "#455A64", "#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#FFFFFF", "#BE232D")
     fun intValue(key: String, fallback: Int) = prefs.getInt("confirm_call_$key", fallback)
     fun textValue(key: String, fallback: String) = prefs.getString("confirm_call_$key", fallback) ?: fallback
@@ -1541,28 +1546,97 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit) {
+@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و تعداد کارت‌ها", "pages", onPages) }
-            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب موارد مجاز برای صفحه اصلی", "contacts", onContacts) }
-            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده و اجرای برنامه‌های نصب‌شده", "apps", onAllApps) }
-            item { DashboardCard("ظاهر و صفحه اصلی", "پس‌زمینه، رنگ‌ها و نوارهای سیستم", "appearance", onAppearance) }
-            item { DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock", onClock) }
+            item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و چیدمان کارت‌ها", "pages", onPages) }
+            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب مخاطبان و برنامه‌های صفحهٔ اصلی", "contacts", onContacts) }
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
-            item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر سه وضعیت تماس و پیش‌نمایش", "callcustom", onCallCustomization) }
-            item { DashboardCard("سفارشی‌سازی کادر تأیید تماس", "تنظیم دکمه‌ها، تصویر مخاطب و فاصله‌ها", "callconfirm", onCallConfirmation) }
-            item { DashboardCard("بررسی بروزرسانی", "دریافت نسخه جدید از وب‌سایت یا GitHub", "updates", onUpdates) }
-            item { DashboardCard("امنیت و پین مدیر", "تغییر رمز ورود مدیر", "security", onSecurity) }
-            item { DashboardCard("مجوزها و دسترسی‌ها", "بررسی دسترسی‌های اندروید", "permissions", onPermissions) }
-            item { DashboardCard("انتخاب لانچر پیش‌فرض", "مدیریت لانچر اصلی اندروید", "home", onSelectLauncher) }
-            item { DashboardCard("تنظیمات اندروید", "بازکردن تنظیمات سیستم", "settings", onAndroidSettings) }
+            item { DashboardCard("ظاهرِ صفحه اصلی", "پس‌زمینه، کارت‌ها و تنظیمات ظاهری", "appearance", onAppearance) }
+            item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
+            item { DashboardCard("امنیت و پین مدیر", "تغییر پین و بازیابی دسترسی مدیر", "security", onSecurity) }
+            item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
+            item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
+            item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده، جزئیات و اجرای برنامه‌ها", "apps", onAllApps) }
+            item { DashboardCard("تنظیمات اندروید", "دسترسی سریع به بخش‌های مختلف تنظیمات گوشی", "settings", onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
+            item { DashboardCard("حذف برنامه", "پاک‌کردن حافظهٔ پنهان یا حذف سهل‌بیت", "uninstall", onUninstall) }
         }
     }
 }
+@Composable
+private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
+    val context = LocalContext.current
+    fun open(action: String, data: Uri? = null) {
+        val intent = Intent(action).apply { if (data != null) this.data = data; addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+        runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+    }
+    SettingsPage("تنظیمات اندروید", "در این صفحه ۱۰ میان‌بر پنل سریع سهل‌بیت و کاربرد آن‌ها معرفی شده‌اند. هر دکمه یکی از بخش‌های رایج تنظیمات گوشی را باز می‌کند؛ نام و محل دقیق گزینه‌ها ممکن است در سامسونگ، شیائومی و سایر سازندگان متفاوت باشد.", onBack) {
+        Text("دکمه‌های پنل سریع سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("۱۰ دکمهٔ سهل‌بیت در پنل سریع اندروید فقط برای بازگشت سریع به صفحهٔ اصلی برنامه هستند و تنظیمات گوشی را تغییر نمی‌دهند. برای افزودن هر دکمه، پنل سریع را ویرایش کنید و کاشی «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+        @Composable fun actionCard(title: String, description: String, label: String, action: String, data: Uri? = null) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(title, color = Ink, fontWeight = FontWeight.Bold)
+                    Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                    OutlinedButton(onClick = { open(action, data) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                }
+            }
+        }
+        actionCard("صفحهٔ برنامهٔ سهل‌بیت", "نمایش اطلاعات برنامه، اعلان‌ها، مجوزها و فضای ذخیره‌سازی سهل‌بیت.", "بازکردن اطلاعات برنامه", Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+        actionCard("تنظیمات اصلی گوشی", "ورود به صفحهٔ اصلی تنظیمات سیستم‌عامل.", "بازکردن تنظیمات اصلی", Settings.ACTION_SETTINGS)
+        actionCard("اتصالات", "مدیریت Wi-Fi، بلوتوث، شبکهٔ تلفن همراه و سایر اتصالات.", "بازکردن تنظیمات اتصالات", Settings.ACTION_WIRELESS_SETTINGS)
+        actionCard("صفحهٔ قفل و امنیت", "مدیریت قفل صفحه، رمز عبور و گزینه‌های امنیتی دستگاه.", "بازکردن تنظیمات امنیت و قفل", Settings.ACTION_SECURITY_SETTINGS)
+        actionCard("برنامه‌ها", "مدیریت برنامه‌های نصب‌شده و مجوزهای آن‌ها.", "بازکردن تنظیمات برنامه‌ها", Settings.ACTION_APPLICATION_SETTINGS)
+        actionCard("مدیریت عمومی دستگاه", "ورود به بخش‌های عمومی تنظیمات؛ عنوان دقیق این بخش در دستگاه‌ها متفاوت است.", "بازکردن تنظیمات عمومی", Settings.ACTION_SETTINGS)
+        actionCard("تاریخ و ساعت", "تنظیم منطقهٔ زمانی، تاریخ، ساعت و قالب نمایش.", "بازکردن تنظیمات تاریخ و ساعت", Settings.ACTION_DATE_SETTINGS)
+        actionCard("به‌روزرسانی نرم‌افزار", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی سیستم", Settings.ACTION_SYSTEM_UPDATE_SETTINGS)
+        actionCard("دربارهٔ تلفن", "نمایش مدل دستگاه، شمارهٔ ساخت و اطلاعات سیستم‌عامل.", "بازکردن دربارهٔ تلفن", Settings.ACTION_DEVICE_INFO_SETTINGS)
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text("حذف برنامهٔ سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold)
+                Text("برای رفتن به صفحهٔ اختصاصی حذف برنامه و پاک‌کردن حافظهٔ پنهان، از دکمهٔ زیر استفاده کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                OutlinedButton(onClick = onUninstall, modifier = Modifier.fillMaxWidth()) { Text("رفتن به صفحهٔ حذف برنامه") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UninstallPage(onBack: () -> Unit) {
+    val context = LocalContext.current
+    SettingsPage("حذف برنامه", "اگر دیگر به سهل‌بیت نیاز ندارید، ابتدا برنامهٔ صفحهٔ اصلی (لانچر) پیش‌فرض را به برنامهٔ دیگری تغییر دهید و سپس حذف را تأیید کنید. اندروید پس از حذف، خود برنامه و داده‌های اختصاصی آن را پاک می‌کند؛ سهل‌بیت امکان حذف مستقیم داده‌های برنامهٔ نصب‌شده را از داخل خودش ندارد.", onBack) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("پاک‌کردن حافظهٔ پنهان", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("اگر برنامه کند شده یا با خطا روبه‌رو است، فایل‌های موقت و حافظهٔ پنهان را پاک کنید. تنظیمات، پین مدیر و کارت‌های ذخیره‌شده حذف نمی‌شوند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                OutlinedButton(onClick = {
+                    val ok = runCatching { context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }; context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }; true }.getOrDefault(false)
+                    android.widget.Toast.makeText(context, if (ok) "حافظهٔ پنهان پاک شد." else "پاک‌کردن حافظهٔ پنهان کامل نشد.", android.widget.Toast.LENGTH_LONG).show()
+                }, modifier = Modifier.fillMaxWidth()) { Text("پاک‌کردن حافظهٔ پنهان") }
+            }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("حذف سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("۱. ابتدا برنامهٔ صفحهٔ اصلی پیش‌فرض را تغییر دهید. ۲. سپس دکمهٔ حذف را بزنید و پیام تأیید اندروید را کامل کنید. حذف برنامه، داده‌ها و تنظیمات محلی آن را نیز پاک می‌کند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب برنامهٔ صفحهٔ اصلی دیگر") }
+                Button(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }.onFailure { android.widget.Toast.makeText(context, "برای حذف، از صفحهٔ اطلاعات برنامه در تنظیمات اندروید اقدام کنید.", android.widget.Toast.LENGTH_LONG).show() } }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("حذف برنامهٔ سهل‌بیت") }
+            }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("ارتباط با پشتیبانی", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("اگر با مشکلی روبه‌رو شدید، لطفاً با شمارهٔ ۰۹۱۴۵۸۸۰۸۱۴ تماس بگیرید یا از طریق پیام‌رسان‌های بله، ایتا، روبیکا، تلگرام و واتساپ پیام دهید. همچنین می‌توانید به ایمیل Pashae@iran.ir پیام بفرستید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:09145880814"))) } }, modifier = Modifier.fillMaxWidth()) { Text("تماس با پشتیبانی") }
+                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ارسال ایمیل") }
+            }
+        }
+    }
+}
+
 @Composable private fun DashboardCard(title: String, subtitle: String, icon: String, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1574,13 +1648,14 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
-                "callconfirm" -> Icons.Default.CheckCircle
+                "callconfirm" -> Icons.Default.Tune
                 "security" -> Icons.Default.Lock
-                "permissions" -> Icons.Default.CheckCircle
+                "permissions" -> Icons.Default.Security
                 "home" -> Icons.Default.Home
                 "settings" -> Icons.Default.Settings
                 "about" -> Icons.Default.Info
                 "updates" -> Icons.Default.Refresh
+                "uninstall" -> Icons.Default.Delete
                 else -> Icons.Default.MoreVert
             }
             when (icon) { "clock" -> Icon(painterResource(R.drawable.ic_clock), contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp)); "audio" -> Icon(painterResource(R.drawable.ic_speaker), contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp)); else -> Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier)) }
