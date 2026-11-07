@@ -1,11 +1,11 @@
-# SahlBit Launcher 0.5.8
+# SahlBit Launcher 0.5.9
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.5.8`
+- **Version:** `0.5.9`
 - **Version Code:** `24`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
@@ -41,7 +41,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Android Telecom `InCallService` integration.
 - Incoming calls are prioritized over existing active calls so call waiting is visible.
 - Contact name, number, and available contact photo display.
-- Dedicated full-screen call activity with configurable answer, reject, cancel, speaker, and hang-up controls.
+- Dedicated full-screen call activity with configurable answer, reject, cancel, speaker, and hang-up controls. Outgoing dialing displays exactly one red end-call button; there is no second button before the call connects.
 - Call-state colors and all three call layouts can be customized by the administrator, including image size/radius, typography, button labels/sizes/radius/spacing, and colors.
 - Call customization previews can use a contact already saved to the launcher, including its selected photo.
 - Speaker route changes are reflected after Telecom reports the updated audio route.
@@ -91,10 +91,17 @@ A successful GitHub Actions build verifies compilation and artifact creation onl
 
 Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
 
+## Version 0.5.9 changes
+
+- Removed the remaining vertical offset from the first-run logo so it is geometrically centered in its blue circle.
+- Corrected outgoing-call customization: the pre-connection screen and live preview now contain one red end-call button only. The second button, its label/color controls, and the irrelevant spacing control are not shown for this state.
+- Set the outgoing end-call label to “پایان تماس” and aligned the configured button color with the live call interface.
+- This release continues to target Android 5.0 (API 21) and newer.
+
 ## Version 0.5.8 changes
 
 - Corrected the website update-manifest address to the project's pashaeft.ir domain.
-- Centered the launcher logo in the first-run setup and About page.
+- Centered the launcher logo in the About page.
 - Replaced the clock-category calendar glyph with a clock icon and the audio-category bell with a volume icon.
 - Corrected the remaining unflipped search icon and increased the top spacing on the administrator PIN setup screen.
 - This release continues to target Android 5.0 (API 21) and newer.
