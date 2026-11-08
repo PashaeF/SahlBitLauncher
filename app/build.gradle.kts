@@ -34,10 +34,11 @@ android {
 
     buildTypes {
         debug {
-            isDebuggable = false
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // Keep debug builds debuggable and preserve all resources so crashes
+            // can be diagnosed without R8/resource-shrinker transformations.
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
         release {
             isMinifyEnabled = true
