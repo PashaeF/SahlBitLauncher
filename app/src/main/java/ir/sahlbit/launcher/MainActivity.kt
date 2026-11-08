@@ -1042,7 +1042,7 @@ private fun SahlBitApp(
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(24.dp))
             TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) { Text("پین را فراموش کرده‌ام") }
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
