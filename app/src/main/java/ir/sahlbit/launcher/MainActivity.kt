@@ -1900,8 +1900,8 @@ private fun UninstallPage(onBack: () -> Unit) {
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
-                                    val contactPhotoSize = if (contactWithoutName) 104.dp else 72.dp
-                                    Box(Modifier.size(contactPhotoSize), contentAlignment = Alignment.Center) {
+                                    val entryImageSize = if (showEntryName) 88.dp else 104.dp
+                                    Box(Modifier.size(entryImageSize), contentAlignment = Alignment.Center) {
                                         if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else if (entry.kind == "app") {
                                             val iconBitmap = remember(entry.packageName) { entry.packageName?.let { pkg -> runCatching {
@@ -1909,9 +1909,9 @@ private fun UninstallPage(onBack: () -> Unit) {
                                                 val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
                                                 val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                             }.getOrNull() } }
-                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(58.dp).scale(scaleX = -1f, scaleY = 1f))
-                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 82.dp else 58.dp).clip(RoundedCornerShape(homeContactRadius.dp)))
+                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(72.dp).scale(scaleX = -1f, scaleY = 1f))
+                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 90.dp else 72.dp).clip(RoundedCornerShape(homeContactRadius.dp)))
                                     }
                                     if (showEntryName) {
                                         Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
