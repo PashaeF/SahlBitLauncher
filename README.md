@@ -79,19 +79,21 @@ A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` 
 
 ## Verification status
 
-Version 0.5.5 adds the multi-page first-run setup flow (also shown once to existing 0.5.4 installations), package-specific Usage Access navigation, Android-synchronized audio controls, auto-applied screen timeout, equal-size home cards and layout previews, app reordering/removal, and administrator-controlled call-screen layouts with previews. The setup flow preserves an existing administrator PIN when upgrading; a fresh installation is asked to create one after the setup flow.
+Version 0.6.0 (versionCode 26) has been built successfully by GitHub Actions from the `development` branch. Build #342 completed the debug APK build and artifact upload. The downloaded APK was checked for ZIP integrity, expected package resources (including the transparent SahlBit logo), DEX payloads, and a valid Android debug signature. Its SHA-256 is recorded in `update.json`.
 
-A successful GitHub Actions build verifies compilation and artifact creation only. It does **not** certify runtime behavior on physical devices. The following must still be tested on supported devices, including Samsung One UI:
+These checks confirm source compilation and APK packaging; they do **not** certify runtime behavior on a physical device. No emulator or physical Samsung device was available to execute the app during this build review. Before promoting 0.6.0 to `main`, verify the following on Android 13 / Samsung One UI and at least one older supported Android version:
 
-- Incoming and outgoing calls, including call waiting and switching between active/held calls.
-- Proximity screen-off and wake behavior while the phone is held near the user's ear.
-- Runtime permission grant/deny paths for direct calling.
-- Page duplication, deletion, reordering, and page-count reduction with different per-page layouts.
-- Confirmation that home cards cannot be reordered by long-pressing or dragging.
-- Clock settings and responsive sizing on narrow screens.
-- Contact photos and permission behavior.
+- Clean install, first launch, relaunch after process death, and recovery after an intentional crash.
+- Setup stages 1–7: return to the same stage after Android Settings, live permission-state refresh, skip paths, and preservation of an existing administrator PIN.
+- Contacts and direct-call permissions are requested only after an explicit user action; denial leaves the remaining launcher features usable.
+- Default Home and Dialer role selection, call confirmation, incoming/outgoing calls, call waiting, speaker routing, and proximity screen-off/wake.
+- Home layout and live preview with 1–6 rows, 1–6 cards per row, different row alignments, multiple pages, and page duplication/deletion/reordering.
+- Contact/app image clipping, separate corner-radius settings, missing contact names, and saved-contact selectors.
+- All ten Quick Settings tiles on Android 7.0 (API 24) or newer. Android 5/6 do not provide the Quick Settings tile API.
+- App details/launch buttons, Android settings shortcuts, cache clearing, uninstall hand-off, and updater flows.
+- Website update source at `https://pashaef.ir/sahlbit/update.json`. The GitHub update source currently targets `main`; it will return 0.6.0 only after the tested version is promoted to that branch.
 
-Keep the device's existing system launcher available during testing. Do not remove the recovery path until the launcher and calling workflows have been verified on the target device.
+The debug APK is signed with a runner-generated Android debug key. Its certificate can differ between builds, so installing it over an APK signed with another key may require uninstalling the older copy first. A persistent release signing key must be configured before distributing stable signed updates.
 
 ## Version 0.5.9 changes
 
