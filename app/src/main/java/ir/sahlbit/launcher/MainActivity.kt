@@ -321,9 +321,10 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
-    var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion == 1) 7 else 0).coerceIn(0, 7)) }
+    var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
+    var wizardPinSetup by remember { mutableStateOf(pinHash == null && (completedWizardVersion >= 2 || initialized)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by remember { mutableStateOf(if (pinHash != null) { if (crashRecovery) "recovery" else "home" } else if (!initialized && completedWizardVersion < 2) "wizard" else "setpin") }
+    var route by remember { mutableStateOf(if (pinHash != null) { if (crashRecovery) "recovery" else "home" } else "wizard") }
     val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
@@ -577,7 +578,24 @@ private fun SahlBitApp(
     }
 
     when (route) {
-        "wizard" -> SetupWizardScreen(
+        "wizard" -> if (wizardPinSetup) {
+            PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
+                if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
+                else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
+                else {
+                    val salt = createSalt()
+                    val hash = hashPin(newPin, salt)
+                    prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash).putBoolean("initialized", true).putInt("setup_wizard_version", 2).remove("setup_wizard_step").commit()
+                    pinHash = hash
+                    initialized = true
+                    wizardPinSetup = false
+                    newPin = ""
+                    confirmPin = ""
+                    error = ""
+                    route = "home"
+                }
+            }
+        } else SetupWizardScreen(
             step = wizardStep,
             granted = runCatching { isWizardPermissionGranted(context, wizardStep) }.getOrNull(),
             onGrant = {
@@ -596,7 +614,11 @@ private fun SahlBitApp(
                 wizardRequestRevision = -1
                 if (wizardStep >= 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
-                    route = if (pinHash != null) "home" else "setpin"
+                    if (pinHash != null) {
+                        route = "home"
+                    } else {
+                        wizardPinSetup = true
+                    }
                 } else {
                     wizardStep += 1
                     prefs.edit().putInt("setup_wizard_step", wizardStep).apply()
