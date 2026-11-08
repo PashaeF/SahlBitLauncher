@@ -812,7 +812,7 @@ private fun SahlBitApp(
                                 repeat(count) {
                                     Box(Modifier.weight(1f).padding(horizontal = 3.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .25f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                            Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(38.dp))
+                                            Icon(Icons.Default.Home, null, tint = Teal, modifier = Modifier.size(38.dp))
                                             Text("کارت نمونهٔ ${(placeholderNumber++).toPersianDigits()}", color = Forest, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                                         }
                                     }
@@ -838,7 +838,7 @@ private fun SahlBitApp(
                                                 when {
                                                     entry.kind == "contact" && contactBitmap != null -> Image(contactBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                                     entry.kind == "app" && appBitmap != null -> Image(appBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                                                    entry.kind == "app" -> Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewAppRadius.dp)))
+                                                    entry.kind == "app" -> Icon(Icons.Default.Home, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewAppRadius.dp)))
                                                     else -> Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewContactRadius.dp)))
                                                 }
                                                 if (showName) Text(entry.title, color = Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
