@@ -794,13 +794,58 @@ private fun SahlBitApp(
                 }
             }
             Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    var n = 1
+            Text("این پیش‌نمایش، کارت‌های واقعی همین صفحه را با ترتیب، تعداد و تراز ردیف‌ها نشان می‌دهد. اگر صفحه هنوز موردی نداشته باشد، جایگاه کارت‌ها به‌صورت نمونه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    val previewEntries = entries.filter { it.page == selectedPage }
+                    val previewShowContacts = prefs.getBoolean("show_contact_names", false)
+                    val previewShowApps = prefs.getBoolean("show_app_names", false)
+                    val previewContactRadius = prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)
+                    val previewAppRadius = prefs.getInt("home_app_radius", 20).coerceIn(0, 50)
+                    var previewOffset = 0
+                    var placeholderNumber = 1
                     rowCardCounts.forEachIndexed { row, count ->
+                        val rowItems = previewEntries.drop(previewOffset).take(count)
+                        previewOffset += count
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "right" -> Arrangement.Start; "left" -> Arrangement.End; else -> Arrangement.Center }) {
-                            repeat(count) {
-                                Box(Modifier.weight(1f).padding(horizontal = 4.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .30f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) { Text("${(n++).toPersianDigits()}", color = Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+                            if (rowItems.isEmpty()) {
+                                repeat(count) {
+                                    Box(Modifier.weight(1f).padding(horizontal = 3.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .25f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                            Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(38.dp))
+                                            Text("کارت نمونهٔ ${(placeholderNumber++).toPersianDigits()}", color = Forest, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+                                }
+                            } else {
+                                rowItems.forEach { entry ->
+                                    Box(Modifier.weight(1f).padding(horizontal = 3.dp)) {
+                                        Card(Modifier.fillMaxWidth().height(154.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+                                            Column(Modifier.fillMaxSize().padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                                val showName = (entry.kind == "contact" && previewShowContacts) || (entry.kind == "app" && previewShowApps)
+                                                val iconSize = if (showName) 88.dp else 104.dp
+                                                val contactBitmap = remember(entry.id, entry.photoUri) {
+                                                    if (entry.kind == "contact") entry.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } else null
+                                                }
+                                                val appBitmap = remember(entry.packageName) {
+                                                    if (entry.kind == "app") entry.packageName?.let { pkg -> runCatching {
+                                                        val drawable = context.packageManager.getApplicationIcon(pkg)
+                                                        val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                                                        android.graphics.Canvas(bitmap).also { canvas -> drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas) }
+                                                        bitmap.asImageBitmap()
+                                                    }.getOrNull() } else null
+                                                }
+                                                when {
+                                                    entry.kind == "contact" && contactBitmap != null -> Image(contactBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                                    entry.kind == "app" && appBitmap != null -> Image(appBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                                    entry.kind == "app" -> Icon(Icons.Default.Apps, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewAppRadius.dp)))
+                                                    else -> Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewContactRadius.dp)))
+                                                }
+                                                if (showName) Text(entry.title, color = Ink, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
