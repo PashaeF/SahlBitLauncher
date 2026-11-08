@@ -445,7 +445,8 @@ private fun SahlBitApp(
                     if (cursor.moveToFirst()) {
                         val name = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)).orEmpty().ifBlank { "مخاطب" }
                         val number = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
-                        val photoSource = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI).coerceAtLeast(0))
+                        val photoColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+                        val photoSource = if (photoColumn >= 0) cursor.getString(photoColumn) else null
                         val contactIdColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
                         val contactId = if (contactIdColumn >= 0) cursor.getLong(contactIdColumn) else -1L
                         val lookup = if (contactId >= 0L) runCatching {
