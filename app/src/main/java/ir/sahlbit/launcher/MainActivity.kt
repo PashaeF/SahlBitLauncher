@@ -147,8 +147,8 @@ private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = wh
     1 -> isHomeRoleHeld(context)
     2 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
     3 -> isDialerRoleHeld(context)
-    4 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-    5 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+    4 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+    5 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
     6 -> {
         val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
         appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
@@ -431,57 +431,43 @@ private fun SahlBitApp(
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
             runCatching {
-                context.contentResolver.query(uri, arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts.PHOTO_URI), null, null, null)?.use { contactCursor ->
-                    if (contactCursor.moveToFirst()) {
-                        val idColumn = contactCursor.getColumnIndex(ContactsContract.Contacts._ID)
-                        val nameColumn = contactCursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-                        val photoColumn = contactCursor.getColumnIndex(ContactsContract.Contacts.PHOTO_URI)
-                        val contactId = if (idColumn >= 0) contactCursor.getLong(idColumn) else -1L
-                        val name = if (nameColumn >= 0) contactCursor.getString(nameColumn).orEmpty() else "مخاطب"
-                        val photoSource = if (photoColumn >= 0) contactCursor.getString(photoColumn) else null
-                        if (contactId >= 0L) {
-                            val lookup = ContactsContract.Contacts.getLookupUri(context.contentResolver, android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId))?.toString()
-                            val options = mutableListOf<Pair<String, String>>()
-                            context.contentResolver.query(
-                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER),
-                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?",
-                                arrayOf(contactId.toString()),
-                                null
-                            )?.use { phoneCursor ->
-                                val idIndex = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
-                                val numberIndex = phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                                while (phoneCursor.moveToNext()) {
-                                    val number = if (numberIndex >= 0) phoneCursor.getString(numberIndex).orEmpty().trim() else ""
-                                    val phoneId = if (idIndex >= 0) phoneCursor.getLong(idIndex) else -1L
-                                    if (number.isNotBlank() && phoneId >= 0L) {
-                                        val phoneUri = android.content.ContentUris.withAppendedId(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, phoneId).toString()
-                                        options.add(number to phoneUri)
-                                    }
-                                }
-                            }
-                            val uniqueOptions = options.distinctBy { option -> option.first.filter { it.isDigit() || it == '+' } }
-                            when (uniqueOptions.size) {
-                                0 -> android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است", android.widget.Toast.LENGTH_LONG).show()
-                                1 -> addPickedContact(name, uniqueOptions[0].first, uniqueOptions[0].second, lookup, photoSource)
-                                else -> {
-                                    pendingContactName = name
-                                    pendingContactLookup = lookup
-                                    pendingContactPhotoSource = photoSource
-                                    pendingContactOptions = uniqueOptions
-                                }
-                            }
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(
+                        ContactsContract.CommonDataKinds.Phone._ID,
+                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                        ContactsContract.CommonDataKinds.Phone.NUMBER,
+                        ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
+                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID
+                    ),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val name = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)).orEmpty().ifBlank { "مخاطب" }
+                        val number = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
+                        val photoSource = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI).coerceAtLeast(0))
+                        val contactIdColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                        val contactId = if (contactIdColumn >= 0) cursor.getLong(contactIdColumn) else -1L
+                        val lookup = if (contactId >= 0L) runCatching {
+                            ContactsContract.Contacts.getLookupUri(context.contentResolver, android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId))?.toString()
+                        }.getOrNull() else null
+                        if (number.isBlank()) {
+                            android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
+                        } else {
+                            addPickedContact(name, number, uri.toString(), lookup, photoSource)
                         }
+                    } else {
+                        android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست.", android.widget.Toast.LENGTH_LONG).show()
                     }
-                } ?: android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست", android.widget.Toast.LENGTH_LONG).show()
+                } ?: android.widget.Toast.makeText(context, "انتخابگر مخاطبان اطلاعاتی برنگرداند.", android.widget.Toast.LENGTH_LONG).show()
             }.onFailure {
-                android.widget.Toast.makeText(context, "خواندن اطلاعات مخاطب ناموفق بود", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, "خواندن اطلاعات مخاطب ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
 
     val contactsPermission = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
+        if (granted && contactPickerPending) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
         else if (granted) android.widget.Toast.makeText(context, "دسترسی به مخاطبان فعال است.", android.widget.Toast.LENGTH_SHORT).show()
         else android.widget.Toast.makeText(context, "برای نمایش و انتخاب مخاطبان، اجازهٔ دسترسی به مخاطبان لازم است. می‌توانید بعداً از بخش مجوزها اقدام کنید.", android.widget.Toast.LENGTH_LONG).show()
         contactPickerPending = false
@@ -604,8 +590,8 @@ private fun SahlBitApp(
                     1 -> onSelectLauncher()
                     2 -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
                     3 -> onSelectDialer()
-                    4 -> if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
-                    5 -> if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
+                    4 -> if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در این نسخه از اندروید، انتخاب مخاطب از طریق انتخابگر سیستم انجام می‌شود و نیازی به دسترسی گسترده نیست.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
+                    5 -> if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در این نسخه از اندروید، تماس از طریق شماره‌گیر سیستم انجام می‌شود و نیازی به دسترسی مستقیم تماس نیست.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
                     6 -> openUsageAccessSettings(context)
                     7 -> if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) }
                 }
@@ -651,7 +637,10 @@ private fun SahlBitApp(
             onConfirmCall = { entry ->
                 entry.phoneNumber?.takeIf { it.isNotBlank() }?.let { number ->
                     pendingCallNumber = number
-                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                        pendingCallNumber = null
+                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
+                    } else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
                         pendingCallNumber = null
                         val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))
                         runCatching { context.startActivity(callIntent) }.onFailure {
@@ -694,8 +683,10 @@ private fun SahlBitApp(
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
         "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
-        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show()
+            } else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
                 android.widget.Toast.makeText(context, "اجازهٔ برقراری تماس از قبل فعال است.", android.widget.Toast.LENGTH_SHORT).show()
             } else {
                 callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
@@ -824,14 +815,14 @@ private fun SahlBitApp(
                 title = "دسترسی به مخاطبان",
                 description = "برای نمایش نام کامل، شماره تماس و تصویر مخاطب‌ها در صفحهٔ اصلی و رابط تماس لازم است. این اجازه فقط امکان خواندن دفترچه تلفن را می‌دهد؛ سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
                 buttonLabel = "اعطای دسترسی به مخاطبان",
-                granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
-                onClick = { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
+                granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
+                onClick = { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "برای افزودن مخاطب، از انتخابگر سیستم استفاده کنید؛ دسترسی گسترده لازم نیست.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
             )
-            PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
+            PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود. در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", "اعطای اجازهٔ برقراری تماس", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             Button(onClick = {
-                if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
                 } else {
                     contactPickerPending = true
                     contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
@@ -1030,8 +1021,8 @@ private fun SahlBitApp(
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
         "permissions" -> SettingsPage("دسترسی‌ها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { route = "dashboard" }) {
-            val contactsGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-            val callGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+            val contactsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+            val callGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
             val writeGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
             val usageGranted = hasUsageAccess(context)
             val installGranted = Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
@@ -1040,7 +1031,7 @@ private fun SahlBitApp(
             PermissionCard("نقش برنامه صفحه اصلی (لانچر) پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض", homeGranted, onSelectLauncher)
             PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
             PermissionCard("دسترسی به مخاطبان", "این دسترسی برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. بدون آن، انتخاب و نمایش مخاطبان در صفحهٔ اصلی محدود می‌شود. سهل‌بیت دفترچه تلفن را تغییر نمی‌دهد.", "اعطای دسترسی به مخاطبان", contactsGranted, { if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
-            PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
+            PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد. در Android 5 همیشه از شماره‌گیر سیستم استفاده می‌شود.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
             PermissionCard("اجازهٔ نصب به‌روزرسانی‌ها", "این دسترسی ویژه فقط برای آن است که سهل‌بیت فایل APK نسخه‌ای را که مدیر از منبع رسمی انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. بدون آن، دانلود و بررسی نسخه ممکن است اما نصب از داخل برنامه انجام نمی‌شود. تأیید نهایی نصب همیشه با مدیر است.", "اجازهٔ نصب برنامه‌های ناشناس", installGranted, { if (installGranted) android.widget.Toast.makeText(context, "اجازهٔ نصب برنامه‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) } })
             PermissionCard("دسترسی تغییر تنظیمات سیستمی", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستمی", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
