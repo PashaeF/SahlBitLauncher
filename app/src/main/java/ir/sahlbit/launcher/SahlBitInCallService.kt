@@ -3,29 +3,11 @@ package ir.sahlbit.launcher
 import android.content.Intent
 import android.telecom.Call
 import android.telecom.CallAudioState
-import android.telecom.CallEndpoint
-import android.telecom.CallEndpointException
 import android.telecom.InCallService
 import android.telecom.VideoProfile
-import android.os.OutcomeReceiver
 
 /** Tracks Telecom calls and opens the dedicated call activity without posting notifications. */
 class SahlBitInCallService : InCallService() {
-    private var availableEndpoints: List<CallEndpoint> = emptyList()
-
-    @android.annotation.TargetApi(34)
-    override fun onAvailableCallEndpointsChanged(availableEndpoints: MutableList<CallEndpoint>) {
-        super.onAvailableCallEndpointsChanged(availableEndpoints)
-        this.availableEndpoints = availableEndpoints.toList()
-        publishForeground()
-    }
-
-    @android.annotation.TargetApi(34)
-    override fun onCallEndpointChanged(callEndpoint: CallEndpoint) {
-        super.onCallEndpointChanged(callEndpoint)
-        publishForeground()
-    }
-
     override fun onCreate() { super.onCreate(); serviceInstance = this }
     override fun onDestroy() { if (serviceInstance === this) serviceInstance = null; super.onDestroy() }
 
@@ -114,31 +96,23 @@ class SahlBitInCallService : InCallService() {
         fun isMuted(): Boolean = serviceInstance?.callAudioState?.isMuted == true
         fun isSpeakerOn(): Boolean {
             val service = serviceInstance ?: return false
-            return if (android.os.Build.VERSION.SDK_INT >= 34) {
-                service.currentCallEndpoint?.endpointType == CallEndpoint.TYPE_SPEAKER
-            } else {
-                ((service.callAudioState?.route ?: 0) and CallAudioState.ROUTE_SPEAKER) != 0
-            }
+            // Use the stable CallAudioState API across supported Android versions.
+            return ((service.callAudioState?.route ?: 0) and CallAudioState.ROUTE_SPEAKER) != 0
         }
         fun toggleMute() { serviceInstance?.let { it.setMuted(!(it.callAudioState?.isMuted ?: false)) } }
         fun toggleSpeaker() {
             val service = serviceInstance ?: return
-            if (android.os.Build.VERSION.SDK_INT >= 34) {
-                val targetType = if (service.currentCallEndpoint?.endpointType == CallEndpoint.TYPE_SPEAKER) CallEndpoint.TYPE_EARPIECE else CallEndpoint.TYPE_SPEAKER
-                val endpoint = service.availableEndpoints.firstOrNull { it.endpointType == targetType }
-                if (endpoint == null) {
-                    service.sendBroadcast(Intent(CallActivity.ACTION_AUDIO_ROUTE_FAILED).setPackage(service.packageName))
-                    return
-                }
-                service.requestCallEndpointChange(endpoint, service.mainExecutor, object : OutcomeReceiver<Void, CallEndpointException> {
-                    override fun onResult(result: Void?) = Unit
-                    override fun onError(error: CallEndpointException) {
-                        service.sendBroadcast(Intent(CallActivity.ACTION_AUDIO_ROUTE_FAILED).setPackage(service.packageName))
+            val route = service.callAudioState?.route ?: CallAudioState.ROUTE_EARPIECE
+            runCatching {
+                service.setAudioRoute(
+                    if ((route and CallAudioState.ROUTE_SPEAKER) != 0) {
+                        CallAudioState.ROUTE_EARPIECE
+                    } else {
+                        CallAudioState.ROUTE_SPEAKER
                     }
-                })
-            } else {
-                val route = service.callAudioState?.route ?: CallAudioState.ROUTE_EARPIECE
-                service.setAudioRoute(if ((route and CallAudioState.ROUTE_SPEAKER) != 0) CallAudioState.ROUTE_EARPIECE else CallAudioState.ROUTE_SPEAKER)
+                )
+            }.onFailure {
+                service.sendBroadcast(Intent(CallActivity.ACTION_AUDIO_ROUTE_FAILED).setPackage(service.packageName))
             }
         }
         fun toggleHold() {
