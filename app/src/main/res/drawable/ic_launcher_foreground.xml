@@ -1,12 +1,6 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M30,27h48c4.4,0 8,3.6 8,8v7c0,4.4 -3.6,8 -8,8h-26c-2.2,0 -4,1.8 -4,4s1.8,4 4,4h12c11,0 20,9 20,20s-9,20 -20,20h-34c-4.4,0 -8,-3.6 -8,-8v-7c0,-4.4 3.6,-8 8,-8h34c2.2,0 4,-1.8 4,-4s-1.8,-4 -4,-4h-12c-11,0 -20,-9 -20,-20s9,-20 20,-20z" />
-    <path
-        android:fillColor="#FFBFDBFE"
-        android:pathData="M30,27h17v8h-17zM61,73h17v8h-17z" />
-</vector>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/sahlbit_logo_transparent"
+    android:insetLeft="21dp"
+    android:insetTop="21dp"
+    android:insetRight="21dp"
+    android:insetBottom="21dp" />
