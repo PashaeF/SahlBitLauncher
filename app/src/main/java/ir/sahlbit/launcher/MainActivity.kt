@@ -365,6 +365,10 @@ private fun SahlBitApp(
     var showContactSourceDialog by remember { mutableStateOf(false) }
     var selectedCustomContactForPage by remember { mutableStateOf<CustomContact?>(null) }
     var selectedPage by remember { mutableIntStateOf(0) }
+    fun loadPageFlag(key: String, page: Int, default: Boolean): Boolean = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}").optBoolean(page.toString(), default) }.getOrDefault(default)
+    fun savePageFlag(key: String, page: Int, value: Boolean) { val root = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()); root.put(page.toString(), value); prefs.edit().putString(key, root.toString()).apply() }
+    var recentCallsFlagsRevision by remember { mutableIntStateOf(0) }
+    var pendingRecentCallsPage by remember { mutableIntStateOf(0) }
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 6)) }
     fun loadRowsPerPage(page: Int): Int = runCatching {
@@ -486,6 +490,11 @@ private fun SahlBitApp(
         else if (granted) android.widget.Toast.makeText(context, "دسترسی به مخاطبان فعال است.", android.widget.Toast.LENGTH_SHORT).show()
         else android.widget.Toast.makeText(context, "برای نمایش و انتخاب مخاطبان، اجازهٔ دسترسی به مخاطبان لازم است. می‌توانید بعداً از بخش مجوزها اقدام کنید.", android.widget.Toast.LENGTH_LONG).show()
         contactPickerPending = false
+    }
+    val recentCallsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) savePageFlag("page_recent_calls", pendingRecentCallsPage, true)
+        else android.widget.Toast.makeText(context, "برای نمایش تماس‌های اخیر، اجازهٔ مشاهدهٔ سابقهٔ تماس لازم است. انتخاب شما ذخیره نشد.", android.widget.Toast.LENGTH_LONG).show()
+        recentCallsFlagsRevision++
     }
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val targetId = selectedPhotoEntryId
@@ -761,6 +770,17 @@ private fun SahlBitApp(
                 LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
             }
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
+            var showClockOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_clock_enabled", selectedPage, true)) }
+            var showBatteryOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_battery_enabled", selectedPage, true)) }
+            var showRecentCallsOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_recent_calls", selectedPage, false)) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("ساعت دیواری در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink); Switch(showClockOnPage, { showClockOnPage = it; savePageFlag("page_clock_enabled", selectedPage, it) }) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایشگر میزان شارژ و علامت در حال شارژ در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink, lineHeight = 23.sp); Switch(showBatteryOnPage, { showBatteryOnPage = it; savePageFlag("page_battery_enabled", selectedPage, it) }) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش تماس‌های اخیر", modifier = Modifier.weight(1f), color = Ink); Switch(showRecentCallsOnPage, { enabled ->
+                if (!enabled) { showRecentCallsOnPage = false; savePageFlag("page_recent_calls", selectedPage, false) }
+                else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) { showRecentCallsOnPage = true; savePageFlag("page_recent_calls", selectedPage, true) }
+                else { pendingRecentCallsPage = selectedPage; recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) }
+            }) }
+            if (showRecentCallsOnPage) Text("در این صفحه، بخش کارت‌ها به فهرست تماس‌های اخیر اختصاص می‌یابد و چیدمان کارت‌ها در صفحهٔ اصلی نمایش داده نمی‌شود.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (pageCount < Int.MAX_VALUE) {
@@ -1900,6 +1920,14 @@ private fun UninstallPage(onBack: () -> Unit) {
     val dayText = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[day - 1]
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
+    val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
+    fun pageFlag(key: String, default: Boolean): Boolean = runCatching { org.json.JSONObject(launcherPrefs.getString(key, "{}") ?: "{}").optBoolean(pager.currentPage.toString(), default) }.getOrDefault(default)
+    val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
+    val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
+    val showRecentCallsOnCurrentPage = pageFlag("page_recent_calls", false)
+    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = pager.currentPage, key2 = showRecentCallsOnCurrentPage) {
+        value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
+    }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 0.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
@@ -1922,26 +1950,24 @@ private fun UninstallPage(onBack: () -> Unit) {
         val hourLength = clockPrefs.getFloat("clock_hour_hand_length", 0.40f)
         val minuteLength = clockPrefs.getFloat("clock_minute_hand_length", 0.65f)
         val secondLength = clockPrefs.getFloat("clock_second_hand_length", 0.90f)
-        AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
-            if (numericBattery) {
-                Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
-            } else {
-                Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                    Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor))
+        if (showClockOnCurrentPage) {
+            AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) { Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(8.dp)); Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp)) }
+        }
+        if (showBatteryOnCurrentPage) {
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
+                if (numericBattery) Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
+                else {
+                    Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
+                    Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
                 }
-                Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
-            }
-            if (charging) {
-                Spacer(Modifier.width(12.dp))
-                Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
             }
         }
-        Spacer(Modifier.height(2.dp)); Row(verticalAlignment = Alignment.CenterVertically) { Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(8.dp)); Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp)) }
         Spacer(Modifier.height(1.dp))
-        val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -1952,11 +1978,41 @@ private fun UninstallPage(onBack: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - effectiveClockSize.dp - 250.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(64.dp, 154.dp)
+                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
+                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - headerHeight - 130.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(64.dp, 154.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
-                if (pageEntries.isEmpty()) {
+                if (showRecentCallsOnCurrentPage) {
+                    if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+                    else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                        items(recentCallRecords, key = { it.id }) { call ->
+                            val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
+                            val photoBitmap = remember(matchingContact?.photoUri) { matchingContact?.photoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                            val callName = call.name.ifBlank { matchingContact?.title ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
+                            val (callSymbol, callColor) = when (call.type) {
+                                android.provider.CallLog.Calls.MISSED_TYPE, android.provider.CallLog.Calls.REJECTED_TYPE -> "×" to Color(0xFFB3261E)
+                                android.provider.CallLog.Calls.INCOMING_TYPE -> "↙" to Color(0xFF168A45)
+                                android.provider.CallLog.Calls.OUTGOING_TYPE -> if (call.durationSeconds > 0) "↗" to Color(0xFF1976D2) else "↗" to Color(0xFFB3261E)
+                                else -> "☎" to Color(0xFF64748B)
+                            }
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Box(Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
+                                        if (photoBitmap != null) Image(photoBitmap, contentDescription = callName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                        else Text(callSymbol, color = callColor, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(callName, color = fg, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, lineHeight = 19.sp)
+                                        Text(call.number.toPersianDigitsText(), color = fg.copy(alpha = .75f), fontSize = 12.sp, lineHeight = 17.sp)
+                                        Text(if (call.type == android.provider.CallLog.Calls.MISSED_TYPE) "تماس ورودی بدون پاسخ" else if (call.type == android.provider.CallLog.Calls.INCOMING_TYPE) "تماس ورودی پاسخ‌داده‌شده" else if (call.durationSeconds > 0) "تماس خروجی با برقراری مکالمه" else "تماس خروجی بدون برقراری مکالمه", color = callColor, fontSize = 11.sp, lineHeight = 16.sp)
+                                    }
+                                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(call.number)))) } }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Icon(Icons.Default.Call, null); Text("تماس", fontSize = 12.sp) }
+                                }
+                            }
+                        }
+                    }
+                } else if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
