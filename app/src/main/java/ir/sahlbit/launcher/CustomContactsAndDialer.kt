@@ -64,6 +64,18 @@ private fun Int.toPersianDigits(): String = toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
 }.joinToString("")
 
+private fun String.toPersianDigitsText(): String = map { ch ->
+    if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
+}.joinToString("")
+
+private fun String.toEnglishDigitsText(): String = map { ch ->
+    when (ch) {
+        in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar()
+        in '٠'..'٩' -> ('0'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
+}.joinToString("")
+
 fun saveSquarePhotoFromUri(context: Context, uri: Uri, prefix: String = "sahlbit_photo_"): String? = runCatching {
     val orientation = context.contentResolver.openInputStream(uri)?.use { stream ->
         ExifInterface(stream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
@@ -305,7 +317,7 @@ fun CustomContactsPage(
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     val phoneBitmap = remember(phone.photoUri, photoRefreshRevision) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                     if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
-                    OutlinedTextField(phone.number, { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                    OutlinedTextField(phone.number.toPersianDigitsText(), { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value.toPersianDigitsText()) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
                         OutlinedButton(onClick = { photoTarget = index; launchCameraCapture() }, modifier = Modifier.weight(1f)) { Text("دوربین") }
@@ -339,7 +351,7 @@ fun CustomContactsPage(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val phoneBitmap = remember(phone.photoUri, photoRefreshRevision) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                             if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                            Text(phone.number, color = Color(0xFF64748B), fontSize = 13.sp)
+                            Text(phone.number.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -419,14 +431,14 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
 
 @Composable
 fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: String = "") {
-    var number by remember(initialNumber) { mutableStateOf(initialNumber) }
+    var number by remember(initialNumber) { mutableStateOf(initialNumber.toPersianDigitsText()) }
     val keys = listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#", "+")
     Column(Modifier.fillMaxSize().background(CustomCream).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = CustomBlue) }
             Text("شماره‌گیر اختصاصی", color = CustomBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        OutlinedTextField(number, { number = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+        OutlinedTextField(number, { number = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             keys.chunked(3).forEach { row ->
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -439,7 +451,7 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedButton(onClick = { if (number.isNotEmpty()) number = number.dropLast(1) }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Default.Close, null); Text("پاک کردن") }
-            Button(onClick = { if (number.isNotBlank()) onCall(number.map { ch -> when (ch) { in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar(); else -> ch } }.joinToString("")) }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Default.Call, null); Text("تماس") }
+            Button(onClick = { if (number.isNotBlank()) onCall(number.toEnglishDigitsText()) }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Default.Call, null); Text("تماس") }
         }
     }
 }
