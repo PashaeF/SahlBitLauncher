@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.6.0
+# SahlBit Launcher 0.6.1
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.6.0`
-- **Version Code:** `26`
+- **Version:** `0.6.1`
+- **Version Code:** `27`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -20,20 +20,22 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Second-hand updates are suspended when the second hand is disabled.
 - Battery and charging indicators.
 - Multiple home pages with swipe navigation.
-- Contact and app cards with configurable rows, card counts, and per-row alignment.
+- Contact and app cards with 1–6 rows and 1–6 cards per row; all rows are fixed to center alignment.
 - **Home-screen card reordering by long-press and drag is intentionally disabled.** Card order can only be changed from the PIN-protected management area.
 - The home screen does not expose a drag handle or gesture that can modify card positions.
 
 ### Management
 - PIN-protected management dashboard.
 - Create, duplicate, rename, delete, and reorder pages.
-- Per-page row count, per-row card count, and per-row left/center/right alignment.
+- Per-page row count, per-row card count, and fixed center alignment.
 - Page layout preferences are remapped together with page operations:
   - Reordering swaps the corresponding layout settings.
   - Duplicating a page copies its layout settings.
   - Deleting a page removes its settings and shifts the remaining settings.
   - Reducing page count removes settings for deleted pages.
-- Add contacts and choose one phone number when a contact has multiple numbers.
+- Add contacts from Android Contacts and choose among their distinct phone numbers.
+- Create SahlBit-only contacts with multiple numbers and a separate photo for each number.
+- Show a page's recent call log instead of its cards, with call-state indicators, contact photos, and direct dial actions.
 - Add installed launchable apps to selected pages.
 - Change contact-card photos and reorder cards from the management screen.
 
@@ -46,7 +48,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Call customization previews can use a contact already saved to the launcher, including its selected photo.
 - Speaker route changes are reflected after Telecom reports the updated audio route.
 - Proximity screen-off and wake behavior during an active call.
-- Contact photos can be sourced from the Android contacts record or the gallery.
+- Android contact photos are read live from the Contacts provider and are not copied into SahlBit storage; gallery and camera photos are square-cropped and stored internally.
 - Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
 - SahlBit must be selected as the Android default Dialer for its custom in-call interface to be used. Android 5.0/5.1 continues to use the system call interface.
 - Proximity monitoring uses Android's `PROXIMITY_SCREEN_OFF_WAKE_LOCK` when supported. The call activity does not hold the display on with `FLAG_KEEP_SCREEN_ON`.
@@ -79,21 +81,31 @@ A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` 
 
 ## Verification status
 
-Version 0.6.0 (versionCode 26) has been built successfully by GitHub Actions from the `development` branch. Build #342 completed the debug APK build and artifact upload. The downloaded APK was checked for ZIP integrity, expected package resources (including the transparent SahlBit logo), DEX payloads, and a valid Android debug signature. Its SHA-256 is recorded in `update.json`.
+Current source is version 0.6.1 (versionCode 27). Build #389 successfully produced a debug APK from commit `cb45b9e`, but it predates the current source changes. Build #390 for commit `637e7e4` failed before exposing any build job or artifact. The latest source changes are therefore **not yet represented by a verified APK**. The successful #389 artifact was checked for ZIP integrity, DEX payloads, and the presence of the transparent SahlBit logo resources; those checks do not establish that it matches the current branch head.
 
-These checks confirm source compilation and APK packaging; they do **not** certify runtime behavior on a physical device. No emulator or physical Samsung device was available to execute the app during this build review. Before promoting 0.6.0 to `main`, verify the following on Android 13 / Samsung One UI and at least one older supported Android version:
+These checks confirm packaging only; they do **not** certify runtime behavior on a physical device. No emulator or physical Samsung device is available for this review. Before promoting the current source to `main`, verify the following on Android 13 / Samsung One UI and at least one older supported Android version:
 
 - Clean install, first launch, relaunch after process death, and recovery after an intentional crash.
 - Setup stages 1–7: return to the same stage after Android Settings, live permission-state refresh, skip paths, and preservation of an existing administrator PIN.
 - Contacts and direct-call permissions are requested only after an explicit user action; denial leaves the remaining launcher features usable.
 - Default Home and Dialer role selection, call confirmation, incoming/outgoing calls, call waiting, speaker routing, and proximity screen-off/wake.
-- Home layout and live preview with 1–6 rows, 1–6 cards per row, different row alignments, multiple pages, and page duplication/deletion/reordering.
-- Contact/app image clipping, separate corner-radius settings, missing contact names, and saved-contact selectors.
+- Home layout and live preview with 1–6 rows, 1–6 cards per row, centered rows, multiple pages, and page duplication/deletion/reordering.
+- Contact/app image clipping, separate corner-radius settings, missing contact names, saved-contact selectors, interactive square crop, and live Android-contact photo refresh.
 - All ten Quick Settings tiles on Android 7.0 (API 24) or newer. Android 5/6 do not provide the Quick Settings tile API.
 - App details/launch buttons, Android settings shortcuts, cache clearing, uninstall hand-off, and updater flows.
-- Website update source at `https://pashaef.ir/sahlbit/update.json`. The GitHub update source currently targets `main`; it will return 0.6.0 only after the tested version is promoted to that branch.
+- Website update source at `https://pashaef.ir/sahlbit/update.json`. The GitHub update source currently reads `development`, because `main` does not yet contain `update.json` and returns HTTP 404. Change it to `main` after the tested source is promoted there.
 
 The debug APK is signed with a runner-generated Android debug key. Its certificate can differ between builds, so installing it over an APK signed with another key may require uninstalling the older copy first. A persistent release signing key must be configured before distributing stable signed updates.
+
+## Version 0.6.1 changes
+
+- Redirect a stale setup or PIN-creation route to the authenticated management dashboard whenever an administrator PIN already exists; do not send the user back to PIN login from that stale setup route.
+- Place the contact-capacity warning directly below the contact-selection action and above app search.
+- Import every phone number for an Android contact into SahlBit's custom contacts; preserve Android contact photo URIs as live provider references instead of copying those images into SahlBit storage.
+- Add an interactive square crop flow for gallery and camera photos in contact cards and call-preview photo selection.
+- Refresh live Android contact photos when the app resumes.
+- Use the active `development` branch for GitHub update-manifest checks while `main` is not yet promoted, and reduce website/GitHub manifest request timeouts.
+- Add the cropper activity and dependency. The current build still requires CI verification before this version can be considered ready.
 
 ## Version 0.5.9 changes
 
@@ -184,7 +196,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 
 ## Signing and distribution status
 
-- The 0.6.0 development builds are debug-signed because the previous signing keystore and its passwords are not available.
+- The 0.6.1 development builds are debug-signed because the previous signing keystore and its passwords are not available.
 - Debug builds generated by GitHub Actions may use different debug certificates. They are not guaranteed to update over one another, and they are not suitable as a stable Play Store / Cafe Bazaar / Myket release signature.
 - A new persistent release keystore must be created and stored securely in GitHub Actions secrets before publishing a signed release. This new key will not match any APK signed with the unavailable previous key.
 - The `update.json` SHA-256 field must be filled only after the final APK has been built and independently hashed; never publish an empty or guessed hash as a verified release.
