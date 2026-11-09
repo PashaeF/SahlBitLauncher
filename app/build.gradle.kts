@@ -17,8 +17,8 @@ android {
         applicationId = "ir.sahlbit.launcher"
         minSdk = 21
         targetSdk = 35
-        versionCode = 27
-        versionName = "0.6.1"
+        versionCode = 28
+        versionName = "0.6.2"
     }
 
     signingConfigs {
