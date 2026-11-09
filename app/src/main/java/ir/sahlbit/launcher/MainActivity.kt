@@ -441,8 +441,7 @@ private fun SahlBitApp(
         LauncherEntryStore.save(prefs, entries)
     }
     fun addPickedContact(name: String, number: String, phoneUri: String, lookupUri: String?, photoSource: String?) {
-        val photo = photoSource?.let { source -> copyContactPhoto(context, source) }
-        val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = if (photo != null) "contact" else "none", photoSourceUri = photoSource)
+        val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = null, photoSource = if (!photoSource.isNullOrBlank()) "contact" else "none", photoSourceUri = photoSource)
         entries = entries + item
         LauncherEntryStore.save(prefs, entries)
     }
@@ -900,8 +899,9 @@ private fun SahlBitApp(
                                             Column(Modifier.fillMaxSize().padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                                 val showName = (entry.kind == "contact" && previewShowContacts) || (entry.kind == "app" && previewShowApps)
                                                 val iconSize = if (showName) 88.dp else 104.dp
-                                                val contactBitmap = remember(entry.id, entry.photoUri) {
-                                                    if (entry.kind == "contact") entry.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } else null
+                                                val entryPhotoUri = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
+                                                val contactBitmap = remember(entry.id, entryPhotoUri) {
+                                                    if (entry.kind == "contact") entryPhotoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } else null
                                                 }
                                                 val appBitmap = remember(entry.packageName) {
                                                     if (entry.kind == "app") entry.packageName?.let { pkg -> runCatching {
@@ -1234,10 +1234,9 @@ private fun SahlBitApp(
                     val source = photoEntry.photoSourceUri ?: runCatching {
                         context.contentResolver.query(Uri.parse(photoEntry.contactUri ?: ""), arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
                     }.getOrNull()
-                    val copied = source?.let { copyContactPhoto(context, it) }
-                    if (copied != null) {
+                    if (!source.isNullOrBlank()) {
                         val old = entries.firstOrNull { it.id == photoEntry.id }?.photoUri
-                        entries = entries.map { if (it.id == photoEntry.id) it.copy(photoUri = copied, photoSource = "contact", photoSourceUri = source) else it }
+                        entries = entries.map { if (it.id == photoEntry.id) it.copy(photoUri = null, photoSource = "contact", photoSourceUri = source) else it }
                         LauncherEntryStore.save(prefs, entries)
                         old?.takeIf { entries.none { e -> e.photoUri == old } }?.let { deleteOwnedContactPhoto(context, it) }
                     } else android.widget.Toast.makeText(context, "تصویر مخاطب در دفترچه تلفن موجود نیست", android.widget.Toast.LENGTH_LONG).show()
@@ -1555,7 +1554,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                             selectedContactId = contact.id
                             previewName = contact.title
                             previewNumber = contact.phoneNumber.orEmpty()
-                            previewPhotoUri = contact.photoUri
+                            previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri
                             contactMenuExpanded = false
                         })
                         }
@@ -1685,7 +1684,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         var previewContactMenu by remember { mutableStateOf(false) }
         var sampleContactName by remember { mutableStateOf(contacts.firstOrNull()?.title ?: "مخاطب نمونه") }
         var sampleContactNumber by remember { mutableStateOf(contacts.firstOrNull()?.phoneNumber ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
-        var previewPhotoUri by remember { mutableStateOf(contacts.firstOrNull()?.photoUri) }
+        var previewPhotoUri by remember { mutableStateOf(contacts.firstOrNull()?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri }) }
         if (contacts.isNotEmpty()) {
             OutlinedButton(onClick = { previewContactMenu = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(contacts.firstOrNull { it.id == selectedPreviewContactId }?.let { "${it.title} — ${it.phoneNumber.orEmpty()}" } ?: "انتخاب مخاطب ذخیره‌شده", modifier = Modifier.weight(1f))
@@ -2048,7 +2047,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                         items(recentCallRecords, key = { it.id }) { call ->
                             val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
                             val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
-                            val recentPhotoUri = matchingContact?.photoUri ?: matchingCustomPhone?.second?.photoUri
+                            val recentPhotoUri = matchingContact?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri } ?: matchingCustomPhone?.second?.photoUri
                             val photoBitmap = remember(recentPhotoUri) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                             val callName = call.name.ifBlank { matchingContact?.title ?: matchingCustomPhone?.first?.name ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
                             val (callSymbol, callColor) = when (call.type) {
@@ -2088,7 +2087,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth().height(responsiveCardHeight),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxSize().padding(vertical = 3.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    val photo = entry.photoUri
+                                    val photo = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
