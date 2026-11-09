@@ -913,7 +913,9 @@ private fun SahlBitApp(
             )
             PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود. در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", "اعطای اجازهٔ برقراری تماس", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
-            Button(onClick = { showContactSourceDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب") }
+            val recentCallsMode = loadPageFlag("page_recent_calls", selectedPage, false)
+            if (recentCallsMode) Text("این صفحه برای نمایش تماس‌های اخیر تنظیم شده است؛ انتخاب مخاطب و برنامه در این صفحه غیرفعال است.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
+            Button(onClick = { showContactSourceDialog = true }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب") }
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -923,16 +925,16 @@ private fun SahlBitApp(
                 }
             }
             var appSearch by remember { mutableStateOf("") }
-            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
+            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
             Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
             val visibleApps = installedApps.filter { it.loadLabel(pm).toString().contains(appSearch, ignoreCase = true) }
-            LazyColumn(Modifier.heightIn(max = 260.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            LazyColumn(Modifier.heightIn(max = 260.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(visibleApps, key = { it.activityInfo.packageName }) { resolve ->
                     val pkg = resolve.activityInfo.packageName
                     val label = resolve.loadLabel(pm).toString()
                     val alreadyAdded = entries.any { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }
                     Row(Modifier.fillMaxWidth().clickable {
-                        if (!alreadyAdded) {
+                        if (!recentCallsMode && !alreadyAdded) {
                             entries = entries + LauncherEntry(kind = "app", title = label, page = selectedPage, packageName = pkg)
                             LauncherEntryStore.save(prefs, entries)
                         }
@@ -947,7 +949,7 @@ private fun SahlBitApp(
             }
             val pageEntries = entries.filter { it.page == selectedPage }
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = Ink, fontWeight = FontWeight.Bold)
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pageEntries, key = { it.id }) { entry ->
                     val position = pageEntries.indexOfFirst { it.id == entry.id }
                     val globalPosition = entries.indexOfFirst { it.id == entry.id }
@@ -968,7 +970,7 @@ private fun SahlBitApp(
                                         Spacer(Modifier.weight(1f))
                                         Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition > 0) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition - 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowUp, "انتقال به بالا", tint = if (samePagePosition > 0) Forest else Color.LightGray) }
                                         Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) { val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
-                                        IconButton(onClick = { val removed = entries.firstOrNull { it.id == entry.id }; entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries); removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) } }) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
+                                        IconButton(onClick = { if (!recentCallsMode) { val removed = entries.firstOrNull { it.id == entry.id }; entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries); removed?.photoUri?.let { photo -> if (entries.none { it.photoUri == photo }) deleteOwnedContactPhoto(context, photo) } } }, enabled = !recentCallsMode) { Icon(Icons.Default.Close, "حذف مورد", tint = Color(0xFFB3261E)) }
                                     }
                                 } else {
                                     Text(entry.title, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2)
@@ -980,7 +982,7 @@ private fun SahlBitApp(
                                         Box(Modifier.size(48.dp).clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, enabled = samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) {
                                             val m = entries.toMutableList(); val a = samePageIndices[samePagePosition]; val b = samePageIndices[samePagePosition + 1]; val x = m[a]; m[a] = m[b]; m[b] = x; entries = m; LauncherEntryStore.save(prefs, entries)
                                         }, contentAlignment = Alignment.Center) { Icon(Icons.Default.KeyboardArrowDown, "انتقال به پایین", tint = if (samePagePosition >= 0 && samePagePosition < samePageIndices.lastIndex) Forest else Color.LightGray) }
-                                        IconButton(onClick = { entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries) }) { Icon(Icons.Default.Close, "حذف برنامه", tint = Color(0xFFB3261E)) }
+                                        IconButton(onClick = { if (!recentCallsMode) { entries = entries.filterNot { it.id == entry.id }; LauncherEntryStore.save(prefs, entries) } }, enabled = !recentCallsMode) { Icon(Icons.Default.Close, "حذف برنامه", tint = Color(0xFFB3261E)) }
                                     }
                                 }
                             }
@@ -1897,6 +1899,11 @@ private fun UninstallPage(onBack: () -> Unit) {
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
     val showAppNames = launcherPrefs.getBoolean("show_app_names", false)
     val showContactNames = launcherPrefs.getBoolean("show_contact_names", false)
+    val recentShowNames = launcherPrefs.getBoolean("recent_show_names", false)
+    val recentShowSavedCount = launcherPrefs.getBoolean("recent_show_saved_count", false)
+    val recentAvatarSize = launcherPrefs.getInt("recent_avatar_size", 64).coerceIn(40, 112)
+    val recentAvatarRadius = launcherPrefs.getInt("recent_avatar_radius", 20).coerceIn(0, 50)
+    val recentNameSize = launcherPrefs.getInt("recent_name_size", 15).coerceIn(11, 24)
     val homeContactRadius = launcherPrefs.getInt("home_contact_radius", 20).coerceIn(0, 50)
     val homeAppRadius = launcherPrefs.getInt("home_app_radius", 20).coerceIn(0, 50)
     fun confirmColor(key: String, fallback: String): Color = runCatching { Color(android.graphics.Color.parseColor(launcherPrefs.getString("confirm_call_$key", fallback) ?: fallback)) }.getOrDefault(Color(android.graphics.Color.parseColor(fallback)))
@@ -1982,6 +1989,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 if (showRecentCallsOnCurrentPage) {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                        if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${entries.count { it.kind == "contact" }.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
                             val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
                             val photoBitmap = remember(matchingContact?.photoUri) { matchingContact?.photoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
@@ -1994,12 +2002,12 @@ private fun UninstallPage(onBack: () -> Unit) {
                             }
                             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Box(Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
-                                        if (photoBitmap != null) Image(photoBitmap, contentDescription = callName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(14.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                    Box(Modifier.size(recentAvatarSize.dp).clip(RoundedCornerShape(recentAvatarRadius.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
+                                        if (photoBitmap != null) Image(photoBitmap, contentDescription = callName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(recentAvatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else Text(callSymbol, color = callColor, fontSize = 27.sp, fontWeight = FontWeight.Bold)
                                     }
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(callName, color = fg, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 2, lineHeight = 19.sp)
+                                        if (recentShowNames) Text(callName, color = fg, fontWeight = FontWeight.Bold, fontSize = recentNameSize.sp, maxLines = 2, lineHeight = (recentNameSize + 4).sp)
                                         Text(call.number.toPersianDigitsText(), color = fg.copy(alpha = .75f), fontSize = 12.sp, lineHeight = 17.sp)
                                         Text(if (call.type == android.provider.CallLog.Calls.MISSED_TYPE) "تماس ورودی بدون پاسخ" else if (call.type == android.provider.CallLog.Calls.INCOMING_TYPE) "تماس ورودی پاسخ‌داده‌شده" else if (call.durationSeconds > 0) "تماس خروجی با برقراری مکالمه" else "تماس خروجی بدون برقراری مکالمه", color = callColor, fontSize = 11.sp, lineHeight = 16.sp)
                                     }
