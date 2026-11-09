@@ -26,6 +26,10 @@ import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 
 /** Large, notification-free, full-screen call UI for the managed launcher. */
+private fun String.toPersianDigitsForCallUi(): String = map { ch ->
+    if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
+}.joinToString("")
+
 class CallActivity : Activity(), SensorEventListener {
     private lateinit var root: LinearLayout
     private lateinit var statusView: TextView
@@ -224,8 +228,8 @@ class CallActivity : Activity(), SensorEventListener {
         speakerAction.background = GradientDrawable().apply { setColor(speakerColor); cornerRadius = buttonRadius }
         speakerIcon.background = GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(12).toFloat() }
         statusView.text = when { ringing -> "تماس ورودی"; dialing -> "در حال شماره‌گیری"; active -> "تماس برقرار است"; held -> "تماس در انتظار"; callState == Call.STATE_DISCONNECTING -> "در حال پایان تماس"; else -> "وضعیت تماس" }
-        nameView.text = displayName.ifBlank { "تماس ناشناس" }; statusView.setTextColor(foreground); nameView.setTextColor(foreground)
-        numberView.text = number; numberView.setTextColor(foreground); loadContactPhoto()
+        nameView.text = displayName.ifBlank { "تماس ناشناس" }.toPersianDigitsForCallUi(); statusView.setTextColor(foreground); nameView.setTextColor(foreground)
+        numberView.text = number.toPersianDigitsForCallUi(); numberView.setTextColor(foreground); loadContactPhoto()
         primaryAction.text = when {
             ringing -> "☎  " + styleText("first_label", "پاسخ به تماس")
             dialing -> "✕  " + styleText("first_label", "پایان تماس")
@@ -260,7 +264,7 @@ class CallActivity : Activity(), SensorEventListener {
             contentResolver.query(lookup, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val foundName = cursor.getString(0).orEmpty()
-                    if (foundName.isNotBlank() && (displayName.isBlank() || displayName == number)) nameView.text = foundName
+                    if (foundName.isNotBlank() && (displayName.isBlank() || displayName == number)) nameView.text = foundName.toPersianDigitsForCallUi()
                     cursor.getString(1)?.takeIf { it.isNotBlank() }?.let { photo ->
                         contentResolver.openInputStream(Uri.parse(photo))?.use { stream -> android.graphics.drawable.Drawable.createFromStream(stream, null)?.let { avatarView.setImageDrawable(it) } }
                     }
