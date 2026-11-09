@@ -1199,19 +1199,24 @@ private fun SahlBitApp(
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") }, onCallDeveloper = { dialerNumber = "09145880814"; navigateTo("dialer") })
         "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }, scrollable = false) {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(112.dp))
-                    Text("سهل‌بیت", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                    Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) { Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) }
+            val compactAbout = LocalConfiguration.current.screenHeightDp < 640
+            val aboutLogoSize = if (compactAbout) 76.dp else 96.dp
+            val aboutButtonHeight = if (compactAbout) 38.dp else 44.dp
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (compactAbout) 3.dp else 6.dp)) {
+                    Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(aboutLogoSize))
+                    Text("سهل‌بیت", color = Color.White, fontSize = if (compactAbout) 24.sp else 28.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
+                    Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) {
+                        Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp))
+                    }
                 }
             }
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 14.sp)
-                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaef.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
-                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ایمیل: Pashae@iran.ir", color = Ink) }
-                    OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth()) { Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink) }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+                Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(if (compactAbout) 4.dp else 6.dp)) {
+                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 13.sp, lineHeight = 19.sp)
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaef.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("ایمیل: Pashae@iran.ir", color = Ink) }
+                    OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink) }
                 }
             }
         }
