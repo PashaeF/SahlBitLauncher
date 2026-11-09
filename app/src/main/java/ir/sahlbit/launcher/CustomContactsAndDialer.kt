@@ -65,7 +65,11 @@ private fun Int.toPersianDigits(): String = toString().map { ch ->
 }.joinToString("")
 
 private fun String.toPersianDigitsText(): String = map { ch ->
-    if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
+    when (ch) {
+        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
+        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
 }.joinToString("")
 
 private fun String.toEnglishDigitsText(): String = map { ch ->
