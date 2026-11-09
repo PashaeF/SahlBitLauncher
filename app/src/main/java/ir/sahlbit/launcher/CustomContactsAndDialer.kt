@@ -200,6 +200,45 @@ fun CustomContactsPage(
     }
 }
 
+
+@Composable
+fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    fun persist(uri: Uri?) {
+        val bitmap = uri?.let { runCatching { context.contentResolver.openInputStream(it)?.use { stream -> BitmapFactory.decodeStream(stream) } }.getOrNull() }
+        onPhotoSelected(bitmap?.let { saveSquarePhoto(context, it) })
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) persist(uri) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap -> onPhotoSelected(bitmap?.let { saveSquarePhoto(context, it) }) }
+    val contactPhoto = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
+            val source = runCatching {
+                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+            }.getOrNull()
+            if (!source.isNullOrBlank()) persist(Uri.parse(source))
+            else android.widget.Toast.makeText(context, "برای این مخاطب تصویری ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+    OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(if (photoUri == null) "انتخاب تصویر مخاطب" else "تغییر تصویر مخاطب") }
+    if (expanded) AlertDialog(
+        onDismissRequest = { expanded = false },
+        title = { Text("انتخاب تصویر پیش‌نمایش") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { expanded = false; gallery.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب تصویر از گالری و برش مربعی") }
+                OutlinedButton(onClick = { expanded = false; camera.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("گرفتن عکس با دوربین") }
+                OutlinedButton(onClick = { expanded = false; contactPhoto.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از عکس مخاطب در برنامهٔ مخاطبین اندروید") }
+                if (photoUri != null) TextButton(onClick = { expanded = false; onPhotoSelected(null) }, modifier = Modifier.fillMaxWidth()) { Text("حذف تصویر انتخاب‌شده") }
+            }
+        },
+        confirmButton = { TextButton(onClick = { expanded = false }) { Text("بستن") } }
+    )
+}
+
 @Composable
 fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: String = "") {
     var number by remember(initialNumber) { mutableStateOf(initialNumber) }
