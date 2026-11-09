@@ -226,24 +226,26 @@ fun CustomContactsPage(
                 if (cursor.moveToFirst()) {
                     name = cursor.getString(0).orEmpty()
                     val contactId = cursor.getLong(1)
-                    val importedPhones = context.contentResolver.query(
-                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                        arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
-                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                        arrayOf(contactId.toString()), null
-                    )?.use { phoneCursor ->
-                        buildList {
-                            while (phoneCursor.moveToNext()) {
-                                val rowId = phoneCursor.getLong(0)
-                                val number = phoneCursor.getString(1).orEmpty().trim()
-                                val photo = phoneCursor.getString(2)
-                                if (number.isNotBlank()) {
-                                    val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString()
-                                    add(CustomContactPhone(number = number, photoUri = photo, contactUri = phoneUri))
+                    val importedPhones = runCatching {
+                        context.contentResolver.query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                            arrayOf(contactId.toString()), null
+                        )?.use { phoneCursor ->
+                            buildList {
+                                while (phoneCursor.moveToNext()) {
+                                    val rowId = phoneCursor.getLong(0)
+                                    val number = phoneCursor.getString(1).orEmpty().trim()
+                                    val photo = phoneCursor.getString(2)
+                                    if (number.isNotBlank()) {
+                                        val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString()
+                                        add(CustomContactPhone(number = number, photoUri = photo, contactUri = phoneUri))
+                                    }
                                 }
-                            }
-                        }.distinctBy { it.number.filter(Char::isDigit) }
-                    }.orEmpty()
+                            }.distinctBy { it.number.filter(Char::isDigit) }
+                        }
+                    }.getOrNull().orEmpty()
                     if (importedPhones.isNotEmpty()) {
                         phones = importedPhones
                         message = "مخاطب و همهٔ شماره‌های ثبت‌شده وارد شدند. تصاویر مخاطبین اندروید به‌صورت زنده خوانده می‌شوند و در حافظهٔ سهل‌بیت کپی نمی‌شوند."
@@ -271,7 +273,10 @@ fun CustomContactsPage(
 
     val contactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
-        else message = "برای واردکردن همهٔ شماره‌ها و تصویر زندهٔ مخاطب، اجازهٔ دسترسی به مخاطبان لازم است."
+        else {
+            message = "بدون این اجازه، فقط شماره‌ای که در انتخابگر سیستم برمی‌گزینید وارد می‌شود."
+            androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        }
     }
 
     Column(Modifier.fillMaxSize().background(CustomCream).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -286,7 +291,8 @@ fun CustomContactsPage(
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
             } else {
-                android.widget.Toast.makeText(context, "در Android 5 اجازهٔ مخاطبان هنگام نصب درخواست می‌شود. برای واردکردن همهٔ شماره‌ها، سهل‌بیت باید با این اجازه نصب شده باشد.", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, "در Android 5 اجازهٔ مخاطبان هنگام نصب درخواست می‌شود. در صورت ندادن اجازه، فقط شمارهٔ انتخاب‌شده وارد خواهد شد.", android.widget.Toast.LENGTH_LONG).show()
+                androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
             }
         }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
