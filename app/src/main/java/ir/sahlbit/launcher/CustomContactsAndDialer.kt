@@ -29,6 +29,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -136,9 +138,13 @@ fun CustomContactsPage(
                 if (cursor.moveToFirst()) {
                     name = cursor.getString(0).orEmpty()
                     val number = cursor.getString(1).orEmpty()
-                    phones = listOf(CustomContactPhone(number = number))
-                    val photo = cursor.getString(2)
-                    if (!photo.isNullOrBlank()) message = "مخاطب وارد شد؛ برای هر شماره می‌توانید تصویر اختصاصی انتخاب کنید."
+                    val photoSource = cursor.getString(2)
+                    val savedPhoto = if (!photoSource.isNullOrBlank()) {
+                        val bitmap = runCatching { context.contentResolver.openInputStream(Uri.parse(photoSource))?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
+                        bitmap?.let { saveSquarePhoto(context, it) }
+                    } else null
+                    phones = listOf(CustomContactPhone(number = number, photoUri = savedPhoto))
+                    if (savedPhoto != null) message = "مخاطب و تصویر آن وارد شدند؛ برای هر شماره می‌توانید تصویر جداگانه انتخاب کنید."
                 }
             }
         }.onFailure { message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود." }
@@ -159,6 +165,8 @@ fun CustomContactsPage(
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    val phoneBitmap = remember(phone.photoUri) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                    if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
                     OutlinedTextField(phone.number, { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
@@ -189,7 +197,13 @@ fun CustomContactsPage(
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(contact.name, color = CustomInk, fontWeight = FontWeight.Bold)
-                    contact.phones.forEach { Text(it.number, color = Color(0xFF64748B), fontSize = 13.sp) }
+                    contact.phones.forEach { phone ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val phoneBitmap = remember(phone.photoUri) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                            if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                            Text(phone.number, color = Color(0xFF64748B), fontSize = 13.sp)
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { editingId = contact.id; name = contact.name; phones = contact.phones.ifEmpty { listOf(CustomContactPhone(number = "")) }; message = "" }, modifier = Modifier.weight(1f)) { Text("ویرایش") }
                         OutlinedButton(onClick = { onSave(contacts.filterNot { it.id == contact.id }) }, modifier = Modifier.weight(1f)) { Text("حذف") }
