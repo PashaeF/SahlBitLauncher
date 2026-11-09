@@ -22,6 +22,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
@@ -555,14 +556,24 @@ private fun SahlBitApp(
         if (uri != null && selectedPhotoEntryId != null) contactPhotoCropLauncher.launch(CropImageContractOptions(uri, contactPhotoCropOptions()))
         else selectedPhotoEntryId = null
     }
-    val cameraPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        val sourceUri = bitmap?.let { image -> runCatching {
+    var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val sourceUri = cameraOutputUri
+        if (success && sourceUri != null && selectedPhotoEntryId != null) {
+            contactPhotoCropLauncher.launch(CropImageContractOptions(sourceUri, contactPhotoCropOptions()))
+        } else selectedPhotoEntryId = null
+        cameraOutputUri = null
+    }
+    fun launchContactCameraCapture() {
+        runCatching {
             val file = java.io.File(context.cacheDir, "sahlbit_contact_camera_${java.util.UUID.randomUUID()}.jpg")
-            file.outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it) }
-            Uri.fromFile(file)
-        }.getOrNull() }
-        if (sourceUri != null && selectedPhotoEntryId != null) contactPhotoCropLauncher.launch(CropImageContractOptions(sourceUri, contactPhotoCropOptions()))
-        else selectedPhotoEntryId = null
+            cameraOutputUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            cameraPicker.launch(cameraOutputUri!!)
+        }.onFailure {
+            cameraOutputUri = null
+            selectedPhotoEntryId = null
+            android.widget.Toast.makeText(context, "باز کردن دوربین ممکن نشد.", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     var resumeRevision by remember { mutableIntStateOf(0) }
@@ -1281,7 +1292,7 @@ private fun SahlBitApp(
                 TextButton(onClick = {
                     selectedPhotoEntryId = photoEntry.id
                     photoSourceDialogEntry = null
-                    cameraPicker.launch(null)
+                    launchContactCameraCapture()
                 }, modifier = Modifier.fillMaxWidth()) { Text("گرفتن عکس با دوربین") }
             } },
             confirmButton = { TextButton(onClick = { photoSourceDialogEntry = null }) { Text("بستن") } }
