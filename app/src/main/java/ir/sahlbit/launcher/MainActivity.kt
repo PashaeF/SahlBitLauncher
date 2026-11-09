@@ -524,8 +524,7 @@ private fun SahlBitApp(
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val targetId = selectedPhotoEntryId
         if (uri != null && targetId != null) {
-            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
-            val savedPhoto = bitmap?.let { saveSquarePhoto(context, it) }
+            val savedPhoto = saveSquarePhotoFromUri(context, uri, "contact_")
             if (savedPhoto != null) {
                 val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
                 entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null) else it }
@@ -2170,22 +2169,8 @@ private fun hashPin(pin: String, saltHex: String): String {
 }
 private fun constantTimeEquals(a: String, b: String): Boolean = MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
 
-private fun copyContactPhoto(context: Context, sourceUri: String): String? {
-    val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
-    var copied = false
-    return try {
-        val input = context.contentResolver.openInputStream(Uri.parse(sourceUri)) ?: return null
-        input.use { stream -> target.outputStream().use { output -> stream.copyTo(output) } }
-        if (target.exists() && target.length() > 0L) {
-            copied = true
-            Uri.fromFile(target).toString()
-        } else null
-    } catch (_: Exception) {
-        null
-    } finally {
-        if (!copied) target.delete()
-    }
-}
+private fun copyContactPhoto(context: Context, sourceUri: String): String? =
+    saveSquarePhotoFromUri(context, Uri.parse(sourceUri), "contact_")
 
 private fun deleteOwnedContactPhoto(context: Context, photo: String) {
     runCatching {
@@ -2193,7 +2178,7 @@ private fun deleteOwnedContactPhoto(context: Context, photo: String) {
         if (uri.scheme == "file") {
             val file = java.io.File(uri.path ?: "")
             val base = context.filesDir.canonicalFile
-            if (file.canonicalFile.parentFile == base && file.name.startsWith("contact_")) file.delete()
+            if (file.canonicalFile.parentFile == base && (file.name.startsWith("contact_") || file.name.startsWith("sahlbit_photo_"))) file.delete()
         }
     }
 }
