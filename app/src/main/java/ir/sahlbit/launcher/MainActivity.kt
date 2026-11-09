@@ -720,15 +720,16 @@ private fun SahlBitApp(
             onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
             onConfirmCall = { entry ->
                 entry.phoneNumber?.takeIf { it.isNotBlank() }?.let { number ->
-                    pendingCallNumber = number
+                    val dialableNumber = number.toEnglishDigits()
+                    pendingCallNumber = dialableNumber
                     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                         pendingCallNumber = null
-                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
+                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(dialableNumber))))
                     } else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
                         pendingCallNumber = null
-                        val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))
+                        val callIntent = Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(dialableNumber)))
                         runCatching { context.startActivity(callIntent) }.onFailure {
-                            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number))))
+                            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(dialableNumber))))
                         }
                     } else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
                 }
@@ -1038,7 +1039,7 @@ private fun SahlBitApp(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                 if (entry.kind == "contact") {
                                     Text(entry.title, color = Ink, fontWeight = FontWeight.Bold)
-                                    Text(entry.phoneNumber.orEmpty(), color = Color(0xFF64748B), fontSize = 13.sp)
+                                    Text(entry.phoneNumber.orEmpty().toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         TextButton(onClick = { photoSourceDialogEntry = entry }, enabled = !recentCallsMode, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("انتخاب عکس", color = Teal) }
                                         Spacer(Modifier.weight(1f))
@@ -1166,10 +1167,10 @@ private fun SahlBitApp(
         "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { navigateBack("login") }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
             Text("${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3).toPersianDigitsText() }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
-                if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinchange") }
+                if (mathAnswer.toEnglishDigits().toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinchange") }
                 else { error = "پاسخ درست نیست. لطفاً دوباره تلاش کنید."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین پین جدید") }
         }
@@ -1244,7 +1245,7 @@ private fun SahlBitApp(
         val contact = selectedCustomContactForPage!!
         AlertDialog(onDismissRequest = { selectedCustomContactForPage = null }, title = { Text("انتخاب شمارهٔ ${contact.name}") }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                contact.phones.forEach { phone -> OutlinedButton(onClick = { addCustomContactToPage(contact, phone); selectedCustomContactForPage = null }, modifier = Modifier.fillMaxWidth()) { Text(phone.number) } }
+                contact.phones.forEach { phone -> OutlinedButton(onClick = { addCustomContactToPage(contact, phone); selectedCustomContactForPage = null }, modifier = Modifier.fillMaxWidth()) { Text(phone.number.toPersianDigitsText()) } }
             }
         }, confirmButton = { TextButton(onClick = { selectedCustomContactForPage = null }) { Text("انصراف") } })
     }
@@ -1307,7 +1308,7 @@ private fun SahlBitApp(
             AlertDialog(onDismissRequest = { editingContactId = null }, title = { Text("ویرایش کارت مخاطب") }, text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = editContactName, onValueChange = { editContactName = it }, label = { Text("نام مخاطب") }, singleLine = true)
-                    OutlinedTextField(value = editContactPhone, onValueChange = { editContactPhone = it }, label = { Text("شماره تلفن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    OutlinedTextField(value = editContactPhone, onValueChange = { editContactPhone = it.toPersianDigitsText() }, label = { Text("شماره تلفن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
                     Text("این تغییرات روی کارت سهل‌بیت ذخیره می‌شوند و دفترچه تلفن اندروید را تغییر نمی‌دهند.", color = Teal, fontSize = 12.sp)
                 }
             }, confirmButton = { Button(onClick = {
@@ -1588,10 +1589,10 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
                         DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
                         pageContacts.forEach { contact ->
-                        DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = {
+                        DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty().toPersianDigitsText()}") }, onClick = {
                             selectedContactId = contact.id
                             previewName = contact.title
-                            previewNumber = contact.phoneNumber.orEmpty()
+                            previewNumber = contact.phoneNumber.orEmpty().toPersianDigitsText()
                             previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri
                             contactMenuExpanded = false
                         })
@@ -1602,7 +1603,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         } else Text("هنوز مخاطبی در صفحهٔ اصلی ذخیره نشده است؛ نام و شمارهٔ نمونه را می‌توانید دستی وارد کنید.", color = Color(0xFF64748B), fontSize = 12.sp)
         PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
         OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
-        OutlinedTextField(previewNumber, { previewNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
+        OutlinedTextField(previewNumber, { previewNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
         Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
         CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
         Text("گردی گوشه‌های تصویر: ${avatarRadius.toPersianDigits()} dp", color = Ink)
@@ -1664,7 +1665,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     else Icon(Icons.Default.Person, null, tint = previewForeground, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
                 }
                 Text(previewName.ifBlank { "مخاطب نمونه" }, color = previewForeground, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
-                Text(previewNumber, color = previewForeground, fontSize = numberSize.sp)
+                Text(previewNumber.toPersianDigitsText(), color = previewForeground, fontSize = numberSize.sp)
                 if (profile == "incoming") {
                     Spacer(Modifier.height(2.dp))
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = primaryTextColor)) { Text("☎  $firstLabel", fontSize = buttonTextSize.sp) }
@@ -1721,7 +1722,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         var selectedPreviewContactId by remember { mutableStateOf(contacts.firstOrNull()?.id) }
         var previewContactMenu by remember { mutableStateOf(false) }
         var sampleContactName by remember { mutableStateOf(contacts.firstOrNull()?.title ?: "مخاطب نمونه") }
-        var sampleContactNumber by remember { mutableStateOf(contacts.firstOrNull()?.phoneNumber ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
+        var sampleContactNumber by remember { mutableStateOf(contacts.firstOrNull()?.phoneNumber?.toPersianDigitsText() ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
         var previewPhotoUri by remember { mutableStateOf(contacts.firstOrNull()?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri }) }
         if (contacts.isNotEmpty()) {
             OutlinedButton(onClick = { previewContactMenu = true }, modifier = Modifier.fillMaxWidth()) {
@@ -1731,13 +1732,13 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
             DropdownMenu(expanded = previewContactMenu, onDismissRequest = { previewContactMenu = false }) {
                 contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
                     DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
-                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty(); previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri; previewContactMenu = false }) }
+                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty().toPersianDigitsText()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty().toPersianDigitsText(); previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri; previewContactMenu = false }) }
                 }
             }
         }
         PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
         OutlinedTextField(sampleContactName, { sampleContactName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب پیش‌نمایش") }, singleLine = true)
-        OutlinedTextField(sampleContactNumber, { sampleContactNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شمارهٔ تماس پیش‌نمایش") }, singleLine = true)
+        OutlinedTextField(sampleContactNumber, { sampleContactNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شمارهٔ تماس پیش‌نمایش") }, singleLine = true)
         CallColorPicker("رنگ دکمهٔ بله", yesColor, palette) { yesColor = it; saveText("yes_color", it) }
         CallColorPicker("رنگ دکمهٔ خیر", noColor, palette) { noColor = it; saveText("no_color", it) }
         OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true)
@@ -1772,7 +1773,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
                 if (previewImage != null) Image(previewImage, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                 else Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
                 Text(sampleContactName, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
-                Text(sampleContactNumber, color = Color(0xFF64748B), fontSize = 13.sp)
+                Text(sampleContactNumber.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth(yesButtonWidth / 100f).height(yesButtonHeight.dp), shape = RoundedCornerShape(yesButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(yesColor)))) {
                     Text(yesLabel.ifBlank { "بله" }, fontSize = yesButtonTextSize.sp)
                 }
@@ -2154,8 +2155,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                         if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
-                            val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
-                            val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
+                            val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.toEnglishDigits()?.filter(Char::isDigit) == call.number.toEnglishDigits().filter(Char::isDigit) }
+                            val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.toEnglishDigits().filter(Char::isDigit) == call.number.toEnglishDigits().filter(Char::isDigit) }
                             val recentPhotoUri = matchingContact?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri } ?: matchingCustomPhone?.second?.photoUri
                             val photoBitmap = remember(recentPhotoUri, permissionRevision) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                             val callName = call.name.ifBlank { matchingContact?.title ?: matchingCustomPhone?.first?.name ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
@@ -2172,7 +2173,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                         else Text(callSymbol, color = callColor, fontSize = 27.sp, fontWeight = FontWeight.Bold)
                                     }
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        if (recentShowNames) Text(callName, color = fg, fontWeight = FontWeight.Bold, fontSize = recentNameSize.sp, maxLines = 2, lineHeight = (recentNameSize + 4).sp)
+                                        if (recentShowNames) Text(callName.toPersianDigitsText(), color = fg, fontWeight = FontWeight.Bold, fontSize = recentNameSize.sp, maxLines = 2, lineHeight = (recentNameSize + 4).sp)
                                         Text(call.number.toPersianDigitsText(), color = fg.copy(alpha = .75f), fontSize = 12.sp, lineHeight = 17.sp)
                                         Text(if (call.type == android.provider.CallLog.Calls.MISSED_TYPE) "تماس ورودی بدون پاسخ" else if (call.type == android.provider.CallLog.Calls.INCOMING_TYPE) "تماس ورودی پاسخ‌داده‌شده" else if (call.durationSeconds > 0) "تماس خروجی با برقراری مکالمه" else "تماس خروجی بدون برقراری مکالمه", color = callColor, fontSize = 11.sp, lineHeight = 16.sp)
                                     }
@@ -2239,7 +2240,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val avatar = remember(pendingPhotoUri) { pendingPhotoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(confirmAvatarSize.dp).clip(RoundedCornerShape(confirmAvatarRadius.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(confirmAvatarSize.dp), tint = Teal)
-            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
+            }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber.orEmpty().toPersianDigitsText()}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink, lineHeight = 24.sp) }, confirmButton = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Button(onClick = { onConfirmCall(pendingCall) }, modifier = Modifier.fillMaxWidth(launcherPrefs.getInt("confirm_call_yes_width_pct", 100).coerceIn(50, 100) / 100f).height(confirmYesButtonHeight.dp), shape = RoundedCornerShape(confirmYesButtonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = confirmYesColor)) { Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)); Spacer(Modifier.width(6.dp)); Text(confirmYesLabel, fontSize = confirmYesTextSize.sp) }
                     Spacer(Modifier.height(confirmButtonSpacing.dp))
