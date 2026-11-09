@@ -54,6 +54,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -407,7 +408,7 @@ private fun SahlBitApp(
         val root = runCatching { org.json.JSONObject(prefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
         root.put(selectedPage.toString(), org.json.JSONArray(rowCardCounts))
         val aligns = runCatching { org.json.JSONObject(prefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
-        aligns.put(selectedPage.toString(), org.json.JSONArray(rowAlignments))
+        aligns.put(selectedPage.toString(), org.json.JSONArray(List(rowCardCounts.size) { "center" }))
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
     var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
@@ -822,7 +823,7 @@ private fun SahlBitApp(
                     dismissButton = { TextButton(onClick = { confirmPageDeletion = false }) { Text("انصراف") } }
                 )
             }
-            NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6) { value ->
+            NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6, enabled = !showRecentCallsOnPage) { value ->
                 gridRows = value; saveRowsPerPage(selectedPage, value)
                 rowCardCounts = (rowCardCounts.take(value) + List((value - rowCardCounts.size).coerceAtLeast(0)) { gridColumns })
                 rowAlignments = (rowAlignments.take(value) + List((value - rowAlignments.size).coerceAtLeast(0)) { "center" })
@@ -830,13 +831,12 @@ private fun SahlBitApp(
             }
             val selectedPageEntryCount = entries.count { it.page == selectedPage }
             if (selectedPageEntryCount > rowCardCounts.sum()) Text("توجه: این صفحه ${selectedPageEntryCount.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${rowCardCounts.sum().toPersianDigits()} کارت است. برای نمایش همهٔ موارد، تعداد ردیف‌ها یا کارت‌های هر ردیف را افزایش دهید.", color = Color(0xFFB3261E), fontSize = 13.sp)
-            Text("تنظیم تعداد کارت و تراز هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
+            Text("تنظیم تعداد کارت هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
-                        Text("تراز ردیف ${(row + 1).toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
-                        listOf("right" to "راست", "center" to "وسط", "left" to "چپ").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(rowAlignments.getOrElse(row) { "center" } == key, { rowAlignments = rowAlignments.toMutableList().also { it[row] = key }; persistRowLayout() }); Text(label, color = Ink) } }
+                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6, enabled = !showRecentCallsOnPage) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+                        Text("تراز این ردیف به‌صورت ثابت وسط‌چین است.", color = Color(0xFF64748B), fontSize = 12.sp)
                     }
                 }
             }
@@ -854,7 +854,7 @@ private fun SahlBitApp(
                     rowCardCounts.forEachIndexed { row, count ->
                         val rowItems = previewEntries.drop(previewOffset).take(count)
                         previewOffset += count
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = when (rowAlignments.getOrElse(row) { "center" }) { "right" -> Arrangement.Start; "left" -> Arrangement.End; else -> Arrangement.Center }) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             if (rowItems.isEmpty()) {
                                 repeat(count) {
                                     Box(Modifier.weight(1f).padding(horizontal = 3.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .25f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
@@ -1873,14 +1873,14 @@ private fun UninstallPage(onBack: () -> Unit) {
     }
 }
 
-@Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
+@Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, enabled: Boolean = true, onChange: (Int) -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(14.dp).alpha(if (enabled) 1f else .45f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, color = Ink, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                RepeatableStepButton("−", value > min) { onChange((value - 1).coerceAtLeast(min)) }
+                RepeatableStepButton("−", enabled && value > min) { onChange((value - 1).coerceAtLeast(min)) }
                 Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest)
-                RepeatableStepButton("+", value < max) { onChange((value + 1).coerceAtMost(max)) }
+                RepeatableStepButton("+", enabled && value < max) { onChange((value + 1).coerceAtMost(max)) }
             }
         }
     }
@@ -1977,7 +1977,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
                 val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - headerHeight - 130.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(64.dp, 154.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
-                val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
+                val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
                 if (showRecentCallsOnCurrentPage) {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
@@ -2016,7 +2016,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
                             entryOffset += rowCount
-                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = when (pageRowAlignments.getOrElse(rowIndex) { "center" }) { "right" -> Arrangement.Start; "left" -> Arrangement.End; else -> Arrangement.Center }) {
+                            if (rowEntries.isNotEmpty()) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
