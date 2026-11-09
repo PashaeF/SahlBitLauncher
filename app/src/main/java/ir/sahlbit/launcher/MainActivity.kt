@@ -66,7 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.res.painterResource
 import ir.sahlbit.launcher.ui.AnalogClock
 import java.security.MessageDigest
@@ -702,7 +703,7 @@ private fun SahlBitApp(
             onSelectLauncher = onSelectLauncher, onAndroidSettings = { navigateTo("androidsettings") }, onUninstall = { navigateTo("uninstall") }
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { navigateBack("dashboard") })
-        "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
+        "updates" -> UpdateSettingsPage(onBack = { navigateBack("dashboard") })
         "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                 android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show()
@@ -711,7 +712,7 @@ private fun SahlBitApp(
             } else {
                 callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
             }
-        }, onBack = { route = "dashboard" })
+        }, onBack = { navigateBack("dashboard") })
         "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { navigateBack("dashboard") })
         "customcontacts" -> CustomContactsPage(contacts = customContacts, onSave = { customContacts = it; CustomContactsStore.save(prefs, it) }, onBack = { navigateBack("dashboard") })
         "dialer" -> DialerPage(onBack = { navigateBack("dashboard") }, initialNumber = dialerNumber, onCall = { number ->
@@ -720,8 +721,8 @@ private fun SahlBitApp(
             else { pendingCallNumber = number; callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }
         })
         "recentcustom" -> RecentCallsCustomizationPage(prefs = prefs, onBack = { navigateBack("dashboard") })
-        "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
-        "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
+        "allapps" -> AllAppsScreen(onBack = { navigateBack("dashboard") }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
+        "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { navigateBack("dashboard") }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
             CompactSlider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
             Text("اندازهٔ اعداد ساعت: ${clockDigitSizeSp.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -745,7 +746,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { route = "dashboard" }) {
+        "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { navigateBack("dashboard") }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
             PermissionCard("برنامه صفحه اصلی (لانچر) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, Int.MAX_VALUE) { requested ->
@@ -878,7 +879,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
+        "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { navigateBack("dashboard") }) {
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
@@ -968,7 +969,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { route = "dashboard" }) {
+        "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { navigateBack("dashboard") }) {
             DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { navigateTo("clock") }
             DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { navigateTo("callconfirm") }
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
@@ -1056,7 +1057,7 @@ private fun SahlBitApp(
                 else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
             }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای تنظیم زمان خاموشی") }
         }
-        "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
+        "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { navigateBack("dashboard") }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinverify") }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { navigateBack("security") }) {
@@ -1070,7 +1071,7 @@ private fun SahlBitApp(
                 else { oldPinInput = ""; error = "پین فعلی نادرست است." }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و ادامه") }
         }
-        "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { route = "login" }) {
+        "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { navigateBack("login") }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
             Text("${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -1085,7 +1086,7 @@ private fun SahlBitApp(
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
         }
-        "permissions" -> SettingsPage("دسترسی‌ها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { route = "dashboard" }) {
+        "permissions" -> SettingsPage("دسترسی‌ها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { navigateBack("dashboard") }) {
             val contactsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
             val callGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
             val writeGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
@@ -1106,9 +1107,9 @@ private fun SahlBitApp(
             Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات تلفن همراه به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
             OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
-        "uninstall" -> UninstallPage(onBack = { route = "dashboard" })
-        "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { route = "dashboard" }) {
+        "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { route = "uninstall" })
+        "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") })
+        "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { navigateBack("dashboard") }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Box(Modifier.size(104.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) } }
@@ -1129,7 +1130,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه را تغییر نمی‌دهد.", { route = "home" }) {
+        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه را تغییر نمی‌دهد.", { navigateBack("home") }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض اندروید / One UI Home") }
         }
     }
@@ -1842,18 +1843,18 @@ private fun UninstallPage(onBack: () -> Unit) {
     }
 }
 @Composable private fun RepeatableStepButton(label: String, enabled: Boolean, onStep: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    Box(
-        Modifier.size(48.dp).then(if (enabled) Modifier.pointerInput(enabled) {
-            androidx.compose.foundation.gestures.detectTapGestures(onPress = {
-                onStep()
-                val repeatJob = scope.launch { delay(320); while (true) { onStep(); delay(65) } }
-                tryAwaitRelease()
-                repeatJob.cancel()
-            })
-        } else Modifier),
-        contentAlignment = Alignment.Center
-    ) { Text(label, color = if (enabled) Forest else Color.LightGray, fontSize = 25.sp, fontWeight = FontWeight.Bold) }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    LaunchedEffect(pressed, enabled) {
+        if (pressed && enabled) {
+            onStep()
+            delay(320)
+            while (pressed && enabled) { onStep(); delay(65) }
+        }
+    }
+    Box(Modifier.size(48.dp).clickable(interactionSource = interaction, indication = null, enabled = enabled) {}, contentAlignment = Alignment.Center) {
+        Text(label, color = if (enabled) Forest else Color.LightGray, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
