@@ -88,7 +88,7 @@ private fun CompactSlider(
         MaterialSlider(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(0.70f),
+            modifier = Modifier.fillMaxWidth(0.80f),
             valueRange = valueRange
         )
     }
@@ -114,11 +114,11 @@ private val Vazirmatn = FontFamily(
 )
 private val SahlBitTypography: Typography = Typography().let { t ->
     t.copy(
-        displayLarge=t.displayLarge.copy(fontFamily=Vazirmatn), displayMedium=t.displayMedium.copy(fontFamily=Vazirmatn), displaySmall=t.displaySmall.copy(fontFamily=Vazirmatn),
-        headlineLarge=t.headlineLarge.copy(fontFamily=Vazirmatn), headlineMedium=t.headlineMedium.copy(fontFamily=Vazirmatn), headlineSmall=t.headlineSmall.copy(fontFamily=Vazirmatn),
-        titleLarge=t.titleLarge.copy(fontFamily=Vazirmatn), titleMedium=t.titleMedium.copy(fontFamily=Vazirmatn), titleSmall=t.titleSmall.copy(fontFamily=Vazirmatn),
-        bodyLarge=t.bodyLarge.copy(fontFamily=Vazirmatn), bodyMedium=t.bodyMedium.copy(fontFamily=Vazirmatn), bodySmall=t.bodySmall.copy(fontFamily=Vazirmatn),
-        labelLarge=t.labelLarge.copy(fontFamily=Vazirmatn), labelMedium=t.labelMedium.copy(fontFamily=Vazirmatn), labelSmall=t.labelSmall.copy(fontFamily=Vazirmatn)
+        displayLarge=t.displayLarge.copy(fontFamily=Vazirmatn, lineHeight=58.sp), displayMedium=t.displayMedium.copy(fontFamily=Vazirmatn, lineHeight=48.sp), displaySmall=t.displaySmall.copy(fontFamily=Vazirmatn, lineHeight=40.sp),
+        headlineLarge=t.headlineLarge.copy(fontFamily=Vazirmatn, lineHeight=40.sp), headlineMedium=t.headlineMedium.copy(fontFamily=Vazirmatn, lineHeight=34.sp), headlineSmall=t.headlineSmall.copy(fontFamily=Vazirmatn, lineHeight=30.sp),
+        titleLarge=t.titleLarge.copy(fontFamily=Vazirmatn, lineHeight=32.sp), titleMedium=t.titleMedium.copy(fontFamily=Vazirmatn, lineHeight=28.sp), titleSmall=t.titleSmall.copy(fontFamily=Vazirmatn, lineHeight=24.sp),
+        bodyLarge=t.bodyLarge.copy(fontFamily=Vazirmatn, lineHeight=28.sp), bodyMedium=t.bodyMedium.copy(fontFamily=Vazirmatn, lineHeight=24.sp), bodySmall=t.bodySmall.copy(fontFamily=Vazirmatn, lineHeight=21.sp),
+        labelLarge=t.labelLarge.copy(fontFamily=Vazirmatn, lineHeight=22.sp), labelMedium=t.labelMedium.copy(fontFamily=Vazirmatn, lineHeight=20.sp), labelSmall=t.labelSmall.copy(fontFamily=Vazirmatn, lineHeight=18.sp)
     )
 }
 
@@ -289,7 +289,7 @@ class MainActivity : ComponentActivity() {
                 )
             }.onFailure { openAndroidSettings() }
         } else {
-            android.widget.Toast.makeText(this, "در اندروید ۵ رابط تماس سهل‌بیت فعال نیست و برنامهٔ تلفن خود گوشی تماس‌ها را مدیریت می‌کند.", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(this, "در اندروید ۵ رابط تماس سهل‌بیت فعال نیست و برنامهٔ تلفن خود تلفن همراه تماس‌ها را مدیریت می‌کند.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
     private fun openHomeSettings() { runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { openAndroidSettings() } }
@@ -514,7 +514,9 @@ private fun SahlBitApp(
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
         if (pinHash != null && (route == "wizard" || route == "setpin")) {
             prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
-            route = "home"
+            route = "login"
+            adminAuthenticated = false
+            pinInput = ""
         } else if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
             isWizardPermissionGranted(context, wizardStep)
             wizardRequestRevision = -1
@@ -579,7 +581,8 @@ private fun SahlBitApp(
                     newPin = ""
                     confirmPin = ""
                     error = ""
-                    route = "home"
+                    route = "dashboard"
+                    adminAuthenticated = true
                 }
             }
         } else SetupWizardScreen(
@@ -602,7 +605,8 @@ private fun SahlBitApp(
                 if (wizardStep >= 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
                     if (pinHash != null) {
-                        route = "home"
+                        route = "dashboard"
+                        adminAuthenticated = true
                     } else {
                         wizardPinSetup = true
                     }
@@ -852,7 +856,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "contacts" -> SettingsPage("مدیریت مخاطبان و برنامه‌ها", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
+        "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { route = "dashboard" }) {
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
@@ -953,7 +957,7 @@ private fun SahlBitApp(
             DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { route = "clock" }
             DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { route = "callconfirm" }
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
-            PermissionCard("دسترسی تغییر تنظیمات سیستمی", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستمی", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
+            PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
             var homeContactRadius by remember { mutableIntStateOf(prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)) }
             var homeAppRadius by remember { mutableIntStateOf(prefs.getInt("home_app_radius", 20).coerceIn(0, 50)) }
             NumberSetting("گردی گوشهٔ تصویر مخاطبان: ${homeContactRadius.toPersianDigits()} dp", homeContactRadius, 0, 50) { homeContactRadius = it; prefs.edit().putInt("home_contact_radius", it).apply() }
@@ -991,7 +995,7 @@ private fun SahlBitApp(
             }
             Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
             Text("${(windowBrightness * 100).toInt().toPersianDigits()}٪", color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل گوشی دست نمی‌زند.", color = Ink, fontSize = 12.sp)
+            Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل تلفن همراه دست نمی‌زند.", color = Ink, fontSize = 12.sp)
             CompactSlider(value = windowBrightness, onValueChange = { value ->
                 windowBrightness = value
                 prefs.edit().putFloat("window_brightness", value).apply()
@@ -1037,7 +1041,7 @@ private fun SahlBitApp(
                 else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
             }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای تنظیم زمان خاموشی") }
         }
-        "security" -> SettingsPage("امنیت مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
+        "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
@@ -1080,11 +1084,11 @@ private fun SahlBitApp(
             PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد. در Android 5 همیشه از شماره‌گیر سیستم استفاده می‌شود.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
             PermissionCard("اجازهٔ نصب به‌روزرسانی‌ها", "این دسترسی ویژه فقط برای آن است که سهل‌بیت فایل APK نسخه‌ای را که مدیر از منبع رسمی انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. بدون آن، دانلود و بررسی نسخه ممکن است اما نصب از داخل برنامه انجام نمی‌شود. تأیید نهایی نصب همیشه با مدیر است.", "اجازهٔ نصب برنامه‌های ناشناس", installGranted, { if (installGranted) android.widget.Toast.makeText(context, "اجازهٔ نصب برنامه‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) } })
-            PermissionCard("دسترسی تغییر تنظیمات سیستمی", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستمی", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
+            PermissionCard("دسترسی تغییر تنظیمات سیستم", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستمی", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستم قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
             Text("تنظیم بلندی صدا به مجوز جداگانه‌ای نیاز ندارد؛ سهل‌بیت از مسیر رسمی AudioManager استفاده می‌کند و تغییرها مستقیماً در صدای سیستم اندروید اعمال می‌شوند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
             Spacer(Modifier.height(12.dp))
             Text("بازکردن تنظیمات اندروید", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات گوشی به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
+            Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات تلفن همراه به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
             OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { route = "dashboard" }, onUninstall = { route = "uninstall" })
@@ -1110,7 +1114,7 @@ private fun SahlBitApp(
                 }
             }
         }
-        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار برنامه صفحه اصلی (لانچر) پیش‌فرض گوشی را تغییر نمی‌دهد.", { route = "home" }) {
+        "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض اندروید / One UI Home") }
         }
     }
@@ -1307,7 +1311,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     }
     SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
         val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
-        PermissionCard("دسترسی تغییر تنظیمات سیستمی", "برای ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این دسترسی فقط با تأیید شما در تنظیمات اندروید فعال می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستمی", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
+        PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این دسترسی فقط با تأیید شما در تنظیمات اندروید فعال می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_RING).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
         Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1328,7 +1332,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
         OutlinedButton(onClick = {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context))
                 runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-            else android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
+            else android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستم قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
         }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای مدیریت انتخاب زنگ") }
     }
 }
@@ -1340,7 +1344,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
         "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
         "این اجازه برای تغییر زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. اندروید صفحه‌ای جداگانه باز می‌کند؛ نام سهل‌بیت را پیدا کنید و اجازهٔ تغییر تنظیمات سیستم را روشن کنید.",
-        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. این انتخاب جایگزین برنامهٔ تلفن قبلی می‌شود و هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
+        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. با تأیید این نقش در پنجرهٔ اندروید، ممکن است خود سیستم‌عامل برخی مجوزهای مرتبط مانند دسترسی به مخاطبان یا برقراری تماس را نیز به‌عنوان بخشی از نقش تلفن اعطا کند؛ سهل‌بیت این مجوزها را پنهانی درخواست یا فعال نمی‌کند. پیش از تأیید، توضیحات و مجوزهای نمایش‌داده‌شده در اندروید را بررسی کنید. این انتخاب هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
         "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است تا مدیر بتواند افراد موردنظر را به صفحهٔ اصلی اضافه کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
         "این اجازه برای تماس مستقیم با مخاطبی که مدیر روی صفحهٔ اصلی انتخاب کرده است استفاده می‌شود. اگر اجازه داده نشود، سهل‌بیت می‌تواند شماره‌گیر سیستم را باز کند و تماس از آنجا انجام شود.",
         "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است.",
@@ -1353,7 +1357,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
             Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, null); Text("مرحلهٔ قبل") }
+                TextButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, null); Spacer(Modifier.width(7.dp)); Text("صفحهٔ قبلی") }
                 Spacer(Modifier.weight(1f))
                 Text("مرحلهٔ ${step.toPersianDigits()} از ۷", color = Teal, fontWeight = FontWeight.Bold)
             }
@@ -1655,7 +1659,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و چیدمان کارت‌ها", "pages", onPages) }
-            item { DashboardCard("مدیریت مخاطبان و برنامه‌ها", "انتخاب مخاطبان و برنامه‌های صفحهٔ اصلی", "contacts", onContacts) }
+            item { DashboardCard("مخاطبان و برنامه‌های صفحه اصلی", "انتخاب مخاطبان و برنامه‌های صفحهٔ اصلی", "contacts", onContacts) }
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
             item { DashboardCard("ظاهرِ صفحه اصلی", "پس‌زمینه، کارت‌ها و تنظیمات ظاهری", "appearance", onAppearance) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
@@ -1663,7 +1667,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
             item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده، جزئیات و اجرای برنامه‌ها", "apps", onAllApps) }
-            item { DashboardCard("تنظیمات اندروید", "دسترسی سریع به بخش‌های مختلف تنظیمات گوشی", "settings", onAndroidSettings) }
+            item { DashboardCard("تنظیمات اندروید", "دسترسی سریع به بخش‌های مختلف تنظیمات تلفن همراه", "settings", onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
             item { DashboardCard("حذف برنامه", "پاک‌کردن حافظهٔ پنهان یا حذف سهل‌بیت", "uninstall", onUninstall) }
         }
@@ -1676,9 +1680,9 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         val intent = Intent(action).apply { if (data != null) this.data = data; addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
     }
-    SettingsPage("تنظیمات اندروید", "در این صفحه ۱۰ میان‌بر پنل سریع سهل‌بیت و کاربرد آن‌ها معرفی شده‌اند. هر دکمه یکی از بخش‌های رایج تنظیمات گوشی را باز می‌کند؛ نام و محل دقیق گزینه‌ها ممکن است در سامسونگ، شیائومی و سایر سازندگان متفاوت باشد.", onBack) {
+    SettingsPage("تنظیمات اندروید", "در این صفحه ۱۰ میان‌بر پنل سریع سهل‌بیت و کاربرد آن‌ها معرفی شده‌اند. هر دکمه یکی از بخش‌های رایج تنظیمات تلفن همراه را باز می‌کند؛ نام و محل دقیق گزینه‌ها ممکن است در سامسونگ، شیائومی و سایر سازندگان متفاوت باشد.", onBack) {
         Text("دکمه‌های پنل سریع سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("۱۰ دکمهٔ سهل‌بیت در پنل سریع اندروید فقط برای بازگشت سریع به صفحهٔ اصلی برنامه هستند و تنظیمات گوشی را تغییر نمی‌دهند. برای افزودن هر دکمه، پنل سریع را ویرایش کنید و کاشی «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+        Text("۱۰ دکمهٔ سهل‌بیت در پنل سریع اندروید فقط برای بازگشت سریع به صفحهٔ اصلی برنامه هستند و تنظیمات تلفن همراه را تغییر نمی‌دهند. برای افزودن هر دکمه، پنل سریع را ویرایش کنید و کاشی «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
         @Composable fun actionCard(title: String, description: String, label: String, action: String, data: Uri? = null) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1689,7 +1693,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
             }
         }
         actionCard("صفحهٔ برنامهٔ سهل‌بیت", "نمایش اطلاعات برنامه، اعلان‌ها، مجوزها و فضای ذخیره‌سازی سهل‌بیت.", "بازکردن اطلاعات برنامه", Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
-        actionCard("تنظیمات اصلی گوشی", "ورود به صفحهٔ اصلی تنظیمات سیستم‌عامل.", "بازکردن تنظیمات اصلی", Settings.ACTION_SETTINGS)
+        actionCard("تنظیمات اصلی تلفن همراه", "ورود به صفحهٔ اصلی تنظیمات سیستم‌عامل.", "بازکردن تنظیمات اصلی", Settings.ACTION_SETTINGS)
         actionCard("اتصالات", "مدیریت Wi-Fi، بلوتوث، شبکهٔ تلفن همراه و سایر اتصالات.", "بازکردن تنظیمات اتصالات", Settings.ACTION_WIRELESS_SETTINGS)
         actionCard("صفحهٔ قفل و امنیت", "مدیریت قفل صفحه، رمز عبور و گزینه‌های امنیتی دستگاه.", "بازکردن تنظیمات امنیت و قفل", Settings.ACTION_SECURITY_SETTINGS)
         actionCard("برنامه‌ها", "مدیریت برنامه‌های نصب‌شده و مجوزهای آن‌ها.", "بازکردن تنظیمات برنامه‌ها", Settings.ACTION_APPLICATION_SETTINGS)
@@ -1731,9 +1735,9 @@ private fun UninstallPage(onBack: () -> Unit) {
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("ارتباط با پشتیبانی", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("ارتباط با توسعه‌دهنده", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر با مشکلی روبه‌رو شدید، لطفاً با شمارهٔ ۰۹۱۴۵۸۸۰۸۱۴ تماس بگیرید یا از طریق پیام‌رسان‌های بله، ایتا، روبیکا، تلگرام و واتساپ پیام دهید. همچنین می‌توانید به ایمیل Pashae@iran.ir پیام بفرستید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:09145880814"))) } }, modifier = Modifier.fillMaxWidth()) { Text("تماس با پشتیبانی") }
+                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:09145880814"))) } }, modifier = Modifier.fillMaxWidth()) { Text("تماس با توسعه‌دهنده") }
                 OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ارسال ایمیل") }
             }
         }
@@ -1769,7 +1773,7 @@ private fun UninstallPage(onBack: () -> Unit) {
     }
 }
 @Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(12.dp)); Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp); Spacer(Modifier.height(18.dp)); content()
     }
@@ -1792,8 +1796,32 @@ private fun UninstallPage(onBack: () -> Unit) {
         }
     }
 }
+@Composable private fun RepeatableStepButton(label: String, enabled: Boolean, onStep: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    Box(
+        Modifier.size(48.dp).then(if (enabled) Modifier.pointerInput(enabled) {
+            androidx.compose.foundation.gestures.detectTapGestures(onPress = {
+                onStep()
+                val repeatJob = scope.launch { delay(320); while (true) { onStep(); delay(65) } }
+                tryAwaitRelease()
+                repeatJob.cancel()
+            })
+        } else Modifier),
+        contentAlignment = Alignment.Center
+    ) { Text(label, color = if (enabled) Forest else Color.LightGray, fontSize = 25.sp, fontWeight = FontWeight.Bold) }
+}
+
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, onChange: (Int) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) { Column(Modifier.padding(14.dp)) { Text(label, color = Ink, fontWeight = FontWeight.SemiBold); Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onChange((value - 1).coerceAtLeast(min)) }) { Text("−", fontSize = 24.sp, color = Forest) }; Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest); IconButton(onClick = { onChange((value + 1).coerceAtMost(max)) }) { Icon(Icons.Default.Add, null) } } } }
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(label, color = Ink, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                RepeatableStepButton("−", value > min) { onChange((value - 1).coerceAtLeast(min)) }
+                Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest)
+                RepeatableStepButton("+", value < max) { onChange((value + 1).coerceAtMost(max)) }
+            }
+        }
+    }
 }
 
 @Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
@@ -1827,7 +1855,7 @@ private fun UninstallPage(onBack: () -> Unit) {
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 0.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
                 if (!settingsHintShown) {
                     android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
@@ -1835,7 +1863,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.size(40.dp).offset(x = (-12).dp)) {
+            }, modifier = Modifier.size(36.dp).offset(x = (-2).dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
             }
         }
@@ -1878,13 +1906,14 @@ private fun UninstallPage(onBack: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
+                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - effectiveClockSize.dp - 250.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(64.dp, 154.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = when (savedAlignments) { is org.json.JSONArray -> (0 until pageRowCounts.size).map { savedAlignments.optString(it, "center") }; is String -> List(pageRowCounts.size) { savedAlignments }; else -> List(pageRowCounts.size) { gridAlignment } }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
-                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         var entryOffset = 0
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
@@ -1893,7 +1922,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                                 rowEntries.forEach { entry ->
                                     Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
-                                modifier = Modifier.fillMaxWidth().height(154.dp),
+                                modifier = Modifier.fillMaxWidth().height(responsiveCardHeight),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxSize().padding(vertical = 10.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = entry.photoUri
