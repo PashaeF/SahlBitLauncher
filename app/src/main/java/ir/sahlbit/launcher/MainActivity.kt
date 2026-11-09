@@ -79,6 +79,10 @@ import java.time.LocalDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 
 
 @Composable
@@ -436,7 +440,14 @@ private fun SahlBitApp(
     var pendingContactPhotoSource by remember { mutableStateOf<String?>(null) }
     var pendingContactOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     fun addCustomContactToPage(contact: CustomContact, phone: CustomContactPhone) {
-        val item = LauncherEntry(kind = "contact", title = contact.name, page = selectedPage, phoneNumber = phone.number, photoUri = phone.photoUri, photoSource = if (phone.photoUri != null) "gallery" else "none")
+        val fromAndroidContacts = !phone.contactUri.isNullOrBlank()
+        val item = LauncherEntry(
+            kind = "contact", title = contact.name, page = selectedPage,
+            contactUri = phone.contactUri, phoneNumber = phone.number,
+            photoUri = if (fromAndroidContacts) null else phone.photoUri,
+            photoSource = when { fromAndroidContacts -> "contact"; phone.photoUri != null -> "gallery"; else -> "none" },
+            photoSourceUri = if (fromAndroidContacts) phone.photoUri else null
+        )
         entries = entries + item
         LauncherEntryStore.save(prefs, entries)
     }
@@ -520,29 +531,38 @@ private fun SahlBitApp(
         else android.widget.Toast.makeText(context, "برای نمایش تماس‌های اخیر، اجازهٔ مشاهدهٔ سابقهٔ تماس لازم است. انتخاب شما ذخیره نشد.", android.widget.Toast.LENGTH_LONG).show()
         recentCallsFlagsRevision++
     }
-    val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    fun contactPhotoCropOptions() = CropImageOptions().apply {
+        fixAspectRatio = true
+        aspectRatioX = 1
+        aspectRatioY = 1
+        guidelines = CropImageView.Guidelines.ON
+        cropShape = CropImageView.CropShape.RECTANGLE
+    }
+    val contactPhotoCropLauncher = androidx.activity.compose.rememberLauncherForActivityResult(CropImageContract()) { result ->
         val targetId = selectedPhotoEntryId
-        if (uri != null && targetId != null) {
-            val savedPhoto = saveSquarePhotoFromUri(context, uri, "contact_")
-            if (savedPhoto != null) {
-                val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
-                entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null) else it }
-                LauncherEntryStore.save(prefs, entries)
-                oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
-            } else android.widget.Toast.makeText(context, "خواندن یا برش مربعی تصویر ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
+        val savedPhoto = if (result.isSuccessful && targetId != null) result.uriContent?.let { saveSquarePhotoFromUri(context, it, "contact_") } else null
+        if (targetId != null && savedPhoto != null) {
+            val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
+            entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null, contactUri = null) else it }
+            LauncherEntryStore.save(prefs, entries)
+            oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
+        } else if (result.error != null) {
+            android.widget.Toast.makeText(context, "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
         }
         selectedPhotoEntryId = null
     }
+    val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && selectedPhotoEntryId != null) contactPhotoCropLauncher.launch(CropImageContractOptions(uri, contactPhotoCropOptions()))
+        else selectedPhotoEntryId = null
+    }
     val cameraPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        val targetId = selectedPhotoEntryId
-        val savedPhoto = bitmap?.let { saveSquarePhoto(context, it) }
-        if (targetId != null && savedPhoto != null) {
-            val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
-            entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null) else it }
-            LauncherEntryStore.save(prefs, entries)
-            oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
-        }
-        selectedPhotoEntryId = null
+        val sourceUri = bitmap?.let { image -> runCatching {
+            val file = java.io.File(context.cacheDir, "sahlbit_contact_camera_${java.util.UUID.randomUUID()}.jpg")
+            file.outputStream().use { image.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, it) }
+            Uri.fromFile(file)
+        }.getOrNull() }
+        if (sourceUri != null && selectedPhotoEntryId != null) contactPhotoCropLauncher.launch(CropImageContractOptions(sourceUri, contactPhotoCropOptions()))
+        else selectedPhotoEntryId = null
     }
 
     var resumeRevision by remember { mutableIntStateOf(0) }
@@ -2098,7 +2118,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                             val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
                             val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
                             val recentPhotoUri = matchingContact?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri } ?: matchingCustomPhone?.second?.photoUri
-                            val photoBitmap = remember(recentPhotoUri) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                            val photoBitmap = remember(recentPhotoUri, permissionRevision) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                             val callName = call.name.ifBlank { matchingContact?.title ?: matchingCustomPhone?.first?.name ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
                             val (callSymbol, callColor) = when (call.type) {
                                 android.provider.CallLog.Calls.MISSED_TYPE, android.provider.CallLog.Calls.REJECTED_TYPE -> "×" to Color(0xFFB3261E)
@@ -2138,7 +2158,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
                                 Column(Modifier.fillMaxSize().padding(vertical = 3.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
-                                    val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
+                                    val bitmap = remember(photo, permissionRevision) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
                                     val entryImageSize = minOf(if (showEntryName) 88.dp else 104.dp, (responsiveCardHeight - if (showEntryName) 30.dp else 12.dp).coerceAtLeast(18.dp))
