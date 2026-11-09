@@ -682,7 +682,7 @@ private fun SahlBitApp(
             }
         }
         "home" -> HomeScreen(
-            battery = battery, charging = charging, background = backgroundChoice, customContacts = customContacts,
+            battery = battery, charging = charging, background = backgroundChoice, customContacts = customContacts, permissionRevision = resumeRevision,
             onAdminEntry = { pinInput = ""; error = ""; routeHistory = emptyList(); navigateTo("login") },
             pageCount = pageCount, pageNames = pageNames,
             entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, rowAlignments = rowAlignments,
@@ -798,7 +798,7 @@ private fun SahlBitApp(
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
             var showClockOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_clock_enabled", selectedPage, true)) }
             var showBatteryOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_battery_enabled", selectedPage, true)) }
-            var showRecentCallsOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_recent_calls", selectedPage, false)) }
+            var showRecentCallsOnPage by remember(selectedPage, recentCallsFlagsRevision, resumeRevision) { mutableStateOf(loadPageFlag("page_recent_calls", selectedPage, false)) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("ساعت دیواری در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink); Switch(showClockOnPage, { showClockOnPage = it; savePageFlag("page_clock_enabled", selectedPage, it) }) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایشگر میزان شارژ و علامت در حال شارژ در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink, lineHeight = 23.sp); Switch(showBatteryOnPage, { showBatteryOnPage = it; savePageFlag("page_battery_enabled", selectedPage, it) }) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش تماس‌های اخیر", modifier = Modifier.weight(1f), color = Ink); Switch(showRecentCallsOnPage, { enabled ->
@@ -1940,7 +1940,7 @@ private fun UninstallPage(onBack: () -> Unit) {
     }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, customContacts: List<CustomContact>, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, customContacts: List<CustomContact>, permissionRevision: Int, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     var settingsHintShown by remember { mutableStateOf(false) }
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0; settingsHintShown = false } }
@@ -1983,7 +1983,7 @@ private fun UninstallPage(onBack: () -> Unit) {
     val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
     val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
     val showRecentCallsOnCurrentPage = pageFlag("page_recent_calls", false)
-    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = pager.currentPage, key2 = showRecentCallsOnCurrentPage) {
+    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = pager.currentPage, key2 = showRecentCallsOnCurrentPage, key3 = permissionRevision) {
         value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
