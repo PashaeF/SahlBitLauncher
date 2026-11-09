@@ -1,6 +1,9 @@
 package ir.sahlbit.launcher
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -11,6 +14,8 @@ import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.canhub.cropper.CropImageContract
@@ -188,18 +193,25 @@ fun CustomContactsPage(
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && photoTarget in phones.indices) launchCrop(uri) else photoTarget = -1
     }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        val uri = bitmap?.let { image ->
-            runCatching {
-                val file = File(context.cacheDir, "sahlbit_camera_crop_${UUID.randomUUID()}.jpg")
-                file.outputStream().use { image.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-                Uri.fromFile(file)
-            }.getOrNull()
-        }
-        if (uri != null && photoTarget in phones.indices) launchCrop(uri)
+    var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val uri = cameraOutputUri
+        if (success && uri != null && photoTarget in phones.indices) launchCrop(uri)
         else {
             photoTarget = -1
-            if (bitmap == null) message = "گرفتن عکس با دوربین انجام نشد."
+            message = "گرفتن عکس با دوربین انجام نشد."
+        }
+        cameraOutputUri = null
+    }
+    fun launchCameraCapture() {
+        runCatching {
+            val file = File(context.cacheDir, "sahlbit_camera_crop_${UUID.randomUUID()}.jpg")
+            cameraOutputUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            camera.launch(cameraOutputUri!!)
+        }.onFailure {
+            cameraOutputUri = null
+            photoTarget = -1
+            message = "باز کردن دوربین ممکن نشد."
         }
     }
 
@@ -241,13 +253,22 @@ fun CustomContactsPage(
         }.onFailure { message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود." }
     }
 
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        else message = "برای واردکردن همهٔ شماره‌ها و تصویر زندهٔ مخاطب، اجازهٔ دسترسی به مخاطبان لازم است."
+    }
+
     Column(Modifier.fillMaxSize().background(CustomCream).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = CustomBlue) }
             Text("مخاطبین اختصاصی", color = CustomBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
         Text("مخاطب اختصاصی بسازید، چند شماره برای او ثبت کنید و برای هر شماره تصویر جداگانه در نظر بگیرید. اطلاعات این بخش در حافظهٔ داخلی سهل‌بیت نگهداری می‌شود.", color = CustomInk, fontSize = 14.sp, lineHeight = 24.sp)
-        OutlinedButton(onClick = { androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+            } else contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
         }
         Text(if (editingId == null) "مخاطب جدید" else "ویرایش مخاطب", color = CustomInk, fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -261,7 +282,7 @@ fun CustomContactsPage(
                     OutlinedTextField(phone.number, { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
-                        OutlinedButton(onClick = { photoTarget = index; camera.launch(null) }, modifier = Modifier.weight(1f)) { Text("دوربین") }
+                        OutlinedButton(onClick = { photoTarget = index; launchCameraCapture() }, modifier = Modifier.weight(1f)) { Text("دوربین") }
                         if (phones.size > 1) IconButton(onClick = { phones = phones.filterIndexed { i, _ -> i != index } }) { Icon(Icons.Default.Delete, "حذف شماره", tint = Color(0xFFB3261E)) }
                     }
                 }
