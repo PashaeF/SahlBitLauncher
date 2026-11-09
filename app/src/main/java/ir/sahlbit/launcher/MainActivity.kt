@@ -1967,7 +1967,7 @@ private fun UninstallPage(onBack: () -> Unit) {
         value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth().height(36.dp).padding(horizontal = 0.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 0.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = {
                 if (!settingsHintShown) {
                     android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
@@ -1975,8 +1975,8 @@ private fun UninstallPage(onBack: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.size(36.dp).offset(x = (-2).dp)) {
-                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .48f), modifier = Modifier.size(21.dp))
+            }, modifier = Modifier.size(32.dp).offset(x = (-10).dp)) {
+                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(21.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -2017,7 +2017,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
-                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - headerHeight - 130.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(64.dp, 154.dp)
+                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - headerHeight - 120.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(24.dp, 154.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
@@ -2056,7 +2056,7 @@ private fun UninstallPage(onBack: () -> Unit) {
                 } else if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         var entryOffset = 0
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)
@@ -2067,12 +2067,12 @@ private fun UninstallPage(onBack: () -> Unit) {
                             Card(onClick = { onEntryClick(entry) },
                                 modifier = Modifier.fillMaxWidth().height(responsiveCardHeight),
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
-                                Column(Modifier.fillMaxSize().padding(vertical = 10.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                Column(Modifier.fillMaxSize().padding(vertical = 3.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = entry.photoUri
                                     val bitmap = remember(photo) { photo?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { input -> BitmapFactory.decodeStream(input) }?.asImageBitmap() }.getOrNull() } }
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
-                                    val entryImageSize = if (showEntryName) 88.dp else 104.dp
+                                    val entryImageSize = minOf(if (showEntryName) 88.dp else 104.dp, (responsiveCardHeight - if (showEntryName) 30.dp else 12.dp).coerceAtLeast(18.dp))
                                     Box(Modifier.size(entryImageSize), contentAlignment = Alignment.Center) {
                                         if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else if (entry.kind == "app") {
@@ -2082,11 +2082,11 @@ private fun UninstallPage(onBack: () -> Unit) {
                                                 val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                             }.getOrNull() } }
                                             if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(72.dp).scale(scaleX = -1f, scaleY = 1f))
-                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(if (contactWithoutName) 90.dp else 72.dp).clip(RoundedCornerShape(homeContactRadius.dp)))
+                                            else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(minOf(72.dp, entryImageSize)).scale(scaleX = -1f, scaleY = 1f))
+                                        } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(minOf(if (contactWithoutName) 90.dp else 72.dp, entryImageSize)).clip(RoundedCornerShape(homeContactRadius.dp)))
                                     }
                                     if (showEntryName) {
-                                        Box(Modifier.fillMaxWidth().height(42.dp), contentAlignment = Alignment.Center) {
+                                        Box(Modifier.fillMaxWidth().height(minOf(42.dp, (responsiveCardHeight * .35f).coerceAtLeast(14.dp))), contentAlignment = Alignment.Center) {
                                             Text(entry.title, color = if (background == "forest") Color.White else Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
                                         }
                                     }
