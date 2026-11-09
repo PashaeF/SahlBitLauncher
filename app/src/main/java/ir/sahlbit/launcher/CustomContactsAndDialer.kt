@@ -347,13 +347,21 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     }
     fun launchCrop(uri: Uri) { cropLauncher.launch(CropImageContractOptions(uri, cropOptions())) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) launchCrop(uri) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        val uri = bitmap?.let { image -> runCatching {
+    var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val uri = cameraOutputUri
+        if (success && uri != null) launchCrop(uri)
+        cameraOutputUri = null
+    }
+    fun launchCameraCapture() {
+        runCatching {
             val file = File(context.cacheDir, "sahlbit_preview_camera_${UUID.randomUUID()}.jpg")
-            file.outputStream().use { image.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-            Uri.fromFile(file)
-        }.getOrNull() }
-        if (uri != null) launchCrop(uri)
+            cameraOutputUri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+            camera.launch(cameraOutputUri!!)
+        }.onFailure {
+            cameraOutputUri = null
+            android.widget.Toast.makeText(context, "باز کردن دوربین ممکن نشد.", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
     val contactPhoto = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
@@ -374,7 +382,7 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = { expanded = false; gallery.launch("image/*") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب تصویر از گالری و برش مربعی") }
-                OutlinedButton(onClick = { expanded = false; camera.launch(null) }, modifier = Modifier.fillMaxWidth()) { Text("گرفتن عکس با دوربین") }
+                OutlinedButton(onClick = { expanded = false; launchCameraCapture() }, modifier = Modifier.fillMaxWidth()) { Text("گرفتن عکس با دوربین") }
                 OutlinedButton(onClick = { expanded = false; contactPhoto.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) { Text("استفاده از عکس مخاطب در برنامهٔ مخاطبین اندروید") }
                 if (photoUri != null) TextButton(onClick = { expanded = false; onPhotoSelected(null) }, modifier = Modifier.fillMaxWidth()) { Text("حذف تصویر انتخاب‌شده") }
             }
