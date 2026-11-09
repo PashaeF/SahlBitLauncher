@@ -111,7 +111,7 @@ fun CustomContactsPage(
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val index = photoTarget
         if (uri != null && index in phones.indices) {
-            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
+            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
             val saved = bitmap?.let { saveSquarePhoto(context, it) }
             if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
             else message = "ذخیرهٔ تصویر ناموفق بود."
