@@ -566,8 +566,8 @@ private fun SahlBitApp(
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
         if (pinHash != null && (route == "wizard" || route == "setpin")) {
             prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
-            route = "login"
-            adminAuthenticated = false
+            route = "dashboard"
+            adminAuthenticated = true
             pinInput = ""
         } else if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
             isWizardPermissionGranted(context, wizardStep)
@@ -604,12 +604,12 @@ private fun SahlBitApp(
             "login" -> { routeHistory = emptyList(); route = "home" }
             "mathrecovery" -> navigateBack("login")
             "recovery" -> { routeHistory = emptyList(); route = "home" }
-            "setpin" -> { if (pinHash != null) { route = "login"; adminAuthenticated = false } }
+            "setpin" -> { if (pinHash != null) { route = "dashboard"; adminAuthenticated = true } }
             else -> navigateBack("dashboard")
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -928,7 +928,6 @@ private fun SahlBitApp(
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { navigateBack("dashboard") }) {
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
-            if (selectedCountForPage > capacityForSelectedPage) Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp)
             PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "در صورت تمایل، سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب کنید تا رابط تماس اختصاصی آن نمایش داده شود.", "انتخاب برنامهٔ تلفن پیش‌فرض", isDialerRoleHeld(context), onSelectDialer)
             PermissionCard(
                 title = "دسترسی به مخاطبان",
@@ -942,6 +941,11 @@ private fun SahlBitApp(
             val recentCallsMode = loadPageFlag("page_recent_calls", selectedPage, false)
             if (recentCallsMode) Text("این صفحه برای نمایش تماس‌های اخیر تنظیم شده است؛ انتخاب مخاطب و برنامه در این صفحه غیرفعال است.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
             Button(onClick = { showContactSourceDialog = true }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب") }
+            if (selectedCountForPage > capacityForSelectedPage) {
+                Spacer(Modifier.height(8.dp))
+                Text("توجه: این صفحه ${selectedCountForPage.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${capacityForSelectedPage.toPersianDigits()} مورد است. تعداد ردیف‌ها یا کارت‌های هر ردیف را در بخش مدیریت صفحه‌ها افزایش دهید.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
+                Spacer(Modifier.height(8.dp))
+            }
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
