@@ -770,7 +770,7 @@ private fun SahlBitApp(
         )
         "audio" -> AudioSettingsPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "updates" -> UpdateSettingsPage(onBack = { navigateBack("dashboard") })
-        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
+        "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, resumeRevision = resumeRevision, callPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
                 android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show()
             } else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
@@ -779,7 +779,7 @@ private fun SahlBitApp(
                 callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
             }
         }, onBack = { navigateBack("dashboard") })
-        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { navigateBack("dashboard") })
+        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, resumeRevision = resumeRevision, onBack = { navigateBack("dashboard") })
         "customcontacts" -> CustomContactsPage(contacts = customContacts, onSave = { customContacts = it; CustomContactsStore.save(prefs, it) }, onBack = { navigateBack("dashboard") })
         "dialer" -> DialerPage(onBack = { navigateBack("dashboard") }, initialNumber = dialerNumber, onCall = { number ->
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
@@ -1535,7 +1535,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
 }
 
 @Composable
-private fun CallCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, callPermissionGranted: Boolean, onRequestCallPermission: () -> Unit, onBack: () -> Unit) {
+private fun CallCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, resumeRevision: Int, callPermissionGranted: Boolean, onRequestCallPermission: () -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     var profile by remember { mutableStateOf("incoming") }
     var previewName by remember { mutableStateOf("مخاطب نمونه") }
@@ -1653,7 +1653,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         val previewLuminance = (android.graphics.Color.red(previewBgInt) * 0.299f + android.graphics.Color.green(previewBgInt) * 0.587f + android.graphics.Color.blue(previewBgInt) * 0.114f) / 255f
         val previewForeground = if (previewLuminance > 0.62f) Ink else Color.White
         val previewAvatarSize = minOf(avatarSize, (LocalConfiguration.current.screenWidthDp - 56).coerceAtLeast(140))
-        val previewBitmap = remember(previewPhotoUri) {
+        val previewBitmap = remember(previewPhotoUri, resumeRevision) {
             previewPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() }
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = bgColor), shape = RoundedCornerShape(20.dp)) {
@@ -1693,7 +1693,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
 }
 
 @Composable
-private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, onBack: () -> Unit) {
+private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, resumeRevision: Int, onBack: () -> Unit) {
     val context = LocalContext.current
     val palette = listOf("#168A45", "#B3261E", "#1976D2", "#455A64", "#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#FFFFFF", "#BE232D")
     fun intValue(key: String, fallback: Int) = prefs.getInt("confirm_call_$key", fallback)
@@ -1766,7 +1766,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         CompactSlider(buttonSpacing.toFloat(), { buttonSpacing = it.toInt().coerceIn(8, 100); saveInt("button_spacing", buttonSpacing) }, 8f..100f)
         Divider()
         Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-        val previewImage = remember(previewPhotoUri) { previewPhotoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+        val previewImage = remember(previewPhotoUri, resumeRevision) { previewPhotoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (previewImage != null) Image(previewImage, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
