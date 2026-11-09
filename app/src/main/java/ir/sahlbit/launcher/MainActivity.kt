@@ -1814,9 +1814,9 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
-                "dialer" -> Icons.Default.Dialpad
-                "customcontacts" -> Icons.Default.Contacts
-                "recentcustom" -> Icons.Default.History
+                "dialer" -> Icons.Default.Phone
+                "customcontacts" -> Icons.Default.Person
+                "recentcustom" -> Icons.Default.DateRange
                 "callconfirm" -> Icons.Default.CheckCircle
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.Build
