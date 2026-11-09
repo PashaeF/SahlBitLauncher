@@ -1775,7 +1775,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده، جزئیات و اجرای برنامه‌ها", "apps", onAllApps) }
             item { DashboardCard("تنظیمات اندروید", "دسترسی سریع به بخش‌های مختلف تنظیمات تلفن همراه", "settings", onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
-            item { DashboardCard("حذف برنامه", "پاک‌کردن حافظهٔ پنهان یا حذف سهل‌بیت", "uninstall", onUninstall) }
+            item { DashboardCard("حذف برنامه سهل‌بیت", "پاک کردن حافظهٔ پنهان برنامه یا حذف سهل‌بیت", "uninstall", onUninstall) }
         }
     }
 }
@@ -1820,33 +1820,70 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
 @Composable
 private fun UninstallPage(onBack: () -> Unit) {
     val context = LocalContext.current
-    SettingsPage("حذف برنامه", "اگر دیگر به سهل‌بیت نیاز ندارید، ابتدا برنامهٔ صفحهٔ اصلی (لانچر) پیش‌فرض را به برنامهٔ دیگری تغییر دهید و سپس حذف را تأیید کنید. اندروید پس از حذف، خود برنامه و داده‌های اختصاصی آن را پاک می‌کند؛ سهل‌بیت امکان حذف مستقیم داده‌های برنامهٔ نصب‌شده را از داخل خودش ندارد.", onBack) {
+    var showLauncherRequired by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showFallback by remember { mutableStateOf(false) }
+    fun openAppDetails() {
+        runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }
+            .onFailure { android.widget.Toast.makeText(context, "صفحهٔ اطلاعات برنامه در تنظیمات اندروید باز نشد.", android.widget.Toast.LENGTH_LONG).show() }
+    }
+    SettingsPage("حذف برنامه سهل‌بیت", "اگر دیگر به سهل‌بیت نیاز ندارید، حذف آن از مسیر استاندارد اندروید انجام می‌شود. پس از تأیید نهایی، خود برنامه و داده‌های آن نیز حذف خواهند شد.", onBack) {
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("پاک‌کردن حافظهٔ پنهان", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text("اگر برنامه کند شده یا با خطا روبه‌رو است، فایل‌های موقت و حافظهٔ پنهان را پاک کنید. تنظیمات، پین مدیر و کارت‌های ذخیره‌شده حذف نمی‌شوند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                Text("پاک کردن حافظه پنهان برنامه", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("اگر برنامه کند شده یا با خطا روبه‌رو است، فایل‌های موقت و حافظهٔ پنهان را پاک کنید. تنظیمات، پین مدیر، مخاطبان اختصاصی و کارت‌های ذخیره‌شده حذف نمی‌شوند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
                 OutlinedButton(onClick = {
                     val ok = runCatching { context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }; context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }; true }.getOrDefault(false)
-                    android.widget.Toast.makeText(context, if (ok) "حافظهٔ پنهان پاک شد." else "پاک‌کردن حافظهٔ پنهان کامل نشد.", android.widget.Toast.LENGTH_LONG).show()
-                }, modifier = Modifier.fillMaxWidth()) { Text("پاک‌کردن حافظهٔ پنهان") }
-            }
-        }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text("حذف سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text("۱. ابتدا برنامهٔ صفحهٔ اصلی پیش‌فرض را تغییر دهید. ۲. سپس دکمهٔ حذف را بزنید و پیام تأیید اندروید را کامل کنید. حذف برنامه، داده‌ها و تنظیمات محلی آن را نیز پاک می‌کند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }.onFailure { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب برنامهٔ صفحهٔ اصلی دیگر") }
-                Button(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }.onFailure { android.widget.Toast.makeText(context, "برای حذف، از صفحهٔ اطلاعات برنامه در تنظیمات اندروید اقدام کنید.", android.widget.Toast.LENGTH_LONG).show() } }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("حذف برنامهٔ سهل‌بیت") }
+                    android.widget.Toast.makeText(context, if (ok) "حافظهٔ پنهان برنامه پاک شد." else "پاک‌کردن حافظهٔ پنهان کامل نشد.", android.widget.Toast.LENGTH_LONG).show()
+                }, modifier = Modifier.fillMaxWidth()) { Text("پاک کردن حافظه پنهان برنامه") }
             }
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("ارتباط با توسعه‌دهنده", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر با مشکلی روبه‌رو شدید، لطفاً با شمارهٔ ۰۹۱۴۵۸۸۰۸۱۴ تماس بگیرید یا از طریق پیام‌رسان‌های بله، ایتا، روبیکا، تلگرام و واتساپ پیام دهید. همچنین می‌توانید به ایمیل Pashae@iran.ir پیام بفرستید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:09145880814"))) } }, modifier = Modifier.fillMaxWidth()) { Text("تماس با توسعه‌دهنده") }
+                OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth()) { Text("تماس با توسعه‌دهنده") }
                 OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ارسال ایمیل") }
             }
         }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("حذف برنامه سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("اگر سهل‌بیت هنوز برنامه صفحه اصلی (لانچر) پیش‌فرض است، ابتدا برنامهٔ دیگری را انتخاب کنید. پس از آن، حذف برنامه با تأیید خود اندروید انجام می‌شود.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+                Button(onClick = {
+                    if (isHomeRoleHeld(context)) showLauncherRequired = true else showDeleteConfirm = true
+                }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("حذف برنامه سهل‌بیت") }
+            }
+        }
+        if (showLauncherRequired) AlertDialog(
+            onDismissRequest = { showLauncherRequired = false },
+            title = { Text("ابتدا برنامه صفحه اصلی را تغییر دهید") },
+            text = { Text("سهل‌بیت هنوز برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه شماست. اندروید تا زمانی که برنامهٔ دیگری را به‌عنوان صفحه اصلی انتخاب نکنید، ممکن است اجازهٔ حذف سهل‌بیت را ندهد. با انتخاب برنامهٔ دیگر، اطلاعات سهل‌بیت حذف نمی‌شود و می‌توانید دوباره به همین صفحه برگردید.") },
+            confirmButton = { Button(onClick = {
+                showLauncherRequired = false
+                runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
+                    .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+            }) { Text("انتخاب برنامه صفحه اصلی دیگر") } },
+            dismissButton = { TextButton(onClick = { showLauncherRequired = false }) { Text("انصراف") } }
+        )
+        if (showDeleteConfirm) AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("تأیید حذف برنامه سهل‌بیت") },
+            text = { Text("با ادامه، اندروید صفحهٔ تأیید حذف را نمایش می‌دهد. پس از تأیید آن صفحه، برنامه سهل‌بیت، تنظیمات، پین مدیر، مخاطبان اختصاصی و داده‌های ذخیره‌شدهٔ آن از تلفن همراه حذف می‌شوند. اگر اندروید اجازهٔ حذف مستقیم ندهد، می‌توانید از صفحهٔ اطلاعات برنامه در تنظیمات اقدام کنید.") },
+            confirmButton = { Button(onClick = {
+                showDeleteConfirm = false
+                runCatching { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }
+                    .onFailure { showFallback = true }
+            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("تأیید و حذف") } },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("انصراف") } }
+        )
+        if (showFallback) AlertDialog(
+            onDismissRequest = { showFallback = false },
+            title = { Text("باز کردن اطلاعات برنامه") },
+            text = { Text("باز کردن درخواست حذف مستقیم ممکن نشد. از صفحهٔ اطلاعات برنامه در تنظیمات اندروید، گزینهٔ حذف را انتخاب کنید.") },
+            confirmButton = { Button(onClick = { showFallback = false; openAppDetails() }) { Text("باز کردن اطلاعات برنامه") } },
+            dismissButton = { TextButton(onClick = { showFallback = false }) { Text("بستن") } }
+        )
     }
 }
 
