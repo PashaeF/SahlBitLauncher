@@ -69,4 +69,5 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
+    implementation("com.vanniktech:android-image-cropper:4.6.0")
 }
