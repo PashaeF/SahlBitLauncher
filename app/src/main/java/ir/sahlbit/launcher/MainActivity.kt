@@ -892,7 +892,7 @@ private fun SahlBitApp(
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6, enabled = !showRecentCallsOnPage) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
-                        Text("تراز این ردیف به‌صورت ثابت وسط‌چین است.", color = Color(0xFF64748B), fontSize = 12.sp)
+                        
                     }
                 }
             }
@@ -910,7 +910,7 @@ private fun SahlBitApp(
             }
             Spacer(Modifier.height(10.dp))
             Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
-            Text("این پیش‌نمایش، کارت‌های واقعی همین صفحه را با ترتیب، تعداد و تراز ردیف‌ها نشان می‌دهد. اگر صفحه هنوز موردی نداشته باشد، جایگاه کارت‌ها به‌صورت نمونه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+            Text("این پیش‌نمایش، کارت‌های واقعی همین صفحه را با ترتیب و تعداد کارت‌های هر ردیف نشان می‌دهد. اگر صفحه هنوز موردی نداشته باشد، جایگاه کارت‌ها به‌صورت نمونه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     val previewEntries = entries.filter { it.page == selectedPage }
@@ -1483,14 +1483,14 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
         if (step == 0) {
             Spacer(Modifier.height(24.dp))
             Box(Modifier.size(132.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) }
-            Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("به سهل‌بیت خوش آمدید", color = Forest, fontSize = 28.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold)
         } else {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, null); Spacer(Modifier.width(7.dp)); Text("صفحهٔ قبلی") }
                 Spacer(Modifier.weight(1f))
                 Text("مرحلهٔ ${step.toPersianDigits()} از ۷", color = Teal, fontWeight = FontWeight.Bold)
             }
-            Text(titles[step], color = Forest, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text(titles[step], color = Forest, fontSize = 25.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1511,7 +1511,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
 
 @Composable private fun PinSetupScreen(pin: String, onPin: (String) -> Unit, confirm: String, onConfirm: (String) -> Unit, error: String, onSave: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(top = 40.dp, bottom = 12.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("تنظیم پین مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Text("تنظیم پین مدیر", fontSize = 25.sp, lineHeight = 35.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(6.dp)); Text("لطفاً یک پین عددی با حداقل ۴ رقم انتخاب کنید. این پین را فقط در اختیار مدیر دستگاه قرار دهید.", color = Ink, fontSize = 16.sp)
         Spacer(Modifier.height(10.dp)); PinField("پین جدید", pin, onPin); Spacer(Modifier.height(8.dp)); PinField("تکرار پین", confirm, onConfirm)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 6.dp))
@@ -1521,7 +1521,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
 @Composable private fun PinLoginScreen(pin: String, onPin: (String) -> Unit, error: String, onBack: () -> Unit, onForgot: () -> Unit, onLogin: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
         IconButton(onClick = onBack, modifier = Modifier.size(84.dp)) { Icon(Icons.Default.Close, contentDescription = "بازگشت به صفحه اصلی", tint = Color(0xFFDC2626), modifier = Modifier.size(58.dp)) }
-        Text("ورود مدیر", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest)
+        Text("ورود مدیر", fontSize = 25.sp, lineHeight = 35.sp, fontWeight = FontWeight.Bold, color = Forest)
         Spacer(Modifier.height(14.dp)); PinField("پین مدیر", pin, onPin)
         if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E), modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(12.dp))
@@ -1802,7 +1802,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
 
 @Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onCustomContacts: () -> Unit, onDialer: () -> Unit, onRecentCallsCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
+        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
