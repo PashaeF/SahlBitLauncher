@@ -1115,11 +1115,11 @@ private fun SahlBitApp(
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { navigateBack("security") }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
             Spacer(Modifier.height(24.dp))
-            TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) { Text("پین را فراموش کرده‌ام") }
+            TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; navigateTo("mathrecovery") }) { Text("پین را فراموش کرده‌ام") }
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 val salt = prefs.getString("admin_pin_salt", "") ?: ""
-                if (pinHash != null && constantTimeEquals(hashPin(oldPinInput, salt), pinHash!!)) { oldPinInput = ""; error = ""; route = "pinchange" }
+                if (pinHash != null && constantTimeEquals(hashPin(oldPinInput, salt), pinHash!!)) { oldPinInput = ""; error = ""; navigateTo("pinchange") }
                 else { oldPinInput = ""; error = "پین فعلی نادرست است." }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و ادامه") }
         }
@@ -1129,14 +1129,14 @@ private fun SahlBitApp(
             OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3) }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
-                if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; route = "pinchange" }
+                if (mathAnswer.toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinchange") }
                 else { error = "پاسخ درست نیست. لطفاً دوباره تلاش کنید."; mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathAnswer = "" }
             }, modifier = Modifier.fillMaxWidth()) { Text("تأیید و تعیین پین جدید") }
         }
         "pinchange" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
             if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
-            else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; route = "dashboard"; error = "" }
+            else { val salt = createSalt(); val h = hashPin(newPin, salt); prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", h).apply(); pinHash = h; routeHistory = emptyList(); route = "dashboard"; error = "" }
         }
         "permissions" -> SettingsPage("دسترسی‌ها و نقش‌های برنامه", "هر دسترسی فقط برای یک قابلیت مشخص استفاده می‌شود. اگر فعلاً نمی‌خواهید اجازه‌ای بدهید، می‌توانید از این صفحه خارج شوید و بعداً دوباره اقدام کنید. ندادن بعضی دسترسی‌ها فقط همان قابلیت را محدود می‌کند.", { navigateBack("dashboard") }) {
             val contactsGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
@@ -1159,7 +1159,7 @@ private fun SahlBitApp(
             Text("اگر برای پیدا کردن گزینه‌ای در تنظیمات تلفن همراه به کمک نیاز دارید، از این دکمه وارد تنظیمات اصلی اندروید شوید. این گزینه زیرمجموعهٔ هیچ‌یک از مجوزهای بالا نیست.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
             OutlinedButton(onClick = onAndroidSettings, modifier = Modifier.fillMaxWidth()) { Text("بازکردن تنظیمات اندروید") }
         }
-        "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { route = "uninstall" })
+        "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") })
         "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
