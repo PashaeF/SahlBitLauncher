@@ -1,6 +1,8 @@
 package ir.sahlbit.launcher
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
@@ -44,6 +46,15 @@ private val CustomCream = Color(0xFFFFF8E7)
 private fun Int.toPersianDigits(): String = toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
 }.joinToString("")
+
+fun saveSquarePhoto(context: Context, source: Bitmap): String? = runCatching {
+    val side = minOf(source.width, source.height)
+    val cropped = Bitmap.createBitmap(source, (source.width - side) / 2, (source.height - side) / 2, side, side)
+    val file = File(context.filesDir, "sahlbit_photo_${UUID.randomUUID()}.jpg")
+    file.outputStream().use { output -> cropped.compress(Bitmap.CompressFormat.JPEG, 92, output) }
+    require(file.exists() && file.length() > 0)
+    Uri.fromFile(file).toString()
+}.getOrNull()
 
 data class CustomContactPhone(val id: String = UUID.randomUUID().toString(), val number: String, val photoUri: String? = null)
 data class CustomContact(val id: String = UUID.randomUUID().toString(), val name: String, val phones: List<CustomContactPhone>)
@@ -101,14 +112,20 @@ fun CustomContactsPage(
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val index = photoTarget
         if (uri != null && index in phones.indices) {
-            val file = File(context.filesDir, "custom_contact_${UUID.randomUUID()}.jpg")
-            val copied = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { input -> file.outputStream().use(input::copyTo) } ?: error("تصویر قابل خواندن نیست")
-                require(file.length() > 0)
-                true
-            }.getOrDefault(false)
-            if (copied) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = Uri.fromFile(file).toString()) }
-            else { file.delete(); message = "ذخیرهٔ تصویر ناموفق بود." }
+            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use(BitmapFactory::decodeStream) }.getOrNull()
+            val saved = bitmap?.let { saveSquarePhoto(context, it) }
+            if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
+            else message = "ذخیرهٔ تصویر ناموفق بود."
+        }
+        photoTarget = -1
+    }
+
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        val index = photoTarget
+        if (bitmap != null && index in phones.indices) {
+            val saved = saveSquarePhoto(context, bitmap)
+            if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
+            else message = "ذخیرهٔ عکس دوربین ناموفق بود."
         }
         photoTarget = -1
     }
@@ -144,8 +161,9 @@ fun CustomContactsPage(
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(phone.number, { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "انتخاب تصویر" else "تغییر تصویر") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
+                        OutlinedButton(onClick = { photoTarget = index; camera.launch(null) }, modifier = Modifier.weight(1f)) { Text("دوربین") }
                         if (phones.size > 1) IconButton(onClick = { phones = phones.filterIndexed { i, _ -> i != index } }) { Icon(Icons.Default.Delete, "حذف شماره", tint = Color(0xFFB3261E)) }
                     }
                 }
