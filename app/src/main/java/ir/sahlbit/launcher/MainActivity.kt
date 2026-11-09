@@ -1823,6 +1823,10 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     var showLauncherRequired by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showFallback by remember { mutableStateOf(false) }
+    val uninstallRequest = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        val stillInstalled = runCatching { context.packageManager.getPackageInfo(context.packageName, 0); true }.getOrDefault(false)
+        if (stillInstalled) showFallback = true
+    }
     fun openAppDetails() {
         runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }
             .onFailure { android.widget.Toast.makeText(context, "صفحهٔ اطلاعات برنامه در تنظیمات اندروید باز نشد.", android.widget.Toast.LENGTH_LONG).show() }
@@ -1872,10 +1876,10 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             text = { Text("با ادامه، اندروید صفحهٔ تأیید حذف را نمایش می‌دهد. پس از تأیید آن صفحه، برنامه سهل‌بیت، تنظیمات، پین مدیر، مخاطبان اختصاصی و داده‌های ذخیره‌شدهٔ آن از تلفن همراه حذف می‌شوند. اگر اندروید اجازهٔ حذف مستقیم ندهد، می‌توانید از صفحهٔ اطلاعات برنامه در تنظیمات اقدام کنید.") },
             confirmButton = { Button(onClick = {
                 showDeleteConfirm = false
-                runCatching { context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }
+                runCatching { uninstallRequest.launch(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }
                     .onFailure { showFallback = true }
             }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("تأیید و حذف") } },
-            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("انصراف") } }
+            dismissButton = { Row { TextButton(onClick = { showDeleteConfirm = false; openAppDetails() }) { Text("اطلاعات برنامه") }; TextButton(onClick = { showDeleteConfirm = false }) { Text("انصراف") } } }
         )
         if (showFallback) AlertDialog(
             onDismissRequest = { showFallback = false },
