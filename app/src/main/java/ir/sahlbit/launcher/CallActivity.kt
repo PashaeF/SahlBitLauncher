@@ -27,7 +27,11 @@ import androidx.core.content.res.ResourcesCompat
 
 /** Large, notification-free, full-screen call UI for the managed launcher. */
 private fun String.toPersianDigitsForCallUi(): String = map { ch ->
-    if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
+    when (ch) {
+        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
+        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
 }.joinToString("")
 
 class CallActivity : Activity(), SensorEventListener {
