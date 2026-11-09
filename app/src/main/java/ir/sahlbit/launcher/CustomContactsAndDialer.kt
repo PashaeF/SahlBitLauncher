@@ -247,7 +247,23 @@ fun CustomContactsPage(
                     if (importedPhones.isNotEmpty()) {
                         phones = importedPhones
                         message = "مخاطب و همهٔ شماره‌های ثبت‌شده وارد شدند. تصاویر مخاطبین اندروید به‌صورت زنده خوانده می‌شوند و در حافظهٔ سهل‌بیت کپی نمی‌شوند."
-                    } else message = "برای این مخاطب شمارهٔ تلفنی ثبت نشده است."
+                    } else {
+                        val selectedPhone = context.contentResolver.query(
+                            uri,
+                            arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                            null, null, null
+                        )?.use { selectedCursor ->
+                            if (selectedCursor.moveToFirst()) {
+                                val number = selectedCursor.getString(0).orEmpty().trim()
+                                val photo = selectedCursor.getString(1)
+                                if (number.isNotBlank()) CustomContactPhone(number = number, photoUri = photo, contactUri = uri.toString()) else null
+                            } else null
+                        }
+                        if (selectedPhone != null) {
+                            phones = listOf(selectedPhone)
+                            message = "این مخاطب با یک شماره وارد شد. برای واردکردن همهٔ شماره‌ها، اجازهٔ دسترسی به مخاطبان را فعال کنید."
+                        } else message = "برای این مخاطب شمارهٔ تلفنی ثبت نشده است."
+                    }
                 }
             }
         }.onFailure { message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود." }
@@ -265,9 +281,13 @@ fun CustomContactsPage(
         }
         Text("مخاطب اختصاصی بسازید، چند شماره برای او ثبت کنید و برای هر شماره تصویر جداگانه در نظر بگیرید. اطلاعات این بخش در حافظهٔ داخلی سهل‌بیت نگهداری می‌شود.", color = CustomInk, fontSize = 14.sp, lineHeight = 24.sp)
         OutlinedButton(onClick = {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
                 androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
-            } else contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+            } else {
+                android.widget.Toast.makeText(context, "در Android 5 اجازهٔ مخاطبان هنگام نصب درخواست می‌شود. برای واردکردن همهٔ شماره‌ها، سهل‌بیت باید با این اجازه نصب شده باشد.", android.widget.Toast.LENGTH_LONG).show()
+            }
         }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
         }
