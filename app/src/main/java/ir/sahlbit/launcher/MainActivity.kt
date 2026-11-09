@@ -687,7 +687,7 @@ private fun SahlBitApp(
             }
         }
         "home" -> HomeScreen(
-            battery = battery, charging = charging, background = backgroundChoice,
+            battery = battery, charging = charging, background = backgroundChoice, customContacts = customContacts,
             onAdminEntry = { pinInput = ""; error = ""; routeHistory = emptyList(); navigateTo("login") },
             pageCount = pageCount, pageNames = pageNames,
             entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, rowAlignments = rowAlignments,
@@ -1923,7 +1923,7 @@ private fun UninstallPage(onBack: () -> Unit) {
     }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, customContacts: List<CustomContact>, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     var settingsHintShown by remember { mutableStateOf(false) }
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0; settingsHintShown = false } }
@@ -2024,11 +2024,13 @@ private fun UninstallPage(onBack: () -> Unit) {
                 if (showRecentCallsOnCurrentPage) {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
-                        if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${entries.count { it.kind == "contact" }.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+                        if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
                             val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
-                            val photoBitmap = remember(matchingContact?.photoUri) { matchingContact?.photoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
-                            val callName = call.name.ifBlank { matchingContact?.title ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
+                            val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.filter(Char::isDigit) == call.number.filter(Char::isDigit) }
+                            val recentPhotoUri = matchingContact?.photoUri ?: matchingCustomPhone?.second?.photoUri
+                            val photoBitmap = remember(recentPhotoUri) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                            val callName = call.name.ifBlank { matchingContact?.title ?: matchingCustomPhone?.first?.name ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
                             val (callSymbol, callColor) = when (call.type) {
                                 android.provider.CallLog.Calls.MISSED_TYPE, android.provider.CallLog.Calls.REJECTED_TYPE -> "×" to Color(0xFFB3261E)
                                 android.provider.CallLog.Calls.INCOMING_TYPE -> "↙" to Color(0xFF168A45)
