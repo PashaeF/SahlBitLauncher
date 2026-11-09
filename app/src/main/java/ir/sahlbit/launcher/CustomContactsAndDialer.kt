@@ -40,6 +40,10 @@ private val CustomInk = Color(0xFF172033)
 private val CustomBlue = Color(0xFF2563EB)
 private val CustomCream = Color(0xFFFFF8E7)
 
+private fun Int.toPersianDigits(): String = toString().map { ch ->
+    if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
+}.joinToString("")
+
 data class CustomContactPhone(val id: String = UUID.randomUUID().toString(), val number: String, val photoUri: String? = null)
 data class CustomContact(val id: String = UUID.randomUUID().toString(), val name: String, val phones: List<CustomContactPhone>)
 
@@ -130,7 +134,7 @@ fun CustomContactsPage(
         }
         Text("مخاطب اختصاصی بسازید، چند شماره برای او ثبت کنید و برای هر شماره تصویر جداگانه در نظر بگیرید. اطلاعات این بخش در حافظهٔ داخلی سهل‌بیت نگهداری می‌شود.", color = CustomInk, fontSize = 14.sp, lineHeight = 24.sp)
         OutlinedButton(onClick = { androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Default.PersonAdd, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
+            Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
         }
         Text(if (editingId == null) "مخاطب جدید" else "ویرایش مخاطب", color = CustomInk, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
