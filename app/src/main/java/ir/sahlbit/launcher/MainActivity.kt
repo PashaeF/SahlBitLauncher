@@ -582,10 +582,7 @@ private fun SahlBitApp(
                     context.contentResolver.query(Uri.parse(entry.contactUri), arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c ->
                         if (c.moveToFirst()) {
                             val currentSourceUri = c.getString(2)
-                            val photoChanged = entry.photoSource == "contact" && currentSourceUri != entry.photoSourceUri
-                            val freshPhoto = if (entry.photoSource == "gallery" || !photoChanged) entry.photoUri else currentSourceUri?.let { src ->
-                                copyContactPhoto(context, src)
-                            }
+                            val freshPhoto = if (entry.photoSource == "contact") null else entry.photoUri
                             entry.copy(title = if (entry.manualEdit) entry.title else (c.getString(0) ?: entry.title), phoneNumber = if (entry.manualEdit) entry.phoneNumber else (c.getString(1) ?: entry.phoneNumber), photoUri = freshPhoto, photoSourceUri = if (entry.photoSource == "contact") currentSourceUri else null)
                         } else entry
                     } ?: entry
@@ -1693,7 +1690,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
             DropdownMenu(expanded = previewContactMenu, onDismissRequest = { previewContactMenu = false }) {
                 contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
                     DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
-                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty(); previewPhotoUri = contact.photoUri; previewContactMenu = false }) }
+                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty(); previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri; previewContactMenu = false }) }
                 }
             }
         }
@@ -2126,7 +2123,8 @@ private fun UninstallPage(onBack: () -> Unit) {
         }
         if (pendingCall != null) {
             AlertDialog(onDismissRequest = onCancelCall, title = {
-                val avatar = remember(pendingCall.photoUri) { pendingCall.photoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
+                val pendingPhotoUri = if (pendingCall.photoSource == "contact") pendingCall.photoSourceUri else pendingCall.photoUri
+                val avatar = remember(pendingPhotoUri) { pendingPhotoUri?.let { runCatching { context.contentResolver.openInputStream(Uri.parse(it))?.use { stream -> BitmapFactory.decodeStream(stream)?.asImageBitmap() } }.getOrNull() } }
                 if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(confirmAvatarSize.dp).clip(RoundedCornerShape(confirmAvatarRadius.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(confirmAvatarSize.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber ?: ""}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink) }, confirmButton = {
