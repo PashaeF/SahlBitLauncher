@@ -108,7 +108,13 @@ private fun Int.toPersianDigits(): String = toString().map { ch ->
 private fun String.toEnglishDigits(): String = map { ch ->
     when (ch) { in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar(); in '٠'..'٩' -> ('0'.code + ch.code - '٠'.code).toChar(); else -> ch }
 }.joinToString("")
-private fun String.toPersianDigitsText(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch }.joinToString("")
+private fun String.toPersianDigitsText(): String = map { ch ->
+    when (ch) {
+        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
+        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
+}.joinToString("")
 
 private val Forest = Color(0xFF2563EB)
 private val Cream = Color(0xFFFFF8E7)
