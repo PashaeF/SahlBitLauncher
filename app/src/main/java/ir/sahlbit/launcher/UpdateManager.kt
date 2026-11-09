@@ -33,8 +33,8 @@ class InstallPermissionRequired : Exception("برای نصب نسخهٔ دانل
 
 object SahlBitUpdateManager {
     const val WEBSITE_MANIFEST_URL = "https://pashaef.ir/sahlbit/update.json"
-    private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/main/update.json"
-    private const val GITHUB_API_MANIFEST_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/contents/update.json?ref=main"
+    private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/development/update.json"
+    private const val GITHUB_API_MANIFEST_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/contents/update.json?ref=development"
     private const val MAX_APK_SIZE = 120L * 1024L * 1024L
 
     suspend fun checkWebsite(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
@@ -69,8 +69,8 @@ object SahlBitUpdateManager {
 
     private fun httpGet(address: String): String {
         val connection = (URL(address).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 15000
-            readTimeout = 25000
+            connectTimeout = 8000
+            readTimeout = 12000
             requestMethod = "GET"
             setRequestProperty("User-Agent", "SahlBit-Android-Updater")
             setRequestProperty("Accept", "application/json")
