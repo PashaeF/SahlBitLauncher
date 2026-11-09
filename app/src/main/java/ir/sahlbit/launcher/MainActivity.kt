@@ -1129,24 +1129,20 @@ private fun SahlBitApp(
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { route = "uninstall" })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") })
-        "about" -> SettingsPage("درباره سهل‌بیت", "معرفی برنامه، نسخه و راه‌های ارتباط با توسعه‌دهنده.", { navigateBack("dashboard") }) {
+        "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(124.dp).clip(RoundedCornerShape(28.dp)).background(Color.White), contentAlignment = Alignment.Center) { Box(Modifier.size(104.dp).clip(CircleShape).background(Color(0xFF2563EB)), contentAlignment = Alignment.Center) { Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(88.dp)) } }
-                    Text("سهل‌بیت", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                    Text("سادگی در دسترسی؛ آرامش در استفاده", color = Color(0xFFE4F2E9), fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(112.dp))
+                    Text("سهل‌بیت", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                     Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) { Text("نسخهٔ " + BuildConfig.VERSION_NAME, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) }
                 }
             }
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
-                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("دربارهٔ برنامه", color = Forest, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("سهل‌بیت محیطی ساده و قابل‌اعتماد برای دسترسی آسان به مخاطبان و برنامه‌های ضروری است؛ با هدف کمک به سالمندان، کودکان و افرادی که به رابطی خلوت‌تر و خواناتر نیاز دارند.", color = Ink, fontSize = 15.sp, lineHeight = 26.sp)
-                    Divider()
-                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 15.sp)
-                    Text("وب‌سایت: pashaef.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                     Text("ایمیل: Pashae@iran.ir", color = Teal, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 14.sp)
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaef.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ایمیل: Pashae@iran.ir", color = Ink) }
+                    OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth()) { Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink) }
                 }
             }
         }
