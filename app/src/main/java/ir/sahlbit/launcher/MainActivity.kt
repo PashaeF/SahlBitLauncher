@@ -885,6 +885,19 @@ private fun SahlBitApp(
                     }
                 }
             }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = { navigateTo("contacts") },
+                enabled = !showRecentCallsOnPage,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
+            ) {
+                Text(
+                    "برای تنظیم مخاطب یا برنامهٔ دلخواه در صفحهٔ اصلی، لطفاً به صفحهٔ «مخاطبان و برنامه‌های صفحهٔ اصلی» مراجعه فرمایید.",
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 23.sp
+                )
+            }
+            Spacer(Modifier.height(10.dp))
             Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
             Text("این پیش‌نمایش، کارت‌های واقعی همین صفحه را با ترتیب، تعداد و تراز ردیف‌ها نشان می‌دهد. اگر صفحه هنوز موردی نداشته باشد، جایگاه کارت‌ها به‌صورت نمونه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
             Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), modifier = Modifier.fillMaxWidth()) {
@@ -1123,11 +1136,7 @@ private fun SahlBitApp(
                 }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
-            Text("برای اعمال زمان خاموشی، اجازهٔ تغییر تنظیمات سیستمی را در صفحهٔ اندروید فعال کنید.", color = Ink, fontSize = 13.sp)
-            OutlinedButton(onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-                else android.widget.Toast.makeText(context, "اجازهٔ تغییر تنظیمات سیستمی قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
-            }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای تنظیم زمان خاموشی") }
+            Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
         }
         "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { navigateBack("dashboard") }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinverify") }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
@@ -1178,7 +1187,7 @@ private fun SahlBitApp(
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") }, onCallDeveloper = { dialerNumber = "09145880814"; navigateTo("dialer") })
-        "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }) {
+        "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }, scrollable = false) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(112.dp))
@@ -1437,12 +1446,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_ALARM, "انتخاب زنگ هشدار") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ هشدار") }
-        Text("برای ذخیرهٔ زنگ انتخاب‌شده، اندروید اجازهٔ تغییر تنظیمات سیستمی را درخواست می‌کند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
-        OutlinedButton(onClick = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context))
-                runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) }
-            else android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستم قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show()
-        }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای مدیریت انتخاب زنگ") }
+        Text("برای ذخیرهٔ زنگ انتخاب‌شده، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
     }
 }
 
@@ -1952,15 +1956,34 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 else -> Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
             }
             Spacer(Modifier.width(16.dp))
-            Column { Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp); Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp)
+                Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp, lineHeight = 20.sp, maxLines = 3)
+            }
             Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal)
         }
     }
 }
-@Composable private fun SettingsPage(title: String, description: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().background(Cream).imePadding().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-        Spacer(Modifier.height(12.dp)); Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp); Spacer(Modifier.height(18.dp)); content()
+@Composable private fun SettingsPage(
+    title: String,
+    description: String,
+    onBack: () -> Unit,
+    scrollable: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val baseModifier = Modifier.fillMaxSize().background(Cream).imePadding().padding(20.dp)
+    val pageModifier = if (scrollable) baseModifier.verticalScroll(rememberScrollState()) else baseModifier
+    Column(pageModifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }
+            Text(title, color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
+        }
+        if (description.isNotBlank()) {
+            Spacer(Modifier.height(12.dp))
+            Text(description, color = Ink, fontSize = if (title == "درباره سهل‌بیت") 19.sp else 16.sp, lineHeight = if (title == "درباره سهل‌بیت") 30.sp else 24.sp)
+            Spacer(Modifier.height(18.dp))
+        }
+        content()
     }
 }
 @Composable private fun PageDropdown(label: String, selectedPage: Int, pageNames: List<String>, onChange: (Int) -> Unit) {
