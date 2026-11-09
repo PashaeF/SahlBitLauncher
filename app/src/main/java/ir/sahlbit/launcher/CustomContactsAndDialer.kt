@@ -310,11 +310,30 @@ fun CustomContactsPage(
 fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var expanded by remember { mutableStateOf(false) }
-    fun persist(uri: Uri?) {
-        onPhotoSelected(uri?.let { saveSquarePhotoFromUri(context, it) })
+    fun cropOptions() = CropImageOptions().apply {
+        fixAspectRatio = true
+        aspectRatioX = 1
+        aspectRatioY = 1
+        guidelines = CropImageView.Guidelines.ON
+        cropShape = CropImageView.CropShape.RECTANGLE
     }
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) persist(uri) }
-    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap -> onPhotoSelected(bitmap?.let { saveSquarePhoto(context, it) }) }
+    val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
+        if (result.isSuccessful && result.uriContent != null) {
+            onPhotoSelected(saveSquarePhotoFromUri(context, result.uriContent!!))
+        } else if (result.error != null) {
+            android.widget.Toast.makeText(context, "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+    fun launchCrop(uri: Uri) { cropLauncher.launch(CropImageContractOptions(uri, cropOptions())) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) launchCrop(uri) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        val uri = bitmap?.let { image -> runCatching {
+            val file = File(context.cacheDir, "sahlbit_preview_camera_${UUID.randomUUID()}.jpg")
+            file.outputStream().use { image.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+            Uri.fromFile(file)
+        }.getOrNull() }
+        if (uri != null) launchCrop(uri)
+    }
     val contactPhoto = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
@@ -323,7 +342,7 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
                     if (cursor.moveToFirst()) cursor.getString(0) else null
                 }
             }.getOrNull()
-            if (!source.isNullOrBlank()) persist(Uri.parse(source))
+            if (!source.isNullOrBlank()) onPhotoSelected(source)
             else android.widget.Toast.makeText(context, "برای این مخاطب تصویری ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
         }
     }
