@@ -1773,7 +1773,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
             item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده، جزئیات و اجرای برنامه‌ها", "apps", onAllApps) }
-            item { DashboardCard("تنظیمات اندروید", "دسترسی سریع به بخش‌های مختلف تنظیمات تلفن همراه", "settings", onAndroidSettings) }
+            item { DashboardCard("گزینه‌های تنظیمات اندروید", "دسترسی به بخش‌های مختلف تنظیمات تلفن همراه", "settings", onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
             item { DashboardCard("حذف برنامه سهل‌بیت", "پاک کردن حافظهٔ پنهان برنامه یا حذف سهل‌بیت", "uninstall", onUninstall) }
         }
@@ -1786,9 +1786,13 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         val intent = Intent(action).apply { if (data != null) this.data = data; addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
     }
-    SettingsPage("تنظیمات اندروید", "در این صفحه ۱۰ میان‌بر پنل سریع سهل‌بیت و کاربرد آن‌ها معرفی شده‌اند. هر دکمه یکی از بخش‌های رایج تنظیمات تلفن همراه را باز می‌کند؛ نام و محل دقیق گزینه‌ها ممکن است در سامسونگ، شیائومی و سایر سازندگان متفاوت باشد.", onBack) {
-        Text("دکمه‌های پنل سریع سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("۱۰ دکمهٔ سهل‌بیت در پنل سریع اندروید فقط برای بازگشت سریع به صفحهٔ اصلی برنامه هستند و تنظیمات تلفن همراه را تغییر نمی‌دهند. برای افزودن هر دکمه، پنل سریع را ویرایش کنید و کاشی «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+    SettingsPage("گزینه‌های تنظیمات اندروید", "میان‌برهای کاربردی برای دسترسی به بخش‌های مختلف تنظیمات تلفن همراه. نام و محل دقیق گزینه‌ها ممکن است در دستگاه‌های مختلف متفاوت باشد.", onBack) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("دکمه‌های سهل‌بیت در پنل سریع اندروید", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("این ۱۰ دکمه برای بازگشت سریع به صفحهٔ اصلی سهل‌بیت طراحی شده‌اند. اگر هنگام باز کردن یا ویرایش پنل سریع، دست شما به یکی از این دکمه‌ها برخورد کند، برنامهٔ سهل‌بیت باز می‌شود و به صفحهٔ اصلی آن برمی‌گردید؛ این دکمه‌ها هیچ تنظیمی را تغییر نمی‌دهند و اقدامی مانند تماس یا ارسال اطلاعات انجام نمی‌دهند. برای افزودن آن‌ها، پنل سریع اندروید را ویرایش کنید و کاشی‌های «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را به پنل اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+            }
+        }
         @Composable fun actionCard(title: String, description: String, label: String, action: String, data: Uri? = null) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -1805,7 +1809,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         actionCard("برنامه‌ها", "مدیریت برنامه‌های نصب‌شده و مجوزهای آن‌ها.", "بازکردن تنظیمات برنامه‌ها", Settings.ACTION_APPLICATION_SETTINGS)
         actionCard("مدیریت عمومی دستگاه", "ورود به بخش‌های عمومی تنظیمات؛ عنوان دقیق این بخش در دستگاه‌ها متفاوت است.", "بازکردن تنظیمات عمومی", Settings.ACTION_SETTINGS)
         actionCard("تاریخ و ساعت", "تنظیم منطقهٔ زمانی، تاریخ، ساعت و قالب نمایش.", "بازکردن تنظیمات تاریخ و ساعت", Settings.ACTION_DATE_SETTINGS)
-        actionCard("به‌روزرسانی نرم‌افزار", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی سیستم", "android.settings.SYSTEM_UPDATE_SETTINGS")
+        actionCard("به‌روزرسانی اندروید", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی اندروید", "android.settings.SYSTEM_UPDATE_SETTINGS")
         actionCard("دربارهٔ تلفن", "نمایش مدل دستگاه، شمارهٔ ساخت و اطلاعات سیستم‌عامل.", "بازکردن دربارهٔ تلفن", Settings.ACTION_DEVICE_INFO_SETTINGS)
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
