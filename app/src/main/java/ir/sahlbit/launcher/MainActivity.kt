@@ -999,10 +999,10 @@ private fun SahlBitApp(
                 }
             }
             var appSearch by remember { mutableStateOf("") }
-            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
-            Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
+            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth().alpha(if (recentCallsMode) .45f else 1f), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
+            Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = if (recentCallsMode) Color.LightGray else Ink, fontWeight = FontWeight.Bold)
             val visibleApps = installedApps.filter { it.loadLabel(pm).toString().contains(appSearch, ignoreCase = true) }
-            LazyColumn(Modifier.heightIn(max = 260.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            LazyColumn(Modifier.heightIn(max = 260.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 items(visibleApps, key = { it.activityInfo.packageName }) { resolve ->
                     val pkg = resolve.activityInfo.packageName
                     val label = resolve.loadLabel(pm).toString()
@@ -1022,8 +1022,8 @@ private fun SahlBitApp(
                 }
             }
             val pageEntries = entries.filter { it.page == selectedPage }
-            Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = Ink, fontWeight = FontWeight.Bold)
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = if (recentCallsMode) Color.LightGray else Ink, fontWeight = FontWeight.Bold)
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pageEntries, key = { it.id }) { entry ->
                     val position = pageEntries.indexOfFirst { it.id == entry.id }
                     val globalPosition = entries.indexOfFirst { it.id == entry.id }
