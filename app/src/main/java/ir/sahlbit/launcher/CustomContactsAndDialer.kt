@@ -10,6 +10,13 @@ import android.net.Uri
 import android.provider.ContactsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.ComponentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import com.canhub.cropper.CropImageContract
+import com.canhub.cropper.CropImageContractOptions
+import com.canhub.cropper.CropImageOptions
+import com.canhub.cropper.CropImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -86,7 +93,12 @@ fun saveSquarePhoto(context: Context, source: Bitmap): String? = runCatching {
     Uri.fromFile(file).toString()
 }.getOrNull()
 
-data class CustomContactPhone(val id: String = UUID.randomUUID().toString(), val number: String, val photoUri: String? = null)
+data class CustomContactPhone(
+    val id: String = UUID.randomUUID().toString(),
+    val number: String,
+    val photoUri: String? = null,
+    val contactUri: String? = null
+)
 data class CustomContact(val id: String = UUID.randomUUID().toString(), val name: String, val phones: List<CustomContactPhone>)
 
 object CustomContactsStore {
@@ -103,7 +115,12 @@ object CustomContactsStore {
                     phones = buildList {
                         for (j in 0 until phones.length()) {
                             val phone = phones.getJSONObject(j)
-                            add(CustomContactPhone(phone.optString("id", UUID.randomUUID().toString()), phone.optString("number"), phone.optString("photo").takeIf(String::isNotBlank)))
+                            add(CustomContactPhone(
+                                id = phone.optString("id", UUID.randomUUID().toString()),
+                                number = phone.optString("number"),
+                                photoUri = phone.optString("photo").takeIf(String::isNotBlank),
+                                contactUri = phone.optString("contactUri").takeIf(String::isNotBlank)
+                            ))
                         }
                     }
                 ))
@@ -117,7 +134,7 @@ object CustomContactsStore {
                 put("id", contact.id); put("name", contact.name)
                 put("phones", JSONArray().apply {
                     contact.phones.forEach { phone -> put(JSONObject().apply {
-                        put("id", phone.id); put("number", phone.number); put("photo", phone.photoUri ?: "")
+                        put("id", phone.id); put("number", phone.number); put("photo", phone.photoUri ?: ""); put("contactUri", phone.contactUri ?: "")
                     }) }
                 })
             })
@@ -138,38 +155,87 @@ fun CustomContactsPage(
     var editingId by remember { mutableStateOf<String?>(null) }
     var photoTarget by remember { mutableIntStateOf(-1) }
     var message by remember { mutableStateOf("") }
+    var photoRefreshRevision by remember { mutableIntStateOf(0) }
+    val hostActivity = context as? ComponentActivity
+    DisposableEffect(hostActivity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) photoRefreshRevision++
+        }
+        hostActivity?.lifecycle?.addObserver(observer)
+        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
+    }
 
-    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    fun cropOptions() = CropImageOptions().apply {
+        fixAspectRatio = true
+        aspectRatioX = 1
+        aspectRatioY = 1
+        guidelines = CropImageView.Guidelines.ON
+        cropShape = CropImageView.CropShape.RECTANGLE
+    }
+    val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
         val index = photoTarget
-        if (uri != null && index in phones.indices) {
-            val saved = saveSquarePhotoFromUri(context, uri)
-            if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
-            else message = "ذخیرهٔ تصویر ناموفق بود."
+        if (result.isSuccessful && index in phones.indices) {
+            val saved = result.uriContent?.let { saveSquarePhotoFromUri(context, it) }
+            if (saved != null) phones = phones.toMutableList().also {
+                it[index] = it[index].copy(photoUri = saved, contactUri = null)
+            } else message = "ذخیرهٔ تصویر برش‌خورده ناموفق بود."
+        } else if (result.error != null) {
+            message = "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."
         }
         photoTarget = -1
     }
-
+    fun launchCrop(uri: Uri) { cropLauncher.launch(CropImageContractOptions(uri, cropOptions())) }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && photoTarget in phones.indices) launchCrop(uri) else photoTarget = -1
+    }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        val index = photoTarget
-        if (bitmap != null && index in phones.indices) {
-            val saved = saveSquarePhoto(context, bitmap)
-            if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
-            else message = "ذخیرهٔ عکس دوربین ناموفق بود."
+        val uri = bitmap?.let { image ->
+            runCatching {
+                val file = File(context.cacheDir, "sahlbit_camera_crop_${UUID.randomUUID()}.jpg")
+                file.outputStream().use { image.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+                Uri.fromFile(file)
+            }.getOrNull()
         }
-        photoTarget = -1
+        if (uri != null && photoTarget in phones.indices) launchCrop(uri)
+        else {
+            photoTarget = -1
+            if (bitmap == null) message = "گرفتن عکس با دوربین انجام نشد."
+        }
     }
 
     val androidContactPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
         runCatching {
-            context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
+            context.contentResolver.query(
+                uri,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.CONTACT_ID),
+                null, null, null
+            )?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     name = cursor.getString(0).orEmpty()
-                    val number = cursor.getString(1).orEmpty()
-                    val photoSource = cursor.getString(2)
-                    val savedPhoto = if (!photoSource.isNullOrBlank()) saveSquarePhotoFromUri(context, Uri.parse(photoSource)) else null
-                    phones = listOf(CustomContactPhone(number = number, photoUri = savedPhoto))
-                    if (savedPhoto != null) message = "مخاطب و تصویر آن وارد شدند؛ برای هر شماره می‌توانید تصویر جداگانه انتخاب کنید."
+                    val contactId = cursor.getLong(1)
+                    val importedPhones = context.contentResolver.query(
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                        arrayOf(contactId.toString()), null
+                    )?.use { phoneCursor ->
+                        buildList {
+                            while (phoneCursor.moveToNext()) {
+                                val rowId = phoneCursor.getLong(0)
+                                val number = phoneCursor.getString(1).orEmpty().trim()
+                                val photo = phoneCursor.getString(2)
+                                if (number.isNotBlank()) {
+                                    val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString()
+                                    add(CustomContactPhone(number = number, photoUri = photo, contactUri = phoneUri))
+                                }
+                            }
+                        }.distinctBy { it.number.filter(Char::isDigit) }
+                    }.orEmpty()
+                    if (importedPhones.isNotEmpty()) {
+                        phones = importedPhones
+                        message = "مخاطب و همهٔ شماره‌های ثبت‌شده وارد شدند. تصاویر مخاطبین اندروید به‌صورت زنده خوانده می‌شوند و در حافظهٔ سهل‌بیت کپی نمی‌شوند."
+                    } else message = "برای این مخاطب شمارهٔ تلفنی ثبت نشده است."
                 }
             }
         }.onFailure { message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود." }
@@ -190,7 +256,7 @@ fun CustomContactsPage(
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
-                    val phoneBitmap = remember(phone.photoUri) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                    val phoneBitmap = remember(phone.photoUri, photoRefreshRevision) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                     if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
                     OutlinedTextField(phone.number, { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -224,7 +290,7 @@ fun CustomContactsPage(
                     Text(contact.name, color = CustomInk, fontWeight = FontWeight.Bold)
                     contact.phones.forEach { phone ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val phoneBitmap = remember(phone.photoUri) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
+                            val phoneBitmap = remember(phone.photoUri, photoRefreshRevision) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
                             if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
                             Text(phone.number, color = Color(0xFF64748B), fontSize = 13.sp)
                         }
