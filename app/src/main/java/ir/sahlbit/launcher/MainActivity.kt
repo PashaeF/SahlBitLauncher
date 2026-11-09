@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import ir.sahlbit.launcher.ui.AnalogClock
 import java.security.MessageDigest
@@ -325,6 +326,9 @@ private fun SahlBitApp(
     var wizardPinSetup by remember { mutableStateOf(pinHash == null && (completedWizardVersion >= 2 || initialized)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
     var route by remember { mutableStateOf(if (pinHash != null) { if (crashRecovery) "recovery" else "home" } else "wizard") }
+    var routeHistory by remember { mutableStateOf(emptyList<String>()) }
+    fun navigateTo(destination: String) { if (route != destination) { routeHistory = routeHistory + route; route = destination } }
+    fun navigateBack(fallback: String = "dashboard") { val previous = routeHistory.lastOrNull(); if (previous != null) { routeHistory = routeHistory.dropLast(1); route = previous } else route = fallback }
     val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
     var newPin by remember { mutableStateOf("") }
@@ -550,18 +554,17 @@ private fun SahlBitApp(
 
     LaunchedEffect(immersive) { onImmersiveChange(immersive) }
     BackHandler(enabled = route != "home" && route != "welcome" && route != "wizard") {
-        route = when (route) {
-            "dashboard" -> { adminAuthenticated = false; "home" }
-            "pinchange", "pinverify" -> "security"
-            "mathrecovery" -> "login"
-            "login" -> "home"
-            "setpin" -> if (pinHash != null) "home" else "setpin"
-            "callcustom" -> "dashboard"
-            else -> "dashboard"
+        when (route) {
+            "dashboard" -> { adminAuthenticated = false; routeHistory = emptyList(); route = "home" }
+            "login" -> { routeHistory = emptyList(); route = "home" }
+            "mathrecovery" -> navigateBack("login")
+            "recovery" -> { routeHistory = emptyList(); route = "home" }
+            "setpin" -> { if (pinHash != null) { route = "login"; adminAuthenticated = false } }
+            else -> navigateBack("dashboard")
         }
     }
 
-    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall")
+    val protectedRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls")
     LaunchedEffect(route, adminAuthenticated) {
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
@@ -635,7 +638,7 @@ private fun SahlBitApp(
         }
         "home" -> HomeScreen(
             battery = battery, charging = charging, background = backgroundChoice,
-            onAdminEntry = { pinInput = ""; error = ""; route = "login" },
+            onAdminEntry = { pinInput = ""; error = ""; routeHistory = emptyList(); navigateTo("login") },
             pageCount = pageCount, pageNames = pageNames,
             entries = entries, gridColumns = gridColumns, gridRows = gridRows, gridAlignment = gridAlignment, rowCardCounts = rowCardCounts, rowAlignments = rowAlignments,
             onEntryClick = { entry -> if (entry.kind == "contact") pendingCall = entry else entry.packageName?.let { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { launchIntent -> context.startActivity(launchIntent) } } } },
@@ -659,7 +662,7 @@ private fun SahlBitApp(
         )
         "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error,
             onBack = { pinInput = ""; error = ""; route = "home" },
-            onForgot = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) {
+            onForgot = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; navigateTo("mathrecovery") }) {
             val now = System.currentTimeMillis()
             if (now < lockUntil) {
                 error = "ورود موقتاً قفل است؛ کمی بعد دوباره تلاش کنید."; pinInput = ""
@@ -677,16 +680,16 @@ private fun SahlBitApp(
         }
         "dashboard" -> DashboardScreen(
             listState = dashboardListState,
-            onExit = { adminAuthenticated = false; route = "home" },
-            onPages = { route = "pages" }, onContacts = { route = "contacts" }, onAllApps = { route = "allapps" },
-            onAppearance = { route = "appearance" }, onClock = { route = "clock" }, onSecurity = { route = "security" },
-            onPermissions = { route = "permissions" }, onAbout = { route = "about" }, onAudio = { route = "audio" },
-            onCallCustomization = { route = "callcustom" },
-            onCallConfirmation = { route = "callconfirm" },
-            onUpdates = { route = "updates" },
-            onSelectLauncher = onSelectLauncher, onAndroidSettings = { route = "androidsettings" }, onUninstall = { route = "uninstall" }
+            onExit = { adminAuthenticated = false; routeHistory = emptyList(); route = "home" },
+            onPages = { navigateTo("pages") }, onContacts = { navigateTo("contacts") }, onAllApps = { navigateTo("allapps") },
+            onAppearance = { navigateTo("appearance") }, onClock = { navigateTo("clock") }, onSecurity = { navigateTo("security") },
+            onPermissions = { navigateTo("permissions") }, onAbout = { navigateTo("about") }, onAudio = { navigateTo("audio") },
+            onCallCustomization = { navigateTo("callcustom") },
+            onCallConfirmation = { navigateTo("callconfirm") },
+            onUpdates = { navigateTo("updates") },
+            onSelectLauncher = onSelectLauncher, onAndroidSettings = { navigateTo("androidsettings") }, onUninstall = { navigateTo("uninstall") }
         )
-        "audio" -> AudioSettingsPage(prefs = prefs, onBack = { route = "dashboard" })
+        "audio" -> AudioSettingsPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "updates" -> UpdateSettingsPage(onBack = { route = "dashboard" })
         "callcustom" -> CallCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, callPermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, onRequestCallPermission = {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
@@ -954,8 +957,8 @@ private fun SahlBitApp(
             }
         }
         "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { route = "dashboard" }) {
-            DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { route = "clock" }
-            DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { route = "callconfirm" }
+            DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { navigateTo("clock") }
+            DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { navigateTo("callconfirm") }
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
             PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
             var homeContactRadius by remember { mutableIntStateOf(prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)) }
@@ -1042,9 +1045,9 @@ private fun SahlBitApp(
             }, modifier = Modifier.fillMaxWidth()) { Text("اعطای اجازهٔ تغییر تنظیمات سیستم برای تنظیم زمان خاموشی") }
         }
         "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { route = "dashboard" }) {
-            Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; route = "pinverify" }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
+            Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinverify") }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
         }
-        "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { route = "security" }) {
+        "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { navigateBack("security") }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
             Spacer(Modifier.height(24.dp))
             TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; route = "mathrecovery" }) { Text("پین را فراموش کرده‌ام") }
