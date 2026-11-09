@@ -1564,6 +1564,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                 }
             }
         } else Text("هنوز مخاطبی در صفحهٔ اصلی ذخیره نشده است؛ نام و شمارهٔ نمونه را می‌توانید دستی وارد کنید.", color = Color(0xFF64748B), fontSize = 12.sp)
+        PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
         OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
         OutlinedTextField(previewNumber, { previewNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
         Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
@@ -1657,6 +1658,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
 
 @Composable
 private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, onBack: () -> Unit) {
+    val context = LocalContext.current
     val palette = listOf("#168A45", "#B3261E", "#1976D2", "#455A64", "#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#FFFFFF", "#BE232D")
     fun intValue(key: String, fallback: Int) = prefs.getInt("confirm_call_$key", fallback)
     fun textValue(key: String, fallback: String) = prefs.getString("confirm_call_$key", fallback) ?: fallback
@@ -1678,8 +1680,9 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
     SettingsPage("سفارشی‌سازی کادر تأیید تماس", "ظاهر پنجره‌ای را تنظیم کنید که پس از انتخاب کارت مخاطب نمایش داده می‌شود. تغییرها بلافاصله ذخیره می‌شوند.", onBack) {
         var selectedPreviewContactId by remember { mutableStateOf(contacts.firstOrNull()?.id) }
         var previewContactMenu by remember { mutableStateOf(false) }
-        var sampleContactName by remember { mutableStateOf("مخاطب نمونه") }
-        var sampleContactNumber by remember { mutableStateOf("۰۹۱۲۰۰۰۰۰۰۰۰") }
+        var sampleContactName by remember { mutableStateOf(contacts.firstOrNull()?.title ?: "مخاطب نمونه") }
+        var sampleContactNumber by remember { mutableStateOf(contacts.firstOrNull()?.phoneNumber ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
+        var previewPhotoUri by remember { mutableStateOf(contacts.firstOrNull()?.photoUri) }
         if (contacts.isNotEmpty()) {
             OutlinedButton(onClick = { previewContactMenu = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(contacts.firstOrNull { it.id == selectedPreviewContactId }?.let { "${it.title} — ${it.phoneNumber.orEmpty()}" } ?: "انتخاب مخاطب ذخیره‌شده", modifier = Modifier.weight(1f))
@@ -1688,10 +1691,13 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
             DropdownMenu(expanded = previewContactMenu, onDismissRequest = { previewContactMenu = false }) {
                 contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
                     DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
-                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty(); previewContactMenu = false }) }
+                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty(); previewPhotoUri = contact.photoUri; previewContactMenu = false }) }
                 }
             }
         }
+        PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
+        OutlinedTextField(sampleContactName, { sampleContactName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب پیش‌نمایش") }, singleLine = true)
+        OutlinedTextField(sampleContactNumber, { sampleContactNumber = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شمارهٔ تماس پیش‌نمایش") }, singleLine = true)
         CallColorPicker("رنگ دکمهٔ بله", yesColor, palette) { yesColor = it; saveText("yes_color", it) }
         CallColorPicker("رنگ دکمهٔ خیر", noColor, palette) { noColor = it; saveText("no_color", it) }
         OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true)
@@ -1714,9 +1720,11 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         CompactSlider(buttonSpacing.toFloat(), { buttonSpacing = it.toInt().coerceIn(8, 80); saveInt("button_spacing", buttonSpacing) }, 8f..80f)
         Divider()
         Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        val previewImage = remember(previewPhotoUri) { previewPhotoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
+                if (previewImage != null) Image(previewImage, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                else Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
                 Text(sampleContactName, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
                 Text(sampleContactNumber, color = Color(0xFF64748B), fontSize = 13.sp)
                 Button(onClick = {}, modifier = Modifier.fillMaxWidth(yesButtonWidth / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(android.graphics.Color.parseColor(yesColor)))) {
