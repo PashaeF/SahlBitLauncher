@@ -500,19 +500,25 @@ private fun SahlBitApp(
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val targetId = selectedPhotoEntryId
         if (uri != null && targetId != null) {
-            val target = java.io.File(context.filesDir, "contact_${java.util.UUID.randomUUID()}.jpg")
-            val copied = runCatching {
-                val input = context.contentResolver.openInputStream(uri) ?: error("تصویر قابل خواندن نیست")
-                input.use { source -> target.outputStream().use { output -> source.copyTo(output) } }
-                check(target.exists() && target.length() > 0L) { "فایل تصویر خالی است" }
-                true
-            }.getOrDefault(false)
-            if (copied) {
+            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
+            val savedPhoto = bitmap?.let { saveSquarePhoto(context, it) }
+            if (savedPhoto != null) {
                 val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
-                entries = entries.map { if (it.id == targetId) it.copy(photoUri = Uri.fromFile(target).toString(), photoSource = "gallery", photoSourceUri = null) else it }
+                entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null) else it }
                 LauncherEntryStore.save(prefs, entries)
                 oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
-            } else target.delete()
+            } else android.widget.Toast.makeText(context, "خواندن یا برش مربعی تصویر ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
+        }
+        selectedPhotoEntryId = null
+    }
+    val cameraPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        val targetId = selectedPhotoEntryId
+        val savedPhoto = bitmap?.let { saveSquarePhoto(context, it) }
+        if (targetId != null && savedPhoto != null) {
+            val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
+            entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null) else it }
+            LauncherEntryStore.save(prefs, entries)
+            oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
         }
         selectedPhotoEntryId = null
     }
@@ -1223,6 +1229,11 @@ private fun SahlBitApp(
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text((if (photoEntry.photoSource == "gallery") "✓ " else "") + "انتخاب تصویر از گالری")
                 }
+                TextButton(onClick = {
+                    selectedPhotoEntryId = photoEntry.id
+                    photoSourceDialogEntry = null
+                    cameraPicker.launch(null)
+                }, modifier = Modifier.fillMaxWidth()) { Text("گرفتن عکس با دوربین") }
             } },
             confirmButton = { TextButton(onClick = { photoSourceDialogEntry = null }) { Text("بستن") } }
         )
