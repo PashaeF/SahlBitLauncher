@@ -474,7 +474,31 @@ private fun SahlBitApp(
                         if (number.isBlank()) {
                             android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
                         } else {
-                            addPickedContact(name, number, uri.toString(), lookup, photoSource)
+                            val allNumbers = if (contactId >= 0L) runCatching {
+                                context.contentResolver.query(
+                                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone._ID),
+                                    "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                    arrayOf(contactId.toString()),
+                                    null
+                                )?.use { phoneCursor ->
+                                    buildList {
+                                        while (phoneCursor.moveToNext()) {
+                                            val value = phoneCursor.getString(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
+                                            val rowId = phoneCursor.getLong(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone._ID))
+                                            if (value.isNotBlank()) add(value to ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString())
+                                        }
+                                    }.distinctBy { it.first }
+                                }.orEmpty()
+                            }.getOrDefault(emptyList()) else emptyList()
+                            if (allNumbers.size > 1) {
+                                pendingContactName = name
+                                pendingContactLookup = lookup
+                                pendingContactPhotoSource = photoSource
+                                pendingContactOptions = allNumbers
+                            } else {
+                                addPickedContact(name, number, uri.toString(), lookup, photoSource)
+                            }
                         }
                     } else {
                         android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست.", android.widget.Toast.LENGTH_LONG).show()
@@ -1220,7 +1244,7 @@ private fun SahlBitApp(
                     } else android.widget.Toast.makeText(context, "تصویر مخاطب در دفترچه تلفن موجود نیست", android.widget.Toast.LENGTH_LONG).show()
                     photoSourceDialogEntry = null
                 }, modifier = Modifier.fillMaxWidth()) {
-                    Text((if (photoEntry.photoSource == "contact") "✓ " else "") + "استفاده از عکس برنامهٔ مخاطبین اندروید")
+                    Text((if (photoEntry.photoSource == "contact") "✓ " else "") + "استفاده از عکس مخاطب در برنامهٔ مخاطبین اندروید")
                 }
                 TextButton(onClick = {
                     selectedPhotoEntryId = photoEntry.id
