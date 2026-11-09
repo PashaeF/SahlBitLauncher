@@ -359,6 +359,10 @@ private fun SahlBitApp(
     var editContactPhone by remember { mutableStateOf("") }
     var oldPinInput by remember { mutableStateOf("") }
     var entries by remember { mutableStateOf(LauncherEntryStore.load(prefs)) }
+    var customContacts by remember { mutableStateOf(CustomContactsStore.load(prefs)) }
+    var dialerNumber by remember { mutableStateOf("") }
+    var showContactSourceDialog by remember { mutableStateOf(false) }
+    var selectedCustomContactForPage by remember { mutableStateOf<CustomContact?>(null) }
     var selectedPage by remember { mutableIntStateOf(0) }
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 6)) }
@@ -425,6 +429,11 @@ private fun SahlBitApp(
     var pendingContactLookup by remember { mutableStateOf<String?>(null) }
     var pendingContactPhotoSource by remember { mutableStateOf<String?>(null) }
     var pendingContactOptions by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    fun addCustomContactToPage(contact: CustomContact, phone: CustomContactPhone) {
+        val item = LauncherEntry(kind = "contact", title = contact.name, page = selectedPage, phoneNumber = phone.number, photoUri = phone.photoUri, photoSource = if (phone.photoUri != null) "gallery" else "none")
+        entries = entries + item
+        LauncherEntryStore.save(prefs, entries)
+    }
     fun addPickedContact(name: String, number: String, phoneUri: String, lookupUri: String?, photoSource: String?) {
         val photo = photoSource?.let { source -> copyContactPhoto(context, source) }
         val item = LauncherEntry(kind = "contact", title = name.ifBlank { "مخاطب" }, page = selectedPage, contactUri = phoneUri, contactLookupUri = lookupUri, phoneNumber = number, photoUri = photo, photoSource = if (photo != null) "contact" else "none", photoSourceUri = photoSource)
@@ -686,6 +695,9 @@ private fun SahlBitApp(
             onPermissions = { navigateTo("permissions") }, onAbout = { navigateTo("about") }, onAudio = { navigateTo("audio") },
             onCallCustomization = { navigateTo("callcustom") },
             onCallConfirmation = { navigateTo("callconfirm") },
+            onCustomContacts = { navigateTo("customcontacts") },
+            onDialer = { dialerNumber = ""; navigateTo("dialer") },
+            onRecentCallsCustomization = { navigateTo("recentcustom") },
             onUpdates = { navigateTo("updates") },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = { navigateTo("androidsettings") }, onUninstall = { navigateTo("uninstall") }
         )
@@ -700,7 +712,14 @@ private fun SahlBitApp(
                 callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE)
             }
         }, onBack = { route = "dashboard" })
-        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { route = "dashboard" })
+        "callconfirm" -> CallConfirmationCustomizationPage(prefs = prefs, contacts = entries.filter { it.kind == "contact" }, onBack = { navigateBack("dashboard") })
+        "customcontacts" -> CustomContactsPage(contacts = customContacts, onSave = { customContacts = it; CustomContactsStore.save(prefs, it) }, onBack = { navigateBack("dashboard") })
+        "dialer" -> DialerPage(onBack = { navigateBack("dashboard") }, initialNumber = dialerNumber, onCall = { number ->
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
+            else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
+            else { pendingCallNumber = number; callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }
+        })
+        "recentcustom" -> RecentCallsCustomizationPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "allapps" -> AllAppsScreen(onBack = { route = "dashboard" }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { route = "dashboard" }) {
             Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -873,14 +892,7 @@ private fun SahlBitApp(
             )
             PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود. در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", "اعطای اجازهٔ برقراری تماس", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در Android 5 تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
-            Button(onClick = {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-                    contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
-                } else {
-                    contactPickerPending = true
-                    contactsPermission.launch(android.Manifest.permission.READ_CONTACTS)
-                }
-            }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب از دفترچه تلفن") }
+            Button(onClick = { showContactSourceDialog = true }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب") }
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
@@ -1120,6 +1132,30 @@ private fun SahlBitApp(
         "recovery" -> SettingsPage("بازیابی سهل‌بیت", "اگر سهل‌بیت درست کار نمی‌کند، از دکمهٔ زیر برای انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض جایگزین استفاده کنید. سهل‌بیت به‌صورت خودکار برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه را تغییر نمی‌دهد.", { route = "home" }) {
             Button(onClick = onSelectLauncher, modifier = Modifier.fillMaxWidth()) { Text("انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض اندروید / One UI Home") }
         }
+    }
+    if (showContactSourceDialog) {
+        AlertDialog(onDismissRequest = { showContactSourceDialog = false }, title = { Text("انتخاب منبع مخاطب") }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showContactSourceDialog = false; navigateTo("customcontacts") }, modifier = Modifier.fillMaxWidth()) { Text("مدیریت مخاطبین اختصاصی سهل‌بیت") }
+                OutlinedButton(onClick = {
+                    showContactSourceDialog = false
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+                    else { contactPickerPending = true; contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
+                }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب از برنامهٔ مخاطبین اندروید") }
+                if (customContacts.isNotEmpty()) Divider()
+                customContacts.forEach { contact ->
+                    OutlinedButton(onClick = { showContactSourceDialog = false; selectedCustomContactForPage = contact }, modifier = Modifier.fillMaxWidth()) { Text(contact.name) }
+                }
+            }
+        }, confirmButton = { TextButton(onClick = { showContactSourceDialog = false }) { Text("بستن") } })
+    }
+    if (selectedCustomContactForPage != null) {
+        val contact = selectedCustomContactForPage!!
+        AlertDialog(onDismissRequest = { selectedCustomContactForPage = null }, title = { Text("انتخاب شمارهٔ ${contact.name}") }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                contact.phones.forEach { phone -> OutlinedButton(onClick = { addCustomContactToPage(contact, phone); selectedCustomContactForPage = null }, modifier = Modifier.fillMaxWidth()) { Text(phone.number) } }
+            }
+        }, confirmButton = { TextButton(onClick = { selectedCustomContactForPage = null }) { Text("انصراف") } })
     }
     if (pendingContactOptions.isNotEmpty()) {
         AlertDialog(
@@ -1656,16 +1692,19 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
+@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onCustomContacts: () -> Unit, onDialer: () -> Unit, onRecentCallsCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
             item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و چیدمان کارت‌ها", "pages", onPages) }
             item { DashboardCard("مخاطبان و برنامه‌های صفحه اصلی", "انتخاب مخاطبان و برنامه‌های صفحهٔ اصلی", "contacts", onContacts) }
-            item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
+            item { DashboardCard("مخاطبین اختصاصی", "ساخت مخاطب و ثبت چند شماره با تصویر جداگانه", "customcontacts", onCustomContacts) }
             item { DashboardCard("ظاهرِ صفحه اصلی", "پس‌زمینه، کارت‌ها و تنظیمات ظاهری", "appearance", onAppearance) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
+            item { DashboardCard("شماره‌گیر اختصاصی", "شماره‌گیری با صفحه‌کلید سهل‌بیت", "dialer", onDialer) }
+            item { DashboardCard("سفارشی‌سازی صفحه تماس‌های اخیر", "تنظیم تصویر، نام و اندازهٔ اطلاعات تماس‌ها", "recentcustom", onRecentCallsCustomization) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر پین و بازیابی دسترسی مدیر", "security", onSecurity) }
             item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
             item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
@@ -1758,6 +1797,9 @@ private fun UninstallPage(onBack: () -> Unit) {
                 "clock" -> Icons.Default.DateRange
                 "audio" -> Icons.Default.Notifications
                 "callcustom" -> Icons.Default.Phone
+                "dialer" -> Icons.Default.Dialpad
+                "customcontacts" -> Icons.Default.Contacts
+                "recentcustom" -> Icons.Default.History
                 "callconfirm" -> Icons.Default.CheckCircle
                 "security" -> Icons.Default.Lock
                 "permissions" -> Icons.Default.Build
