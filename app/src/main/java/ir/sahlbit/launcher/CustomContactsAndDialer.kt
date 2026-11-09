@@ -3,6 +3,8 @@ package ir.sahlbit.launcher
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
@@ -49,6 +51,31 @@ private val CustomCream = Color(0xFFFFF8E7)
 private fun Int.toPersianDigits(): String = toString().map { ch ->
     if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch
 }.joinToString("")
+
+fun saveSquarePhotoFromUri(context: Context, uri: Uri, prefix: String = "sahlbit_photo_"): String? = runCatching {
+    val orientation = context.contentResolver.openInputStream(uri)?.use { stream ->
+        ExifInterface(stream).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+    } ?: ExifInterface.ORIENTATION_NORMAL
+    val bitmap = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } ?: error("تصویر قابل خواندن نیست")
+    val matrix = Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.preScale(-1f, 1f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.preScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.preRotate(90f); matrix.postScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.preRotate(270f); matrix.postScale(-1f, 1f) }
+    }
+    val oriented = if (orientation == ExifInterface.ORIENTATION_NORMAL || orientation == ExifInterface.ORIENTATION_UNDEFINED) bitmap
+        else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    val side = minOf(oriented.width, oriented.height)
+    val square = Bitmap.createBitmap(oriented, (oriented.width - side) / 2, (oriented.height - side) / 2, side, side)
+    val file = File(context.filesDir, "${prefix}${UUID.randomUUID()}.jpg")
+    file.outputStream().use { output -> square.compress(Bitmap.CompressFormat.JPEG, 92, output) }
+    require(file.exists() && file.length() > 0)
+    Uri.fromFile(file).toString()
+}.getOrNull()
 
 fun saveSquarePhoto(context: Context, source: Bitmap): String? = runCatching {
     val side = minOf(source.width, source.height)
@@ -115,8 +142,7 @@ fun CustomContactsPage(
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val index = photoTarget
         if (uri != null && index in phones.indices) {
-            val bitmap = runCatching { context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
-            val saved = bitmap?.let { saveSquarePhoto(context, it) }
+            val saved = saveSquarePhotoFromUri(context, uri)
             if (saved != null) phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = saved) }
             else message = "ذخیرهٔ تصویر ناموفق بود."
         }
@@ -141,10 +167,7 @@ fun CustomContactsPage(
                     name = cursor.getString(0).orEmpty()
                     val number = cursor.getString(1).orEmpty()
                     val photoSource = cursor.getString(2)
-                    val savedPhoto = if (!photoSource.isNullOrBlank()) {
-                        val bitmap = runCatching { context.contentResolver.openInputStream(Uri.parse(photoSource))?.use { BitmapFactory.decodeStream(it) } }.getOrNull()
-                        bitmap?.let { saveSquarePhoto(context, it) }
-                    } else null
+                    val savedPhoto = if (!photoSource.isNullOrBlank()) saveSquarePhotoFromUri(context, Uri.parse(photoSource)) else null
                     phones = listOf(CustomContactPhone(number = number, photoUri = savedPhoto))
                     if (savedPhoto != null) message = "مخاطب و تصویر آن وارد شدند؛ برای هر شماره می‌توانید تصویر جداگانه انتخاب کنید."
                 }
@@ -222,8 +245,7 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var expanded by remember { mutableStateOf(false) }
     fun persist(uri: Uri?) {
-        val bitmap = uri?.let { runCatching { context.contentResolver.openInputStream(it)?.use { stream -> BitmapFactory.decodeStream(stream) } }.getOrNull() }
-        onPhotoSelected(bitmap?.let { saveSquarePhoto(context, it) })
+        onPhotoSelected(uri?.let { saveSquarePhotoFromUri(context, it) })
     }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> if (uri != null) persist(uri) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap -> onPhotoSelected(bitmap?.let { saveSquarePhoto(context, it) }) }
