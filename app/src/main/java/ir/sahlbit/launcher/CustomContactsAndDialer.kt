@@ -291,7 +291,7 @@ fun CustomContactsPage(
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
             } else {
-                android.widget.Toast.makeText(context, "در Android 5 اجازهٔ مخاطبان هنگام نصب درخواست می‌شود. در صورت ندادن اجازه، فقط شمارهٔ انتخاب‌شده وارد خواهد شد.", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, "در اندروید ۵ اجازهٔ مخاطبان هنگام نصب درخواست می‌شود. در صورت ندادن اجازه، فقط شمارهٔ انتخاب‌شده وارد خواهد شد.", android.widget.Toast.LENGTH_LONG).show()
                 androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
             }
         }, modifier = Modifier.fillMaxWidth()) {
