@@ -1153,7 +1153,7 @@ private fun SahlBitApp(
             PermissionCard("دسترسی به سابقهٔ تماس‌ها", "این دسترسی فقط برای نمایش فهرست تماس‌های اخیر در صفحه‌ای است که خودتان انتخاب می‌کنید. تا زمانی که این قابلیت را فعال نکنید، سابقهٔ تماس‌ها خوانده نمی‌شود.", "اعطای دسترسی به سابقهٔ تماس‌ها", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) else android.widget.Toast.makeText(context, "دسترسی به سابقهٔ تماس‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() })
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
-        "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") })
+        "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") }, onCallDeveloper = { dialerNumber = "09145880814"; navigateTo("dialer") })
         "about" -> SettingsPage("درباره سهل‌بیت", "", { navigateBack("dashboard") }) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(28.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1818,7 +1818,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
 }
 
 @Composable
-private fun UninstallPage(onBack: () -> Unit) {
+private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val context = LocalContext.current
     var showLauncherRequired by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -1842,7 +1842,7 @@ private fun UninstallPage(onBack: () -> Unit) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("ارتباط با توسعه‌دهنده", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر با مشکلی روبه‌رو شدید، لطفاً با شمارهٔ ۰۹۱۴۵۸۸۰۸۱۴ تماس بگیرید یا از طریق پیام‌رسان‌های بله، ایتا، روبیکا، تلگرام و واتساپ پیام دهید. همچنین می‌توانید به ایمیل Pashae@iran.ir پیام بفرستید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth()) { Text("تماس با توسعه‌دهنده") }
+                OutlinedButton(onClick = onCallDeveloper, modifier = Modifier.fillMaxWidth()) { Text("تماس با توسعه‌دهنده") }
                 OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ارسال ایمیل") }
             }
         }
