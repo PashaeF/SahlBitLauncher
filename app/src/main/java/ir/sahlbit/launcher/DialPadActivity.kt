@@ -6,6 +6,8 @@ import android.os.Build
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +17,22 @@ import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+
+private fun String.toPersianDialDigits(): String = map { ch ->
+    when (ch) {
+        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
+        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
+}.joinToString("")
+
+private fun String.toLatinDialDigits(): String = map { ch ->
+    when (ch) {
+        in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar()
+        in '٠'..'٩' -> ('0'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
+}.joinToString("")
 
 /** Minimal system dialer entry point required by ROLE_DIALER. */
 class DialPadActivity : Activity() {
@@ -34,22 +52,49 @@ class DialPadActivity : Activity() {
         applyImmersive()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(24, 24, 24, 24); setBackgroundColor(0xFFF6F2E8.toInt()) }
         root.addView(TextView(this).apply { text = "شماره‌گیر سهل‌بیت"; textSize = 26f; setTextColor(0xFF244B3D.toInt()); gravity = Gravity.CENTER }, ViewGroup.LayoutParams(-1, 80))
-        number = EditText(this).apply { textSize = 28f; gravity = Gravity.CENTER; hint = "شماره تلفن"; setSingleLine(true); setText(intent?.data?.schemeSpecificPart.orEmpty()) }
+        number = EditText(this).apply {
+            textSize = 28f; gravity = Gravity.CENTER; hint = "شماره تلفن"; setSingleLine(true)
+            setText(intent?.data?.schemeSpecificPart.orEmpty().toPersianDialDigits())
+            setSelection(text.length)
+        }
+        number.addTextChangedListener(object : TextWatcher {
+            private var formatting = false
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                if (formatting) return
+                val current = s?.toString().orEmpty()
+                val persian = current.toPersianDialDigits()
+                if (current != persian) {
+                    val cursor = number.selectionStart.coerceAtLeast(0)
+                    formatting = true
+                    number.setText(persian)
+                    number.setSelection(cursor.coerceAtMost(persian.length))
+                    formatting = false
+                }
+            }
+        })
         root.addView(number, ViewGroup.LayoutParams(-1, 76))
-        val keys = GridLayout(this).apply { columnCount = 3; rowCount = 4; useDefaultMargins = true }
-        listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#").forEachIndexed { index, key ->
+        val keys = GridLayout(this).apply { columnCount = 3; rowCount = 5; useDefaultMargins = true }
+        listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#", "+").forEachIndexed { index, key ->
             val params = GridLayout.LayoutParams(
                 GridLayout.spec(index / 3, 1, 1f),
                 GridLayout.spec(index % 3, 1, 1f)
-            ).apply { width = 0; height = 72 }
+            ).apply { width = 0; height = 60 }
             keys.addView(Button(this).apply {
                 text = key; textSize = 26f; isAllCaps = false
                 setOnClickListener { number.append(key) }
             }, params)
         }
-        root.addView(keys, LinearLayout.LayoutParams(-1, 320))
+        root.addView(keys, LinearLayout.LayoutParams(-1, 300))
         root.addView(Button(this).apply { text = "تماس"; textSize = 24f; setOnClickListener { placeCall() } }, LinearLayout.LayoutParams(-1, 76))
-        root.addView(Button(this).apply { text = "پاک‌کردن"; setOnClickListener { number.text.clear() } }, LinearLayout.LayoutParams(-1, 60))
+        root.addView(Button(this).apply {
+            text = "پاک‌کردن"
+            setOnClickListener {
+                val end = number.selectionStart.coerceAtLeast(0)
+                if (end > 0) number.text.delete(end - 1, end)
+            }
+        }, LinearLayout.LayoutParams(-1, 60))
         applyVazirmatn(root)
         setContentView(root)
     }
@@ -62,7 +107,7 @@ class DialPadActivity : Activity() {
     private fun placeCall() {
         val value = number.text.toString().trim()
         if (value.isBlank()) return
-        pendingNumber = value
+        pendingNumber = value.toLatinDialDigits()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(android.Manifest.permission.CALL_PHONE), REQUEST_CALL_PERMISSION)
             return

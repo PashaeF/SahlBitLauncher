@@ -2112,16 +2112,17 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
-    val currentPageRowCount = runCatching {
+    fun pageFlag(key: String, default: Boolean): Boolean = runCatching { org.json.JSONObject(launcherPrefs.getString(key, "{}") ?: "{}").optBoolean(pager.currentPage.toString(), default) }.getOrDefault(default)
+    val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
+    val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
+    val showRecentCallsOnCurrentPage = pageFlag("page_recent_calls", false)
+    val currentPageRowCount = if (showRecentCallsOnCurrentPage) 0 else runCatching {
         val counts = org.json.JSONObject(launcherPrefs.getString("row_counts_per_page", "{}") ?: "{}")
         val layouts = org.json.JSONObject(launcherPrefs.getString("row_layouts", "{}") ?: "{}")
         val storedRows = layouts.optJSONArray(pager.currentPage.toString())
         counts.optInt(pager.currentPage.toString(), storedRows?.length() ?: launcherPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
     }.getOrDefault(2)
-    fun pageFlag(key: String, default: Boolean): Boolean = runCatching { org.json.JSONObject(launcherPrefs.getString(key, "{}") ?: "{}").optBoolean(pager.currentPage.toString(), default) }.getOrDefault(default)
-    val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
-    val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
-    val showRecentCallsOnCurrentPage = pageFlag("page_recent_calls", false)
+    val currentPageRowGap = ((currentPageRowCount - 1).coerceAtLeast(0) * 3).dp
     val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = pager.currentPage, key2 = showRecentCallsOnCurrentPage, key3 = permissionRevision) {
         value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
@@ -2140,7 +2141,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
-        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - 46.dp - 52.dp).coerceAtLeast(120.dp)
+        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - 46.dp - 52.dp).coerceAtLeast(120.dp)
         val effectiveClockSize = minOf(clockSize.dp, (screenWidth - 32.dp).coerceAtLeast(120.dp), maxClockHeight).value.toInt()
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
@@ -2177,7 +2178,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
-                val responsiveCardHeight = ((screenHeight - headerHeight - 52.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
+                val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
+                val responsiveCardHeight = ((screenHeight - headerHeight - 52.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }

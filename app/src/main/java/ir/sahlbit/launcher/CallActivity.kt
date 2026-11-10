@@ -108,6 +108,7 @@ class CallActivity : Activity(), SensorEventListener {
     private fun styleText(view: TextView, size: Float, color: Int = Color.WHITE, bold: Boolean = false) {
         view.typeface = if (bold) ResourcesCompat.getFont(this, R.font.vazirmatn_bold) else vazir
         view.textSize = size; view.setTextColor(color); view.gravity = Gravity.CENTER; view.textDirection = View.TEXT_DIRECTION_RTL
+        view.setLineSpacing(dp(4).toFloat(), 1f)
     }
     private fun makeButton(label: String, size: Float, color: Int, onClick: () -> Unit): Button =
         Button(this).apply {
@@ -179,7 +180,7 @@ class CallActivity : Activity(), SensorEventListener {
         val requestedAvatarDp = styleInt("avatar_dp", 250).coerceIn(140, 340)
         val nameTextSize = styleInt("name_sp", 27).coerceIn(16, 40)
         val numberTextSize = styleInt("number_sp", 20).coerceIn(12, 32)
-        val nameHeightDp = (nameTextSize * 2.35f).toInt().coerceIn(50, 100)
+        val nameHeightDp = (nameTextSize * 2.5f).toInt().coerceIn(54, 104)
         val numberHeightDp = (numberTextSize * 1.8f).toInt().coerceIn(36, 60)
         nameView.textSize = nameTextSize.toFloat()
         numberView.textSize = numberTextSize.toFloat()
