@@ -1,13 +1,5 @@
 package ir.sahlbit.launcher
 
-private fun String.toPersianVersionDigits(): String = map { ch ->
-    when (ch) {
-        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
-        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
-        else -> ch
-    }
-}.joinToString("")
-
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -57,6 +49,14 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
+
+private fun String.toPersianVersionDigits(): String = map { ch ->
+    when (ch) {
+        in '0'..'9' -> ('۰'.code + ch.code - '0'.code).toChar()
+        in '٠'..'٩' -> ('۰'.code + ch.code - '٠'.code).toChar()
+        else -> ch
+    }
+}.joinToString("")
 
 @Composable
 fun UpdateSettingsPage(onBack: () -> Unit) {
