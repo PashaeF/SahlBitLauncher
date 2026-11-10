@@ -70,8 +70,9 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
     var statusColor by remember { mutableStateOf(Color(0xFF52645B)) }
 
     fun checkFrom(website: Boolean) {
+        if (checking || installing) return
+        checking = true
         checkJob = scope.launch {
-            checking = true
             update = null
             status = "در حال بررسی نسخهٔ منتشرشده..."
             statusColor = Color(0xFF52645B)
@@ -97,8 +98,10 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                 status = error.message?.takeIf { message -> message.any { it.code in 0x0600..0x06FF } } ?: "بررسی به‌روزرسانی ناموفق بود. لطفاً اتصال اینترنت و نشانی منبع را بررسی کنید."
                 statusColor = Color(0xFFB3261E)
             } finally {
-                checking = false
-                if (checkJob === currentCoroutineContext()[Job]) checkJob = null
+                if (checkJob === currentCoroutineContext()[Job]) {
+                    checking = false
+                    checkJob = null
+                }
             }
         }
     }

@@ -56,7 +56,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 Call behavior still depends on the selected default Dialer role, Android Telecom, carrier configuration, device firmware, and hardware support. Call waiting and proximity behavior require physical-device verification.
 
 ### Permissions and privacy
-- SahlBit code never silently grants Contacts or direct-call permissions. Android may grant role-specific privileges only after the user explicitly approves SahlBit as the default Dialer; other runtime permission requests follow explicit user actions.
+- SahlBit code never calls Android's runtime-permission grant API. After the user explicitly approves SahlBit as the default Dialer, Android may grant dialer-role access related to phone, contacts, SMS, microphone, and camera. The current manifest does not declare SMS, microphone, or camera permissions. This is separate from the `WRITE_SETTINGS` special access. Other runtime permission requests follow explicit user actions.
 - The contacts-management and call-customization screens expose explicit permission status/actions so users can grant access when they choose.
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
