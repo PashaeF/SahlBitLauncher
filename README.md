@@ -56,7 +56,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 Call behavior still depends on the selected default Dialer role, Android Telecom, carrier configuration, device firmware, and hardware support. Call waiting and proximity behavior require physical-device verification.
 
 ### Permissions and privacy
-- Contacts and direct-call permissions are requested only after a user-initiated action; neither permission is silently granted by SahlBit.
+- SahlBit code never silently grants Contacts or direct-call permissions. Android may grant role-specific privileges only after the user explicitly approves SahlBit as the default Dialer; other runtime permission requests follow explicit user actions.
 - The contacts-management and call-customization screens expose explicit permission status/actions so users can grant access when they choose.
 - Launcher preferences and card configurations are stored locally.
 - Contact access requires the Android contacts permission.
@@ -77,7 +77,7 @@ Artifacts:
 - `sahlbit-debug-apk`: test build; its debug signing key can change between hosted runners.
 - `sahlbit-release-apk`: stable-signed build, available after the four signing secrets are configured.
 
-A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` tag is pushed.
+A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` tag is pushed; it also generates and attaches a matching `update.json` file containing the APK URL and its SHA-256 digest.
 
 ## Verification status
 
@@ -140,7 +140,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 
 ## Version 0.5.8 changes
 
-- Corrected the website update-manifest address to the project's pashaef.ir domain.
+- Corrected the website update-manifest address to the project's pashaeft.ir domain.
 - Centered the launcher logo in the About page.
 - Replaced the clock-category calendar glyph with a clock icon and the audio-category bell with a volume icon.
 - Corrected the remaining unflipped search icon and increased the top spacing on the administrator PIN setup screen.

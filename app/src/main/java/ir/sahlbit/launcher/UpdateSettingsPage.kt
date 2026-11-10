@@ -73,10 +73,10 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                 }
                 update = found
                 if (SahlBitUpdateManager.isNewer(context, found)) {
-                    status = "نسخهٔ جدید ${found.versionName} در منبع ${found.source} پیدا شد."
+                    status = "نسخهٔ جدید ${found.versionName.toPersianDigitsText()} در منبع ${found.source} پیدا شد."
                     statusColor = Color(0xFF167342)
                 } else {
-                    status = "سهل‌بیت به‌روز است؛ نسخهٔ نصب‌شده ${BuildConfig.VERSION_NAME} است."
+                    status = "سهل‌بیت به‌روز است؛ نسخهٔ نصب‌شده ${BuildConfig.VERSION_NAME.toPersianDigitsText()} است."
                     statusColor = Color(0xFF167342)
                 }
             } catch (error: TimeoutCancellationException) {
@@ -131,7 +131,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(22.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("سهل‌بیت ${BuildConfig.VERSION_NAME}", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                Text("سهل‌بیت ${BuildConfig.VERSION_NAME.toPersianDigitsText()}", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("نسخهٔ نصب‌شدهٔ برنامه روی این دستگاه", color = Color(0xFFE4F2E9), fontSize = 14.sp)
             }
         }
@@ -179,7 +179,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("اطلاعات نسخهٔ منتشرشده", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("نسخه: ${found.versionName}  |  کد نسخه: ${found.versionCode}", color = Color(0xFF2563EB), fontWeight = FontWeight.SemiBold)
+                    Text("نسخه: ${found.versionName.toPersianDigitsText()}  |  کد نسخه: ${found.versionCode.toString().toPersianDigitsText()}", color = Color(0xFF2563EB), fontWeight = FontWeight.SemiBold)
                     Text("منبع: ${found.source}", color = Color(0xFF52645B), fontSize = 13.sp)
                     if (found.changelog.isNotBlank()) Text(found.changelog.take(1800), color = Color(0xFF172033), fontSize = 13.sp, lineHeight = 21.sp)
                     if (SahlBitUpdateManager.isNewer(context, found)) {
