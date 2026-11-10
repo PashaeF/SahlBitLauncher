@@ -43,6 +43,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
 
 @Composable
@@ -51,18 +56,21 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var update by remember { mutableStateOf<SahlBitUpdate?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var checkJob by remember { mutableStateOf<Job?>(null) }
     var installing by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("برای بررسی نسخهٔ جدید، یکی از دو منبع رسمی را انتخاب کنید.") }
     var statusColor by remember { mutableStateOf(Color(0xFF52645B)) }
 
     fun checkFrom(website: Boolean) {
-        scope.launch {
+        checkJob = scope.launch {
             checking = true
             update = null
             status = "در حال بررسی نسخهٔ منتشرشده..."
             statusColor = Color(0xFF52645B)
             try {
-                val found = if (website) SahlBitUpdateManager.checkWebsite(context) else SahlBitUpdateManager.checkGitHub(context)
+                val found = withTimeout(15_000L) {
+                    if (website) SahlBitUpdateManager.checkWebsite(context) else SahlBitUpdateManager.checkGitHub(context)
+                }
                 update = found
                 if (SahlBitUpdateManager.isNewer(context, found)) {
                     status = "نسخهٔ جدید ${found.versionName} در منبع ${found.source} پیدا شد."
@@ -71,11 +79,18 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                     status = "سهل‌بیت به‌روز است؛ نسخهٔ نصب‌شده ${BuildConfig.VERSION_NAME} است."
                     statusColor = Color(0xFF167342)
                 }
+            } catch (error: TimeoutCancellationException) {
+                status = "مهلت بررسی به پایان رسید. اتصال اینترنت یا در دسترس بودن منبع را بررسی کنید و دوباره تلاش کنید."
+                statusColor = Color(0xFFB3261E)
+            } catch (error: CancellationException) {
+                status = "بررسی به‌روزرسانی لغو شد."
+                statusColor = Color(0xFFB45309)
             } catch (error: Exception) {
                 status = error.message?.takeIf { message -> message.any { it.code in 0x0600..0x06FF } } ?: "بررسی به‌روزرسانی ناموفق بود. لطفاً اتصال اینترنت و نشانی منبع را بررسی کنید."
                 statusColor = Color(0xFFB3261E)
             } finally {
                 checking = false
+                if (checkJob === currentCoroutineContext()[Job]) checkJob = null
             }
         }
     }
@@ -139,7 +154,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
         OutlinedButton(onClick = { checkFrom(true) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
             Spacer(Modifier.width(8.dp))
-            Text("بررسی از وب‌سایت رسمی pashaef.ir")
+            Text("بررسی از وب‌سایت رسمی pashaeft.ir")
         }
         OutlinedButton(onClick = { checkFrom(false) }, modifier = Modifier.fillMaxWidth(), enabled = !checking && !installing) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
@@ -153,6 +168,10 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
                 if (checking || installing) {
                     Spacer(Modifier.height(4.dp))
                     Text(if (checking) "در حال بررسی..." else "لطفاً تا پایان دانلود و بررسی فایل صبر کنید.", color = Color(0xFF52645B), fontSize = 12.sp)
+                    if (checking) OutlinedButton(
+                        onClick = { checkJob?.cancel(); checkJob = null; checking = false; status = "بررسی به‌روزرسانی لغو شد."; statusColor = Color(0xFFB45309) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("لغو بررسی") }
                 }
             }
         }

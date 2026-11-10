@@ -603,6 +603,7 @@ private fun SahlBitApp(
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
         if (pinHash != null && (route == "wizard" || route == "setpin")) {
             prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
+            routeHistory = emptyList()
             route = "dashboard"
             adminAuthenticated = true
             pinInput = ""
@@ -652,7 +653,9 @@ private fun SahlBitApp(
     }
 
     when (route) {
-        "wizard" -> if (wizardPinSetup) {
+        "wizard" -> if (pinHash != null) {
+            Box(Modifier.fillMaxSize().background(Cream))
+        } else if (wizardPinSetup) {
             PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
                 if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
                 else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
@@ -690,6 +693,7 @@ private fun SahlBitApp(
                 if (wizardStep >= 7) {
                     prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
                     if (pinHash != null) {
+                        routeHistory = emptyList()
                         route = "dashboard"
                         adminAuthenticated = true
                     } else {
@@ -705,7 +709,9 @@ private fun SahlBitApp(
                 if (wizardStep > 0) { wizardStep -= 1; prefs.edit().putInt("setup_wizard_step", wizardStep).apply() }
             }
         )
-        "setpin" -> PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
+        "setpin" -> if (pinHash != null) {
+            Box(Modifier.fillMaxSize().background(Cream))
+        } else PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
             if (newPin.length < 4) error = "پین باید حداقل ۴ رقم داشته باشد."
             else if (newPin != confirmPin) error = "دو پین یکسان نیستند."
             else {
@@ -1156,13 +1162,14 @@ private fun SahlBitApp(
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
             Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
         }
-        "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه‌های زیر استفاده کنید.", { navigateBack("dashboard") }) {
+        "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه زیر استفاده کنید.", { navigateBack("dashboard") }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinverify") }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { navigateBack("security") }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(0.dp))
             TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; navigateTo("mathrecovery") }) { Text("پین را فراموش کرده‌ام") }
+            Spacer(Modifier.height(14.dp))
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 val salt = prefs.getString("admin_pin_salt", "") ?: ""
@@ -1221,7 +1228,7 @@ private fun SahlBitApp(
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
                 Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(if (compactAbout) 4.dp else 6.dp)) {
                     Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 13.sp, lineHeight = 19.sp)
-                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaef.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaeft.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
                     OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("ایمیل: Pashae@iran.ir", color = Ink) }
                     OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink) }
                 }
@@ -1480,7 +1487,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
         "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
         "این اجازه برای تغییر زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. اندروید صفحه‌ای جداگانه باز می‌کند؛ نام سهل‌بیت را پیدا کنید و اجازهٔ تغییر تنظیمات سیستم را روشن کنید.",
-        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. با تأیید این نقش در پنجرهٔ اندروید، ممکن است خود سیستم‌عامل برخی مجوزهای مرتبط مانند دسترسی به مخاطبان یا برقراری تماس را نیز به‌عنوان بخشی از نقش تلفن اعطا کند؛ سهل‌بیت این مجوزها را پنهانی درخواست یا فعال نمی‌کند. پیش از تأیید، توضیحات و مجوزهای نمایش‌داده‌شده در اندروید را بررسی کنید. این انتخاب هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
+        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. با تأیید این نقش، ممکن است خود اندروید و متناسب با نسخه و سازندهٔ دستگاه، بعضی دسترسی‌های مرتبط با تلفن، مخاطبان یا سابقهٔ تماس را به‌عنوان بخشی از نقش اعطا کند. این تصمیم را Android Role Manager و فقط پس از تأیید شما می‌گیرد؛ سهل‌بیت هیچ مجوزی را با کد یا به‌صورت پنهانی اعطا نمی‌کند. پیش از تأیید، فهرست دسترسی‌هایی را که خود اندروید نمایش می‌دهد با دقت بخوانید. این انتخاب هر زمان قابل تغییر است. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
         "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. در اندروید ۶ و جدیدتر، فقط پس از انتخاب دکمهٔ اعطای دسترسی از شما پرسیده می‌شود؛ در اندروید ۵ این اجازه هنگام نصب برنامه درخواست می‌شود. اگر آن را نپذیرید، انتخابگر سیستم همچنان امکان انتخاب محدود یک شماره را فراهم می‌کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
         "این اجازه برای تماس مستقیم با مخاطبی که مدیر روی صفحهٔ اصلی انتخاب کرده است استفاده می‌شود. اگر اجازه داده نشود، سهل‌بیت می‌تواند شماره‌گیر سیستم را باز کند و تماس از آنجا انجام شود.",
         "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است.",
@@ -1578,11 +1585,20 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم از صفحهٔ اصلی لازم است. این دسترسی فقط پس از تأیید شما در پنجرهٔ اندروید فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", callPermissionGranted, onRequestCallPermission)
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
         val statusChipScroll = rememberScrollState()
-        LaunchedEffect(profile) { if (profile == "incoming") statusChipScroll.animateScrollTo(0) else statusChipScroll.animateScrollTo(statusChipScroll.maxValue) }
+        val incomingChipRequester = remember { BringIntoViewRequester() }
+        val outgoingChipRequester = remember { BringIntoViewRequester() }
+        val activeChipRequester = remember { BringIntoViewRequester() }
+        LaunchedEffect(profile) {
+            when (profile) {
+                "incoming" -> incomingChipRequester.bringIntoView()
+                "outgoing" -> outgoingChipRequester.bringIntoView()
+                else -> activeChipRequester.bringIntoView()
+            }
+        }
         Row(Modifier.fillMaxWidth().horizontalScroll(statusChipScroll), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("تماس ورودی قبل از برقراری مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("تماس خروجی قبل از برقراری مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "active", { profile = "active" }, label = { Text("تماس ورودی و خروجی پس از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "incoming", { profile = "incoming" }, modifier = Modifier.bringIntoViewRequester(incomingChipRequester), label = { Text("تماس ورودی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "outgoing", { profile = "outgoing" }, modifier = Modifier.bringIntoViewRequester(outgoingChipRequester), label = { Text("تماس خروجی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "active", { profile = "active" }, modifier = Modifier.bringIntoViewRequester(activeChipRequester), label = { Text("تماس ورودی و خروجی پس از برقراری مکالمه", fontSize = 11.sp) })
         }
         Text("مخاطب پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
         if (contacts.isNotEmpty()) {
@@ -2030,11 +2046,12 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
 @Composable private fun RepeatableStepButton(label: String, enabled: Boolean, onStep: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val latestOnStep by rememberUpdatedState(onStep)
     LaunchedEffect(pressed, enabled) {
         if (pressed && enabled) {
-            onStep()
+            latestOnStep()
             delay(320)
-            while (pressed && enabled) { onStep(); delay(65) }
+            while (pressed && enabled) { latestOnStep(); delay(65) }
         }
     }
     Box(Modifier.size(48.dp).clickable(interactionSource = interaction, indication = null, enabled = enabled) {}, contentAlignment = Alignment.Center) {
@@ -2061,6 +2078,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0; settingsHintShown = false } }
     val context = LocalContext.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     val contentWidth = (screenWidth - 32.dp).coerceAtLeast(240.dp)
     val launcherPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
     val adminTapThreshold = launcherPrefs.getInt("settings_taps_threshold", 7).coerceIn(3, 15)
@@ -2094,6 +2112,12 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
     val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
+    val currentPageRowCount = runCatching {
+        val counts = org.json.JSONObject(launcherPrefs.getString("row_counts_per_page", "{}") ?: "{}")
+        val layouts = org.json.JSONObject(launcherPrefs.getString("row_layouts", "{}") ?: "{}")
+        val storedRows = layouts.optJSONArray(pager.currentPage.toString())
+        counts.optInt(pager.currentPage.toString(), storedRows?.length() ?: launcherPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
+    }.getOrDefault(2)
     fun pageFlag(key: String, default: Boolean): Boolean = runCatching { org.json.JSONObject(launcherPrefs.getString(key, "{}") ?: "{}").optBoolean(pager.currentPage.toString(), default) }.getOrDefault(default)
     val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
     val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
@@ -2102,7 +2126,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 0.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.fillMaxWidth().height(18.dp)) {
             IconButton(onClick = {
                 if (!settingsHintShown) {
                     android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
@@ -2110,13 +2134,14 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.size(32.dp).offset(x = (-10).dp)) {
+            }, modifier = Modifier.align(Alignment.TopEnd).size(32.dp).offset(x = (-10).dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(21.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
-        val effectiveClockSize = minOf(clockSize, (screenWidth.value.toInt() - 32).coerceAtLeast(120))
+        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - 46.dp - 52.dp).coerceAtLeast(120.dp)
+        val effectiveClockSize = minOf(clockSize.dp, (screenWidth - 32.dp).coerceAtLeast(120.dp), maxClockHeight).value.toInt()
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
         val secondsVisible = clockPrefs.getBoolean("clock_show_seconds", false)
@@ -2142,7 +2167,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }
         Spacer(Modifier.height(1.dp))
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val rowCountRoot = remember(layoutPrefs.getString("row_counts_per_page", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
@@ -2152,7 +2177,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
-                val responsiveCardHeight = ((LocalConfiguration.current.screenHeightDp.dp - headerHeight - 120.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceIn(24.dp, 154.dp)
+                val responsiveCardHeight = ((screenHeight - headerHeight - 52.dp) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }

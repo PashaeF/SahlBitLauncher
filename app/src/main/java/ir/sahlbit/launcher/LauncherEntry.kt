@@ -27,6 +27,13 @@ object LauncherEntryStore {
         buildList {
             for (i in 0 until array.length()) {
                 val o = array.getJSONObject(i)
+                val photoUri = o.optString("photoUri").takeIf(String::isNotBlank)
+                val photoSourceUri = o.optString("photoSourceUri").takeIf(String::isNotBlank)
+                val photoSource = when {
+                    photoSourceUri != null -> "contact"
+                    photoUri != null -> o.optString("photoSource", "contact").ifBlank { "contact" }
+                    else -> "none"
+                }
                 add(LauncherEntry(
                     id = o.optString("id"),
                     kind = o.optString("kind"),
@@ -35,9 +42,9 @@ object LauncherEntryStore {
                     contactUri = o.optString("contactUri").takeIf(String::isNotBlank),
                     contactLookupUri = o.optString("contactLookupUri").takeIf(String::isNotBlank),
                     phoneNumber = o.optString("phoneNumber").takeIf(String::isNotBlank),
-                    photoUri = o.optString("photoUri").takeIf(String::isNotBlank),
-                    photoSource = if (o.optString("photoUri").isBlank()) "none" else o.optString("photoSource", "contact"),
-                    photoSourceUri = o.optString("photoSourceUri").takeIf(String::isNotBlank),
+                    photoUri = photoUri,
+                    photoSource = photoSource,
+                    photoSourceUri = photoSourceUri,
                     manualEdit = o.optBoolean("manualEdit", false),
                     packageName = o.optString("packageName").takeIf(String::isNotBlank)
                 ))

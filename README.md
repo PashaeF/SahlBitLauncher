@@ -1,12 +1,12 @@
-# SahlBit Launcher 0.6.2
+# SahlBit Launcher 0.6.3
 
 A Persian RTL Android launcher focused on simple, controlled interaction for older adults, children, and users who benefit from a simplified home screen.
 
 ## Build configuration
 
 - **Application ID:** `ir.sahlbit.launcher`
-- **Version:** `0.6.2`
-- **Version Code:** `28`
+- **Version:** `0.6.3`
+- **Version Code:** `29`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -81,7 +81,7 @@ A separate tag-triggered workflow publishes a signed GitHub Release when a `v*` 
 
 ## Verification status
 
-Current source is version 0.6.2 (versionCode 28). Build #399 successfully produced a debug APK from commit `843e272` before the final full-resolution camera and FileProvider changes. That APK passed ZIP integrity, DEX, logo-resource, cropper-resource, and JAR-signature checks. The subsequent source commits for full-resolution camera capture, explicit Android Contacts permission handling, and portrait-only crop UI still require their own successful build and APK verification.
+Current development source is version 0.6.3 (versionCode 29). GitHub Actions builds a debug APK from every push to `development`; consult the latest successful run for the exact commit and artifact. A successful build confirms compilation and packaging only. It does not certify runtime behavior on a physical device.
 
 These checks confirm packaging only; they do **not** certify runtime behavior on a physical device. No emulator or physical Samsung device is available for this review. Before promoting the current source to `main`, verify the following on Android 13 / Samsung One UI and at least one older supported Android version:
 
@@ -93,9 +93,21 @@ These checks confirm packaging only; they do **not** certify runtime behavior on
 - Contact/app image clipping, separate corner-radius settings, missing contact names, saved-contact selectors, interactive square crop, and live Android-contact photo refresh.
 - All ten Quick Settings tiles on Android 7.0 (API 24) or newer. Android 5/6 do not provide the Quick Settings tile API.
 - App details/launch buttons, Android settings shortcuts, cache clearing, uninstall hand-off, and updater flows.
-- Website update source at `https://pashaef.ir/sahlbit/update.json`. The GitHub update source currently reads `development`, because `main` does not yet contain `update.json` and returns HTTP 404. Change it to `main` after the tested source is promoted there.
+- Website update source: `https://pashaeft.ir/sahlbit/update.json`.
+- GitHub update checks read the `update.json` asset attached to the latest published Release. The release workflow publishes this asset beside the signed APK. If no Release exists yet, the app reports that clearly instead of showing an unexplained HTTP 404.
+- The root `update.json` remains the manifest for the latest APK actually published on the website; do not advance its version or SHA-256 until the corresponding signed APK has been uploaded and independently verified.
 
 The debug APK is signed with a runner-generated Android debug key. Its certificate can differ between builds, so installing it over an APK signed with another key may require uninstalling the older copy first. A persistent release signing key must be configured before distributing stable signed updates.
+
+## Version 0.6.3 changes
+
+- Bump the development source to versionCode 29 / versionName 0.6.3.
+- Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
+- Keep long-press number controls bound to the latest value during repeated increments/decrements.
+- Size home cards from the available screen height and reduce the top header gap without moving the settings icon away from the top-left corner.
+- Scroll the selected call-state chip fully into view.
+- Prevent any setup/PIN-creation screen from being rendered when an administrator PIN already exists.
+- Add a bounded, cancellable update check and read GitHub update metadata from the latest published Release asset.
 
 ## Version 0.6.2 changes
 
@@ -145,7 +157,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Standardized numeric slider width, preserved the management dashboard scroll position, and aligned home rows to fixed columns.
 - Improved unnamed contact cards, home empty-state alignment, weekday indicators, and call-confirmation button spacing.
 - Removed scrolling from the full-screen call activity and made its avatar size responsive to available screen height; cropped preview photos to avoid exposed background bands.
-- Changed GitHub update checks to use the repository's shared update.json manifest. The same JSON schema is used by the website update endpoint at https://pashaef.ir/sahlbit/update.json.
+- GitHub update checks use the update.json asset attached to the latest published Release. The website update endpoint uses https://pashaeft.ir/sahlbit/update.json.
 - Updated the app version to 0.5.7 (versionCode 23). Minimum Android remains API 21 (Android 5.0).
 
 ## Version 0.5.5 changes
@@ -203,7 +215,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 
 ## Signing and distribution status
 
-- The 0.6.2 development builds are debug-signed because the previous signing keystore and its passwords are not available.
+- The 0.6.3 development builds are debug-signed because the previous signing keystore and its passwords are not available.
 - Debug builds generated by GitHub Actions may use different debug certificates. They are not guaranteed to update over one another, and they are not suitable as a stable Play Store / Cafe Bazaar / Myket release signature.
 - A new persistent release keystore must be created and stored securely in GitHub Actions secrets before publishing a signed release. This new key will not match any APK signed with the unavailable previous key.
 - The `update.json` SHA-256 field must be filled only after the final APK has been built and independently hashed; never publish an empty or guessed hash as a verified release.

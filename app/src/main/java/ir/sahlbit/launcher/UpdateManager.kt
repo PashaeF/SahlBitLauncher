@@ -32,9 +32,8 @@ data class SahlBitUpdate(
 class InstallPermissionRequired : Exception("برای نصب نسخهٔ دانلودشده، اجازهٔ «نصب برنامه‌های ناشناس» را برای سهل‌بیت فعال کنید و دوباره دکمهٔ نصب را بزنید.")
 
 object SahlBitUpdateManager {
-    const val WEBSITE_MANIFEST_URL = "https://pashaef.ir/sahlbit/update.json"
-    private const val GITHUB_MANIFEST_URL = "https://raw.githubusercontent.com/PashaeF/SahlBitLauncher/development/update.json"
-    private const val GITHUB_API_MANIFEST_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/contents/update.json?ref=development"
+    const val WEBSITE_MANIFEST_URL = "https://pashaeft.ir/sahlbit/update.json"
+    private const val GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/PashaeF/SahlBitLauncher/releases/latest"
     private const val MAX_APK_SIZE = 120L * 1024L * 1024L
 
     suspend fun checkWebsite(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
@@ -42,13 +41,13 @@ object SahlBitUpdateManager {
     }
 
     suspend fun checkGitHub(context: Context): SahlBitUpdate = withContext(Dispatchers.IO) {
-        val manifest = runCatching { JSONObject(httpGet(GITHUB_MANIFEST_URL)) }.getOrElse {
-            val apiResponse = JSONObject(httpGet(GITHUB_API_MANIFEST_URL))
-            val encoded = apiResponse.getString("content")
-            val decoded = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT).toString(Charsets.UTF_8)
-            JSONObject(decoded)
-        }
-        parseManifest(manifest, "گیت‌هاب")
+        val release = JSONObject(httpGet(GITHUB_LATEST_RELEASE_URL))
+        val assets = release.optJSONArray("assets") ?: org.json.JSONArray()
+        val manifestUrl = (0 until assets.length()).mapNotNull { index ->
+            assets.optJSONObject(index)?.takeIf { it.optString("name").equals("update.json", ignoreCase = true) }
+                ?.optString("browser_download_url")?.takeIf { it.startsWith("https://") }
+        }.firstOrNull() ?: throw IllegalStateException("آخرین انتشار GitHub فایل update.json ندارد؛ انتشار باید همراه APK و فایل اطلاعات به‌روزرسانی منتشر شود.")
+        parseManifest(JSONObject(httpGet(manifestUrl)), "آخرین انتشار GitHub")
     }
 
     private fun parseManifest(json: JSONObject, source: String): SahlBitUpdate {
@@ -69,14 +68,17 @@ object SahlBitUpdateManager {
 
     private fun httpGet(address: String): String {
         val connection = (URL(address).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 12000
+            connectTimeout = 5000
+            readTimeout = 8000
             requestMethod = "GET"
             setRequestProperty("User-Agent", "SahlBit-Android-Updater")
             setRequestProperty("Accept", "application/json")
         }
         try {
             val code = connection.responseCode
+            if (code == 404 && address == GITHUB_LATEST_RELEASE_URL) {
+                throw IllegalStateException("هنوز هیچ انتشار رسمی در بخش Releases گیت‌هاب منتشر نشده است.")
+            }
             if (code !in 200..299) throw IllegalStateException("دریافت اطلاعات نسخه ناموفق بود (HTTP $code).")
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally {

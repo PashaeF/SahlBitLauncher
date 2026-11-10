@@ -56,6 +56,23 @@ jobs:
       - name: Name release APK
         run: cp app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/sahlbit-${SAHLBIT_VERSION_NAME}.apk"
 
+      - name: Generate release update manifest
+        shell: bash
+        run: |
+          APK="app/build/outputs/apk/release/sahlbit-${SAHLBIT_VERSION_NAME}.apk"
+          APK_SHA256=$(sha256sum "$APK" | awk '{print $1}')
+          cat > app/build/outputs/apk/release/update.json <<EOF
+          {
+            "packageName": "ir.sahlbit.launcher",
+            "versionName": "${SAHLBIT_VERSION_NAME}",
+            "versionCode": ${SAHLBIT_VERSION_CODE},
+            "minSdk": 21,
+            "apkUrl": "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/sahlbit-${SAHLBIT_VERSION_NAME}.apk",
+            "sha256": "${APK_SHA256}",
+            "changelog": "بهبودها، اصلاحات رابط کاربری و رفع اشکالات نسخه."
+          }
+          EOF
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -65,5 +82,7 @@ jobs:
             Version Code: ${{ env.SAHLBIT_VERSION_CODE }}
 
             This APK is signed with the persistent SahlBit release key.
-          files: app/build/outputs/apk/release/sahlbit-*.apk
+          files: |
+            app/build/outputs/apk/release/sahlbit-*.apk
+            app/build/outputs/apk/release/update.json
           generate_release_notes: true
