@@ -92,12 +92,14 @@ import com.canhub.cropper.CropImageView
 private fun CompactSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    enabled: Boolean = true
 ) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         MaterialSlider(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(0.80f),
             valueRange = valueRange
         )
@@ -1276,12 +1278,13 @@ private fun SahlBitApp(
             }
             Divider()
             fun readSystemBrightness(): Float = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128).coerceIn(0, 255) / 255f).coerceIn(0.05f, 1f) }.getOrDefault(0.5f)
-            val initialWindowBrightness = remember {
-                if (prefs.getBoolean("window_brightness_initialized", false)) prefs.getFloat("window_brightness", readSystemBrightness()).coerceIn(0.05f, 1f)
+            var brightnessControlMode by remember { mutableStateOf(prefs.getString("brightness_control_mode", "app_only") ?: "app_only") }
+            val initialWindowBrightness = remember(brightnessControlMode) {
+                if (brightnessControlMode == "system") readSystemBrightness()
+                else if (prefs.getBoolean("window_brightness_initialized", false)) prefs.getFloat("window_brightness", readSystemBrightness()).coerceIn(0.05f, 1f)
                 else readSystemBrightness().also { prefs.edit().putFloat("window_brightness", it).putBoolean("window_brightness_initialized", true).apply() }
             }
             var windowBrightness by remember { mutableFloatStateOf(initialWindowBrightness) }
-            var brightnessControlMode by remember { mutableStateOf(prefs.getString("brightness_control_mode", "app_only") ?: "app_only") }
             val canWriteSystemSettings = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
             LaunchedEffect(windowBrightness, brightnessControlMode) {
                 (context as? ComponentActivity)?.window?.let { w ->
