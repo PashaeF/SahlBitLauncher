@@ -356,7 +356,7 @@ private fun SahlBitApp(
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
     var wizardStep by rememberSaveable { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
-    var wizardPinSetup by remember { mutableStateOf(pinHash == null && (completedWizardVersion >= 2 || initialized)) }
+    var wizardPinSetup by remember { mutableStateOf(pinHash == null && !prefs.getBoolean("setup_completed", false) && (completedWizardVersion >= 2 || initialized)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
     var route by rememberSaveable { mutableStateOf(if (pinHash != null || prefs.getBoolean("setup_completed", false)) { if (crashRecovery && pinHash != null) "recovery" else "home" } else "wizard") }
     var routeHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -720,7 +720,13 @@ private fun SahlBitApp(
     val routeStateHolder = rememberSaveableStateHolder()
     routeStateHolder.SaveableStateProvider(route) {
     when (route) {
-        "wizard" -> if (pinHash != null) {
+        "wizard" -> if (pinHash != null || prefs.getBoolean("setup_completed", false)) {
+            LaunchedEffect(pinHash, route) {
+                routeHistory = emptyList()
+                route = if (pinHash != null && adminAuthenticated) {
+                    prefs.getString("last_management_route", "dashboard") ?: "dashboard"
+                } else "home"
+            }
             Box(Modifier.fillMaxSize().background(Cream))
         } else if (wizardPinSetup) {
             PinSetupScreen(newPin, { newPin = it.filter(Char::isDigit).take(12) }, confirmPin, { confirmPin = it.filter(Char::isDigit).take(12) }, error) {
@@ -764,8 +770,11 @@ private fun SahlBitApp(
                         val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
                         val validManagementRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
                         route = if (adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
-                    } else {
+                    } else if (!prefs.getBoolean("setup_completed", false)) {
                         wizardPinSetup = true
+                    } else {
+                        routeHistory = emptyList()
+                        route = "home"
                     }
                 } else {
                     wizardStep += 1
@@ -1669,14 +1678,18 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
     }.getOrDefault(false)
     var usageAccessGranted by remember { mutableStateOf(hasUsageAccess()) }
-    var refreshRevision by remember { mutableIntStateOf(0) }
     val hostActivity = context as? ComponentActivity
     DisposableEffect(hostActivity) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) { usageAccessGranted = hasUsageAccess(); refreshRevision++ } }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val current = hasUsageAccess()
+                if (current != usageAccessGranted) usageAccessGranted = current
+            }
+        }
         hostActivity?.lifecycle?.addObserver(observer)
         onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
-    val apps by produceState(initialValue = emptyList<InstalledAppRow>(), key1 = usageAccessGranted, key2 = refreshRevision) {
+    val apps by produceState(initialValue = emptyList<InstalledAppRow>(), key1 = usageAccessGranted) {
         value = withContext(Dispatchers.IO) {
             val usageByPackage = if (usageAccessGranted) runCatching {
                 val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
@@ -1689,13 +1702,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
                     .map { info ->
                         val pkg = info.activityInfo.packageName
                         val label = runCatching { info.loadLabel(pm).toString() }.getOrDefault(pkg)
-                        val icon = runCatching {
-                            val drawable = info.loadIcon(pm)
-                            val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                            val canvas = android.graphics.Canvas(bitmap)
-                            drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bitmap.asImageBitmap()
-                        }.getOrNull()
-                        Triple(InstalledAppRow(pkg, label, icon), (info.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0, usageByPackage[pkg] ?: 0L)
+                        Triple(InstalledAppRow(pkg, label, null), (info.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0, usageByPackage[pkg] ?: 0L)
                     }
                     .sortedWith(compareByDescending<Triple<InstalledAppRow, Boolean, Long>> { it.second }.thenByDescending { it.third }.thenBy { it.first.label.lowercase() })
                     .map { it.first }
@@ -1753,9 +1760,21 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         Spacer(Modifier.height(12.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filteredApps, key = { it.packageName }) { app ->
+                val appIcon by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, app.packageName) {
+                    value = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val drawable = pm.getApplicationIcon(app.packageName)
+                            val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                            val canvas = android.graphics.Canvas(bitmap)
+                            drawable.setBounds(0, 0, 96, 96)
+                            drawable.draw(canvas)
+                            bitmap.asImageBitmap()
+                        }.getOrNull()
+                    }
+                }
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(44.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                        if (appIcon != null) Image(appIcon!!, contentDescription = app.label, modifier = Modifier.size(44.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                         else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(44.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(app.label, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2)
@@ -2123,13 +2142,13 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
     var noButtonHeight by remember { mutableIntStateOf(intValue("no_button_height", intValue("button_height", 62)).coerceIn(48, 88)) }
     var yesButtonTextSize by remember { mutableIntStateOf(intValue("yes_text_size", intValue("button_text_size", 17)).coerceIn(14, 24)) }
     var noButtonTextSize by remember { mutableIntStateOf(intValue("no_text_size", intValue("button_text_size", 17)).coerceIn(14, 24)) }
-    var yesButtonRadius by remember { mutableIntStateOf(intValue("yes_button_radius", intValue("button_radius", 16)).coerceIn(0, 40)) }
-    var noButtonRadius by remember { mutableIntStateOf(intValue("no_button_radius", intValue("button_radius", 16)).coerceIn(0, 40)) }
+    var yesButtonRadius by remember { mutableIntStateOf(intValue("yes_button_radius", intValue("button_radius", 20)).coerceIn(0, 40)) }
+    var noButtonRadius by remember { mutableIntStateOf(intValue("no_button_radius", intValue("button_radius", 20)).coerceIn(0, 40)) }
     var yesButtonWidth by remember { mutableIntStateOf(intValue("yes_width_pct", 100).coerceIn(50, 100)) }
     var noButtonWidth by remember { mutableIntStateOf(intValue("no_width_pct", 62).coerceIn(50, 100)) }
     var avatarSize by remember { mutableIntStateOf(intValue("avatar_size", 112).coerceIn(64, 160)) }
     var avatarRadius by remember { mutableIntStateOf(intValue("avatar_radius", 20).coerceIn(0, 40)) }
-    var buttonRadius by remember { mutableIntStateOf(intValue("button_radius", 16).coerceIn(0, 40)) }
+    var buttonRadius by remember { mutableIntStateOf(intValue("button_radius", 20).coerceIn(0, 40)) }
     var buttonSpacing by remember { mutableIntStateOf(intValue("button_spacing", 50).coerceIn(8, 100)) }
     fun saveInt(key: String, value: Int) { prefs.edit().putInt("confirm_call_$key", value).apply() }
     fun saveText(key: String, value: String) { prefs.edit().putString("confirm_call_$key", value).apply() }
@@ -2444,7 +2463,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp)
                 Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp, lineHeight = 20.sp, maxLines = 3)
             }
-            Spacer(Modifier.weight(1f)); Icon(Icons.Default.ArrowBack, null, tint = Teal)
+            Icon(Icons.Default.ArrowBack, null, tint = Teal)
         }
     }
 }
@@ -2547,7 +2566,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val confirmNoTextSize = launcherPrefs.getInt("confirm_call_no_text_size", launcherPrefs.getInt("confirm_call_button_text_size", 17)).coerceIn(14, 24)
     val confirmAvatarSize = launcherPrefs.getInt("confirm_call_avatar_size", 112).coerceIn(64, 160)
     val confirmAvatarRadius = launcherPrefs.getInt("confirm_call_avatar_radius", 20).coerceIn(0, 40)
-    val confirmYesButtonRadius = launcherPrefs.getInt("confirm_call_yes_button_radius", launcherPrefs.getInt("confirm_call_button_radius", 16)).coerceIn(0, 40)
+    val confirmYesButtonRadius = launcherPrefs.getInt("confirm_call_yes_button_radius", launcherPrefs.getInt("confirm_call_button_radius", 20)).coerceIn(0, 40)
     val confirmNoButtonRadius = launcherPrefs.getInt("confirm_call_no_button_radius", launcherPrefs.getInt("confirm_call_button_radius", 16)).coerceIn(0, 40)
     val confirmButtonSpacing = launcherPrefs.getInt("confirm_call_button_spacing", 50).coerceIn(8, 100)
     val bg = when (background) { "white" -> Color.White; "cream" -> Color(0xFFFFF8E7); "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); "sage" -> Color(0xFFE5EDE5); "lavender" -> Color(0xFFEDE7F6); "mint" -> Color(0xFFE2F2EC); "sand" -> Color(0xFFF3EBDD); "rose" -> Color(0xFFF7E7E9); else -> Color(0xFFFFF8E7) }
@@ -2589,8 +2608,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.align(Alignment.TopEnd).size(40.dp).offset(x = (-10).dp, y = 2.dp)) {
-                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(23.dp))
+            }, modifier = Modifier.align(Alignment.TopEnd).size(42.dp).offset(x = (-10).dp, y = 0.dp)) {
+                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(25.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -2655,7 +2674,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
-                val responsiveCardHeight = ((screenHeight - headerHeight - 20.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
+                val responsiveCardHeight = ((screenHeight - headerHeight - 36.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
@@ -2676,7 +2695,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 } else if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         var entryOffset = 0
                         pageRowCounts.forEachIndexed { rowIndex, rowCount ->
                             val rowEntries = pageEntries.drop(entryOffset).take(rowCount)

@@ -6,7 +6,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 
 - **Application ID:** `ir.sahlbit.launcher`
 - **Version:** `0.6.4`
-- **Version Code:** `29`
+- **Version Code:** `30`
 - **Minimum Android:** API 21 (Android 5.0)
 - **Compile SDK / Target SDK:** 35
 - **JDK:** 17
@@ -101,7 +101,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 
 ## Version 0.6.4 changes
 
-- Bump the development source to versionCode 30 / versionName 0.6.4.
+- Current development version: versionCode 30 / versionName 0.6.4.
 - Persist completed setup and route navigation across activity recreation; prevent an existing administrator PIN from being recreated through a stale setup route.
 - Preserve each route's saveable UI state, including scroll position, while navigating between management pages.
 - Reorder the management dashboard categories to the requested order, except the separate recent-calls viewing page, which is now shared with the home-screen call-card renderer.
