@@ -423,6 +423,18 @@ private fun SahlBitApp(
         val root = runCatching { org.json.JSONObject(prefs.getString("page_weekday_mode", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
         root.put(page.toString(), mode); prefs.edit().putString("page_weekday_mode", root.toString()).apply()
     }
+    fun loadPageElementOrder(page: Int, active: List<String>): List<String> {
+        val saved = runCatching {
+            val array = org.json.JSONObject(prefs.getString("page_element_order", "{}") ?: "{}").optJSONArray(page.toString())
+            if (array == null) emptyList() else (0 until array.length()).map { array.optString(it) }
+        }.getOrDefault(emptyList())
+        return saved.filter { it in active } + active.filterNot { it in saved }
+    }
+    fun savePageElementOrder(page: Int, order: List<String>) {
+        val root = runCatching { org.json.JSONObject(prefs.getString("page_element_order", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        root.put(page.toString(), org.json.JSONArray(order))
+        prefs.edit().putString("page_element_order", root.toString()).apply()
+    }
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 6)) }
     fun loadRowsPerPage(page: Int): Int = runCatching {
@@ -1032,6 +1044,65 @@ private fun SahlBitApp(
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(label, color = Ink, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
                                 Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+                            }
+                        }
+                    }
+                }
+            }
+            val activePageElements = buildList {
+                if (showClockOnPage) add("clock")
+                if (weekdayMode != "off") add("weekday")
+                if (showBatteryOnPage) add("battery")
+                when (pageContentMode) {
+                    "entries" -> add("entries")
+                    "recent" -> add("recent")
+                    "dialer" -> add("dialer")
+                }
+            }
+            var pageElementOrder by remember(selectedPage, pageContentMode, showClockOnPage, showBatteryOnPage, weekdayMode, recentCallsFlagsRevision) {
+                mutableStateOf(loadPageElementOrder(selectedPage, activePageElements))
+            }
+            val normalizedElementOrder = pageElementOrder.filter { it in activePageElements } + activePageElements.filterNot { it in pageElementOrder }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ترتیب نمایش عناصر فعال", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("با دکمه‌های بالا و پایین، ترتیب نمایش عناصر را در صفحه اصلی تغییر دهید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                    if (normalizedElementOrder.isEmpty()) {
+                        Text("در این صفحه عنصری برای مرتب‌سازی فعال نیست.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), textAlign = TextAlign.Center)
+                    } else {
+                        normalizedElementOrder.forEachIndexed { orderIndex, element ->
+                            val label = when (element) {
+                                "clock" -> "ساعت دیواری"
+                                "weekday" -> "چندشنبه"
+                                "battery" -> "نمایشگر میزان شارژ و علامت در حال شارژ"
+                                "entries" -> "مخاطبان و برنامه‌های منتخب"
+                                "recent" -> "تماس‌های اخیر"
+                                "dialer" -> "شماره‌گیر اختصاصی"
+                                else -> element
+                            }
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), shape = RoundedCornerShape(20.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${(orderIndex + 1).toPersianDigits()}.", color = Teal, fontWeight = FontWeight.Bold)
+                                    Text(label, color = Ink, modifier = Modifier.weight(1f).padding(horizontal = 8.dp), lineHeight = 20.sp)
+                                    TextButton(onClick = {
+                                        if (orderIndex > 0) {
+                                            val updated = normalizedElementOrder.toMutableList()
+                                            val moved = updated.removeAt(orderIndex)
+                                            updated.add(orderIndex - 1, moved)
+                                            pageElementOrder = updated
+                                            savePageElementOrder(selectedPage, updated)
+                                        }
+                                    }, enabled = orderIndex > 0) { Text("بالا") }
+                                    TextButton(onClick = {
+                                        if (orderIndex < normalizedElementOrder.lastIndex) {
+                                            val updated = normalizedElementOrder.toMutableList()
+                                            val moved = updated.removeAt(orderIndex)
+                                            updated.add(orderIndex + 1, moved)
+                                            pageElementOrder = updated
+                                            savePageElementOrder(selectedPage, updated)
+                                        }
+                                    }, enabled = orderIndex < normalizedElementOrder.lastIndex) { Text("پایین") }
+                                }
                             }
                         }
                     }
@@ -2423,7 +2494,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
-        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - (if (showWeekdayText || showWeekdayMarks) 46.dp else 0.dp) - (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) - 20.dp).coerceAtLeast(120.dp)
+        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - (if (showWeekdayText || showWeekdayMarks) 46.dp else 0.dp) - (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) - 24.dp).coerceAtLeast(120.dp)
         val effectiveClockSize = minOf(clockSize.dp, (screenWidth - 32.dp).coerceAtLeast(120.dp), maxClockHeight).value.toInt()
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
@@ -2431,8 +2502,25 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         val hourLength = clockPrefs.getFloat("clock_hour_hand_length", 0.40f)
         val minuteLength = clockPrefs.getFloat("clock_minute_hand_length", 0.65f)
         val secondLength = clockPrefs.getFloat("clock_second_hand_length", 0.90f)
-        if (showClockOnCurrentPage) AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
-        if (showWeekdayText || showWeekdayMarks) {
+        val activeHomeElements = buildList {
+            if (showClockOnCurrentPage) add("clock")
+            if (showWeekdayText || showWeekdayMarks) add("weekday")
+            if (showBatteryOnCurrentPage) add("battery")
+            if (pageContentMode != "none") add(pageContentMode)
+        }
+        val savedHomeElementOrder = runCatching {
+            val array = org.json.JSONObject(launcherPrefs.getString("page_element_order", "{}") ?: "{}").optJSONArray(pager.currentPage.toString())
+            if (array == null) emptyList() else (0 until array.length()).map { array.optString(it) }
+        }.getOrDefault(emptyList())
+        val homeElementOrder = savedHomeElementOrder.filter { it in activeHomeElements } + activeHomeElements.filterNot { it in savedHomeElementOrder }
+        val renderHomeElementOrder = if (pageContentMode == "none") homeElementOrder + "content" else homeElementOrder
+        renderHomeElementOrder.forEachIndexed { elementIndex, element ->
+            when (element) {
+                "clock" -> {
+                    AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
+                }
+                "weekday" -> {
+                    {
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (showWeekdayText) Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
@@ -2440,7 +2528,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 if (showWeekdayMarks) Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp))
             }
         }
-        if (showBatteryOnCurrentPage) {
+                }
+                "battery" -> {
+                    {
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                 val batteryMode = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getString("battery_display_mode", if (context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic"
@@ -2452,8 +2542,10 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
             }
         }
-        Spacer(Modifier.height(if (showBatteryOnCurrentPage || showWeekdayText || showWeekdayMarks) 10.dp else 4.dp))
-        HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
+                }
+                "entries", "recent", "dialer", "content" -> {
+                    if (elementIndex > 0) Spacer(Modifier.height(8.dp))
+                            HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
@@ -2463,7 +2555,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + 10.dp
+                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + (renderHomeElementOrder.size.coerceAtLeast(1) - 1).coerceAtLeast(0).dp * 8
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
                 val responsiveCardHeight = ((screenHeight - headerHeight - 20.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
@@ -2532,6 +2624,11 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }
             }
         }
+                }
+            }
+            if (elementIndex < renderHomeElementOrder.lastIndex && element !in setOf("entries", "recent", "dialer", "content")) Spacer(Modifier.height(8.dp))
+        }
+
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             repeat(pageCount.coerceAtLeast(1)) { index ->
                 Box(Modifier.padding(horizontal = 4.dp).size(if (pager.currentPage == index) 9.dp else 7.dp).clip(CircleShape).background(if (pager.currentPage == index) fg else fg.copy(alpha = .28f)))
@@ -2560,7 +2657,7 @@ private fun remapPageLayoutPreferences(
     mapping: Map<Int, Int>,
     duplicate: Pair<Int, Int>? = null
 ) {
-    listOf("row_counts_per_page", "row_layouts", "row_alignments", "page_recent_calls", "page_clock_enabled", "page_battery_enabled", "page_content_mode", "page_weekday_mode", "page_settings_icon_enabled").forEach { key ->
+    listOf("row_counts_per_page", "row_layouts", "row_alignments", "page_recent_calls", "page_clock_enabled", "page_battery_enabled", "page_content_mode", "page_weekday_mode", "page_settings_icon_enabled", "page_element_order").forEach { key ->
         val old = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }
             .getOrDefault(org.json.JSONObject())
         val updated = org.json.JSONObject()
