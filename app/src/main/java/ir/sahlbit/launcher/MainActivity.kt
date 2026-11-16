@@ -2578,8 +2578,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     LaunchedEffect(pressed, enabled) {
         if (pressed && enabled) {
             latestOnStep()
-            delay(420)
-            while (pressed && enabled) { latestOnStep(); delay(260) }
+            delay(500)
+            while (pressed && enabled) { latestOnStep(); delay(350) }
         }
     }
     Box(Modifier.size(48.dp).clickable(interactionSource = interaction, indication = null, enabled = enabled) {}, contentAlignment = Alignment.Center) {
