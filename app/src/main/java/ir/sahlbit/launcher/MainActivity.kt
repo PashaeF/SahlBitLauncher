@@ -1053,7 +1053,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(10.dp))
             OutlinedButton(
                 onClick = { navigateTo("contacts") },
-                enabled = !showRecentCallsOnPage,
+                enabled = pageContentMode == "entries",
                 modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
             ) {
                 Text(

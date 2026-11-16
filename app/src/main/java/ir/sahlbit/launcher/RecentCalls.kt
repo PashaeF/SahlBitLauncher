@@ -79,7 +79,7 @@ private fun normalizeRecentNumber(number: String): String = number.map { ch ->
 }.filter(Char::isDigit).joinToString("")
 
 private fun toPersianRecentDigits(value: String): String = value.map { ch ->
-    if (ch in "0123456789") ("۰".code + ch.code - "0".code).toChar() else ch
+    if (ch in "0123456789") ('۰'.code + ch.code - '0'.code).toChar() else ch
 }.joinToString("")
 
 @Composable
