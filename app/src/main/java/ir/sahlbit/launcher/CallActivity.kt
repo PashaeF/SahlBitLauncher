@@ -53,6 +53,10 @@ class CallActivity : Activity(), SensorEventListener {
     private var sensorManager: SensorManager? = null
     private var powerManager: PowerManager? = null
     private var proximityWakeLock: PowerManager.WakeLock? = null
+    private val photoExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var photoRequestGeneration = 0
+    private var photoLoadStartedForNumber: String? = null
     private val vazir by lazy { ResourcesCompat.getFont(this, R.font.vazirmatn_regular) }
 
     private val receiver = object : BroadcastReceiver() {
@@ -262,18 +266,55 @@ class CallActivity : Activity(), SensorEventListener {
     }
 
     private fun loadContactPhoto() {
+        if (number.isBlank() ||
+            androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return
+        if (photoLoadStartedForNumber == number) return
+
+        photoLoadStartedForNumber = number
         avatarView.setImageResource(android.R.drawable.sym_def_app_icon)
-        if (number.isBlank() || androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CONTACTS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
-        runCatching {
-            val lookup = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
-            contentResolver.query(lookup, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val foundName = cursor.getString(0).orEmpty()
-                    if (foundName.isNotBlank() && (displayName.isBlank() || displayName == number)) nameView.text = foundName.toPersianDigitsForCallUi()
-                    cursor.getString(1)?.takeIf { it.isNotBlank() }?.let { photo ->
-                        contentResolver.openInputStream(Uri.parse(photo))?.use { stream -> android.graphics.drawable.Drawable.createFromStream(stream, null)?.let { avatarView.setImageDrawable(it) } }
+        val requestedNumber = number
+        val requestGeneration = ++photoRequestGeneration
+
+        // Contact-provider access and image decoding must not block Telecom's call UI thread.
+        photoExecutor.execute {
+            val result = runCatching {
+                val lookup = Uri.withAppendedPath(
+                    ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                    Uri.encode(requestedNumber)
+                )
+                var foundName = ""
+                var photoUri: String? = null
+                contentResolver.query(
+                    lookup,
+                    arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        foundName = cursor.getString(0).orEmpty()
+                        photoUri = cursor.getString(1)?.takeIf(String::isNotBlank)
                     }
                 }
+                val bitmap = photoUri?.let { raw ->
+                    decodeScaledBitmap(this, Uri.parse(raw), 384)
+                }
+                foundName to bitmap
+            }.getOrNull()
+
+            mainHandler.post {
+                if (requestGeneration != photoRequestGeneration ||
+                    requestedNumber != number ||
+                    isFinishing ||
+                    isDestroyed
+                ) return@post
+
+                val (foundName, bitmap) = result ?: return@post
+                if (foundName.isNotBlank() && (displayName.isBlank() || displayName == requestedNumber)) {
+                    nameView.text = foundName.toPersianDigitsForCallUi()
+                }
+                if (bitmap != null) avatarView.setImageBitmap(bitmap)
             }
         }
     }
@@ -294,6 +335,9 @@ class CallActivity : Activity(), SensorEventListener {
     override fun onResume() { super.onResume(); applyImmersive(); updateProximityMonitoring() }
     override fun onPause() { sensorManager?.unregisterListener(this); super.onPause() }
     override fun onDestroy() {
+        photoRequestGeneration++
+        photoExecutor.shutdownNow()
+        mainHandler.removeCallbacksAndMessages(null)
         runCatching { unregisterReceiver(receiver) }; sensorManager?.unregisterListener(this)
         if (proximityWakeLock?.isHeld == true) runCatching { proximityWakeLock?.release() }
         proximityWakeLock = null; super.onDestroy()
