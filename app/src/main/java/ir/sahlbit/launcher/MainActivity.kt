@@ -2687,7 +2687,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         } else emptyMap()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().height(if (showSettingsIconOnCurrentPage) 48.dp else 8.dp)) {
+        Box(Modifier.fillMaxWidth().height(if (showSettingsIconOnCurrentPage) 58.dp else 8.dp)) {
             if (showSettingsIconOnCurrentPage) IconButton(onClick = {
                 if (!settingsHintShown) {
                     android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
@@ -2695,13 +2695,13 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.align(Alignment.TopEnd).size(44.dp).offset(x = 10.dp, y = 0.dp)) {
+            }, modifier = Modifier.align(Alignment.TopEnd).size(44.dp).offset(x = 0.dp, y = 10.dp)) {
                 Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(29.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
-        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - (if (showWeekdayText || showWeekdayMarks) 46.dp else 0.dp) - (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) - 24.dp).coerceAtLeast(120.dp)
+        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - (if (showWeekdayText || showWeekdayMarks) 46.dp else 0.dp) - (if (showSettingsIconOnCurrentPage) 58.dp else 8.dp) - 24.dp).coerceAtLeast(120.dp)
         val effectiveClockSize = minOf(clockSize.dp, (screenWidth - 32.dp).coerceAtLeast(120.dp), maxClockHeight).value.toInt()
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
@@ -2778,7 +2778,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) +
                     (if (pageWeekdayEnabled) 42.dp else 0.dp) +
                     (if (pageBatteryEnabled) 64.dp else 0.dp) +
-                    (if (pageSettingsIconEnabled) 48.dp else 8.dp) +
+                    (if (pageSettingsIconEnabled) 58.dp else 8.dp) +
                     ((pageElementCount - 1).coerceAtLeast(0) * 8).dp
                 val pageEntries = entries.filter { it.page == index }
                 var remainingEntries = pageEntries.size
