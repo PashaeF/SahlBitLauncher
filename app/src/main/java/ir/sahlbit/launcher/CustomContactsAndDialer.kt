@@ -669,7 +669,7 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                 Text("وضعیت تماس", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 SwitchChoice("نمایش علامت وضعیت تماس", showStatusIcon, { showStatusIcon = it; saveBoolean("recent_show_status_icon", it) })
                 SwitchChoice("نمایش نوشتار فارسی وضعیت تماس", showStatusText, { showStatusText = it; saveBoolean("recent_show_status_text", it) })
-                Text("اندازه علامت وضعیت تماس: \u2066${statusIconSize.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Text("اندازه علامت وضعیت تماس: \u2066${statusIconSize.toPersianDigits()} sp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                 Slider(statusIconSize.toFloat(), { statusIconSize = it.toInt().coerceIn(16, 48); saveInt("recent_status_icon_size", statusIconSize) }, valueRange = 16f..48f)
             }
         }
