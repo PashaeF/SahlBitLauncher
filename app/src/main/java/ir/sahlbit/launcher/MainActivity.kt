@@ -157,7 +157,7 @@ private fun isHomeRoleHeld(context: Context): Boolean {
     return context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName == context.packageName
 }
 private fun isDialerRoleHeld(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         val manager = context.getSystemService(RoleManager::class.java)
         if (manager?.isRoleAvailable(RoleManager.ROLE_DIALER) == true) return manager.isRoleHeld(RoleManager.ROLE_DIALER)
@@ -167,7 +167,7 @@ private fun isDialerRoleHeld(context: Context): Boolean {
 private fun isWizardPermissionGranted(context: Context, step: Int): Boolean = when (step) {
     1 -> isHomeRoleHeld(context)
     2 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
-    3 -> isDialerRoleHeld(context)
+    3 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isDialerRoleHeld(context)
     4 -> androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     5 -> Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
     6 -> {
@@ -1577,7 +1577,16 @@ private fun SahlBitApp(
             val homeGranted = isHomeRoleHeld(context)
             val dialerGranted = isDialerRoleHeld(context)
             PermissionCard("نقش برنامه صفحه اصلی (لانچر) پیش‌فرض", "این نقش به اندروید می‌گوید پس از فشردن دکمهٔ خانه، صفحهٔ اصلی سهل‌بیت را نشان دهد. این نقش تماس‌ها یا اطلاعات شخصی شما را کنترل نمی‌کند.", "انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض", homeGranted, onSelectLauncher)
-            PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("رابط تماس اختصاصی", color = Ink, fontWeight = FontWeight.Bold)
+                        Text("اندروید ۵ و ۵.۱ از نقش برنامهٔ تلفن پیش‌فرض و InCallService موردنیاز سهل‌بیت پشتیبانی نمی‌کنند. تماس‌ها همچنان با رابط تلفن خود دستگاه مدیریت می‌شوند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 21.sp)
+                    }
+                }
+            } else {
+                PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "برای آنکه رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی نمایش داده شود، اندروید باید سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض بشناسد. در هر زمان می‌توانید برنامهٔ تلفن دیگری انتخاب کنید.", "انتخاب سهل‌بیت به‌عنوان برنامهٔ تلفن پیش‌فرض", dialerGranted, onSelectDialer)
+            }
             PermissionCard("دسترسی به مخاطبان", "برای خواندن همهٔ شماره‌ها و تصویر زندهٔ مخاطب لازم است. در اندروید ۶ و جدیدتر، این اجازه فقط پس از اقدام شما درخواست می‌شود؛ در اندروید ۵ هنگام نصب برنامه نمایش داده می‌شود. بدون این اجازه، انتخابگر سیستم فقط امکان انتخاب محدود مخاطب را فراهم می‌کند.", if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) "انتخاب مخاطب با انتخابگر سیستم" else "اعطای دسترسی به مخاطبان", contactsGranted, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) else if (contactsGranted) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) })
             PermissionCard("اجازهٔ برقراری تماس", "این اجازه فقط برای شروع تماس مستقیم با شماره‌ای است که مدیر در صفحهٔ اصلی انتخاب کرده است. اگر اجازه داده نشود، می‌توان شماره‌گیر سیستم را باز کرد. در اندروید ۵ همیشه از شماره‌گیر سیستم استفاده می‌شود.", "اعطای اجازهٔ تماس تلفنی", callGranted, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در اندروید ۵ تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (callGranted) android.widget.Toast.makeText(context, "اجازهٔ تماس تلفنی قبلاً اعطا شده است.", android.widget.Toast.LENGTH_SHORT).show() else callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
