@@ -120,6 +120,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Explain that READ_CALL_LOG is separate from READ_CONTACTS and may be granted through the Android default-Dialer role's phone permission set, subject to the platform's restricted-permission rules.
 - Let the call-confirmation preview select an Android contact after checking/asking for READ_CONTACTS.
 - Expand recent-call card settings for photo/name sources and priorities, optional name/number/status display, call-button mode and sizing, and card spacing.
+- Constrain recent-call button icon/text sizes to the available card width and use a stacked compact layout on narrow cards to prevent overflow.
 - Load installed-app labels and icons off the UI thread, display app logos, and add shortcuts for Contacts, Messages, Phone, Settings, and Files.
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
 - Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
