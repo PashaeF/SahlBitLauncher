@@ -413,7 +413,7 @@ private fun SahlBitApp(
     var clockMinuteLength by remember { mutableFloatStateOf(prefs.getFloat("clock_minute_hand_length", 0.65f).coerceIn(0.35f, 0.88f)) }
     var clockSecondLength by remember { mutableFloatStateOf(prefs.getFloat("clock_second_hand_length", 0.90f).coerceIn(0.40f, 0.92f)) }
     var showSecondHand by remember { mutableStateOf(prefs.getBoolean("clock_show_seconds", false)) }
-    var adminAuthenticated by remember { mutableStateOf(false) }
+    var adminAuthenticated by rememberSaveable { mutableStateOf(false) }
     var failedPins by remember { mutableIntStateOf(prefs.getInt("pin_failed_attempts", 0)) }
     var lockUntil by remember { mutableLongStateOf(prefs.getLong("pin_lock_until", 0L)) }
     var mathA by remember { mutableIntStateOf(0) }
