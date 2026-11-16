@@ -129,3 +129,45 @@ internal fun decodeCachedScaledBitmap(
     }
     return decoded
 }
+
+
+/**
+ * Bounded cache for application icons shared by the home screen and app lists.
+ * The package's last-update timestamp invalidates the cached icon after an app update.
+ * Call this function from a background dispatcher.
+ */
+private val applicationIconCache = object : LruCache<String, Bitmap>(4 * 1024) {
+    override fun sizeOf(key: String, value: Bitmap): Int = (value.byteCount / 1024).coerceAtLeast(1)
+}
+
+internal fun decodeCachedApplicationIcon(
+    context: android.content.Context,
+    packageName: String,
+    targetSizePx: Int = 96
+): Bitmap? = runCatching {
+    val packageManager = context.packageManager
+    val packageInfo = packageManager.getPackageInfo(packageName, 0)
+    val target = targetSizePx.coerceIn(48, 192)
+    val key = packageName + "|" + packageInfo.lastUpdateTime + "|" + target
+
+    synchronized(applicationIconCache) {
+        applicationIconCache.get(key)?.let { return it }
+    }
+
+    val drawable = packageManager.getApplicationIcon(packageName)
+    val bitmap = Bitmap.createBitmap(target, target, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    drawable.setBounds(0, 0, target, target)
+    drawable.draw(canvas)
+
+    synchronized(applicationIconCache) {
+        val existing = applicationIconCache.get(key)
+        if (existing != null) {
+            if (bitmap !== existing && !bitmap.isRecycled) bitmap.recycle()
+            existing
+        } else {
+            applicationIconCache.put(key, bitmap)
+            bitmap
+        }
+    }
+}.getOrNull()
