@@ -1741,7 +1741,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         PermissionCard("دسترسی آمار مصرف برنامه‌ها", "برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده در ۳۰ روز اخیر لازم است. این دسترسی ویژه در تنظیمات اندروید فعال می‌شود.", "فعال‌سازی دسترسی آمار مصرف", usageAccessGranted, { openUsageAccessSettings(context) })
         Text("میان‌بر برنامه‌های اصلی", color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Shortcut("مخاطبین", "👤", Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI))
+            Shortcut("مخاطبین", "👤", Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CONTACTS))
             Shortcut("پیام‌ها", "✉", Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MESSAGING))
             Shortcut("تلفن", "☎", Intent(Intent.ACTION_DIAL))
             Shortcut("تنظیمات", "⚙", Intent(Settings.ACTION_SETTINGS))
