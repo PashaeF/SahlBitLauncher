@@ -132,7 +132,7 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     val callIconSize = prefs.getInt("recent_call_icon_size", 26).coerceIn(16, 48)
     val callTextSize = prefs.getInt("recent_call_text_size", 14).coerceIn(10, 24)
     val buttonMode = prefs.getString("recent_call_button_mode", "both") ?: "both"
-    val spacing = prefs.getInt("recent_card_spacing", 12).coerceIn(4, 30)
+    val spacing = prefs.getInt("recent_card_spacing", 18).coerceIn(4, 30)
     val (statusSymbol, statusColor, statusLabel) = when (call.type) {
         CallLog.Calls.MISSED_TYPE -> Triple("×", Color(0xFFB3261E), "تماس ورودی بدون پاسخ")
         CallLog.Calls.REJECTED_TYPE -> Triple("×", Color(0xFFB3261E), "تماس ورودی ردشده")

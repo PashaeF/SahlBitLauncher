@@ -574,7 +574,7 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
     var buttonMode by remember { mutableStateOf(prefs.getString("recent_call_button_mode", "both") ?: "both") }
     var callIconSize by remember { mutableIntStateOf(prefs.getInt("recent_call_icon_size", 26).coerceIn(16, 48)) }
     var callTextSize by remember { mutableIntStateOf(prefs.getInt("recent_call_text_size", 14).coerceIn(10, 24)) }
-    var cardSpacing by remember { mutableIntStateOf(prefs.getInt("recent_card_spacing", 12).coerceIn(4, 30)) }
+    var cardSpacing by remember { mutableIntStateOf(prefs.getInt("recent_card_spacing", 18).coerceIn(4, 30)) }
     var showSavedCount by remember { mutableStateOf(prefs.getBoolean("recent_show_saved_count", false)) }
     fun saveBoolean(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
     fun saveString(key: String, value: String) { prefs.edit().putString(key, value).apply() }
