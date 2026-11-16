@@ -3,10 +3,10 @@ package ir.sahlbit.launcher
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.CallLog
 import android.provider.ContactsContract
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,12 +65,41 @@ fun readRecentCallRecords(context: Context, limit: Int = 30): List<RecentCallRec
     } ?: emptyList()
 }.getOrDefault(emptyList())
 
-private fun lookupAndroidCallContact(context: Context, number: String): AndroidCallContact? = runCatching {
-    val lookupUri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
-    context.contentResolver.query(lookupUri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use { cursor ->
-        if (cursor.moveToFirst()) AndroidCallContact(cursor.getString(0).orEmpty(), cursor.getString(1)) else null
-    }
-}.getOrNull()
+/**
+ * Read Android phone contacts once for the recent-calls list.
+ * This avoids issuing a separate PhoneLookup provider query from every visible call card.
+ * Must be called from a background dispatcher.
+ */
+private fun readAndroidCallContacts(context: Context): Map<String, AndroidCallContact> = runCatching {
+    context.contentResolver.query(
+        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+        arrayOf(
+            ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.PHOTO_URI
+        ),
+        null,
+        null,
+        null
+    )?.use { cursor ->
+        val numberIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
+        val nameIndex = cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+        val photoIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+        val contacts = LinkedHashMap<String, AndroidCallContact>()
+        while (cursor.moveToNext()) {
+            val key = normalizeRecentNumber(cursor.getString(numberIndex).orEmpty())
+            if (key.isNotBlank()) {
+                val name = cursor.getString(nameIndex).orEmpty()
+                val photo = if (photoIndex >= 0) cursor.getString(photoIndex) else null
+                val existing = contacts[key]
+                if (existing == null || (existing.name.isBlank() && name.isNotBlank())) {
+                    contacts[key] = AndroidCallContact(name, photo)
+                }
+            }
+        }
+        contacts
+    } ?: emptyMap()
+}.getOrDefault(emptyMap())
 
 private fun normalizeRecentNumber(number: String): String = number.map { ch ->
     when (ch) {
@@ -83,7 +114,7 @@ private fun toPersianRecentDigits(value: String): String = value.map { ch ->
 }.joinToString("")
 
 @Composable
-fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customContacts: List<CustomContact>, prefs: android.content.SharedPreferences, onCall: (String) -> Unit) {
+fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customContacts: List<CustomContact>, prefs: android.content.SharedPreferences, androidContacts: Map<String, AndroidCallContact> = emptyMap(), onCall: (String) -> Unit) {
     val context = LocalContext.current
     val normalized = remember(call.number) { normalizeRecentNumber(call.number) }
     val matchingEntry = remember(call.number, entries) { entries.firstOrNull { it.kind == "contact" && normalizeRecentNumber(it.phoneNumber.orEmpty()) == normalized } }
@@ -93,8 +124,8 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     }
     val contactsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     val allowAndroid = matchingCustom == null && prefs.getBoolean("recent_show_android_unknown", false)
-    val androidContact by produceState<AndroidCallContact?>(null, call.number, contactsGranted, allowAndroid, matchingCustom?.second?.contactUri) {
-        value = if (contactsGranted && (allowAndroid || !matchingCustom?.second?.contactUri.isNullOrBlank())) withContext(Dispatchers.IO) { lookupAndroidCallContact(context, call.number) } else null
+    val androidContact = androidContacts[normalized].takeIf {
+        contactsGranted && (allowAndroid || !matchingCustom?.second?.contactUri.isNullOrBlank())
     }
     val customName = matchingCustom?.first?.name.orEmpty()
     val androidName = call.name.ifBlank { androidContact?.name.orEmpty() }
@@ -176,9 +207,29 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
     val context = LocalContext.current
     var permissionRevision by remember { mutableIntStateOf(0) }
     var permissionGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) }
+    var contactsGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
+    val hostActivity = context as? ComponentActivity
+    DisposableEffect(hostActivity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val callLogNow = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+                val contactsNow = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+                if (callLogNow != permissionGranted) permissionGranted = callLogNow
+                if (contactsNow != contactsGranted) contactsGranted = contactsNow
+                permissionRevision++
+            }
+        }
+        hostActivity?.lifecycle?.addObserver(observer)
+        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> permissionGranted = granted; permissionRevision++ }
     val records by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = permissionGranted, key2 = permissionRevision) {
         value = if (permissionGranted) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
+    }
+    val needsAndroidContacts = prefs.getBoolean("recent_show_android_unknown", false) ||
+        customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
+    val androidContacts by produceState(initialValue = emptyMap<String, AndroidCallContact>(), key1 = contactsGranted, key2 = needsAndroidContacts, key3 = permissionRevision) {
+        value = if (contactsGranted && needsAndroidContacts) withContext(Dispatchers.IO) { readAndroidCallContacts(context) } else emptyMap()
     }
     val listState = rememberLazyListState()
     Column(Modifier.fillMaxSize().background(Color(0xFFFFF8E7)).padding(16.dp)) {
@@ -200,7 +251,7 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
             if (prefs.getBoolean("recent_show_saved_count", false)) Text("مخاطبان ذخیره‌شده: ${customContacts.size.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }}", color = Color(0xFF475569), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 8.dp)) {
                 items(records, key = { it.id }) { call ->
-                    RecentCallCard(call, entries, customContacts, prefs) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
+                    RecentCallCard(call, entries, customContacts, prefs, androidContacts) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
                 }
             }
         }
