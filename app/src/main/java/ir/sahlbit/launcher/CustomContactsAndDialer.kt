@@ -502,16 +502,18 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = CustomBlue) }
             Text("شماره‌گیر اختصاصی", color = CustomBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        OutlinedTextField(
-            value = number,
-            onValueChange = { number = it.toPersianDigitsText() },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
-            shape = RoundedCornerShape(20.dp),
-            textStyle = TextStyle(fontSize = 26.sp, textAlign = TextAlign.Center),
-            label = { Text("شماره تماس") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-        )
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            OutlinedTextField(
+                value = number,
+                onValueChange = { number = it.toPersianDigitsText() },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
+                shape = RoundedCornerShape(20.dp),
+                textStyle = TextStyle(fontSize = 26.sp, textAlign = TextAlign.Center),
+                label = { Text("شماره تماس") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            )
+        }
         Spacer(Modifier.weight(1f))
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             Column(Modifier.fillMaxWidth().weight(1.35f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
