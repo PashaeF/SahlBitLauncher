@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.graphics.asImageBitmap
@@ -186,6 +187,7 @@ fun CustomContactsPage(
     onBack: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var phones by remember { mutableStateOf(listOf(CustomContactPhone(number = ""))) }
     var editingId by remember { mutableStateOf<String?>(null) }
@@ -210,15 +212,21 @@ fun CustomContactsPage(
     }
     val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
         val index = photoTarget
-        if (result.isSuccessful && index in phones.indices) {
-            val saved = result.uriContent?.let { saveSquarePhotoFromUri(context, it) }
-            if (saved != null) phones = phones.toMutableList().also {
-                it[index] = it[index].copy(photoUri = saved, contactUri = null)
-            } else message = "ذخیرهٔ تصویر برش‌خورده ناموفق بود."
-        } else if (result.error != null) {
-            message = "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."
+        val croppedUri = result.uriContent
+        if (result.isSuccessful && index in phones.indices && croppedUri != null) {
+            coroutineScope.launch {
+                val saved = withContext(Dispatchers.IO) { saveSquarePhotoFromUri(context, croppedUri) }
+                if (saved != null && index in phones.indices) {
+                    phones = phones.toMutableList().also {
+                        it[index] = it[index].copy(photoUri = saved, contactUri = null)
+                    }
+                } else message = "ذخیرهٔ تصویر برش‌خورده ناموفق بود."
+                photoTarget = -1
+            }
+        } else {
+            if (result.error != null) message = "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."
+            photoTarget = -1
         }
-        photoTarget = -1
     }
     fun launchCrop(uri: Uri) { cropLauncher.launch(CropImageContractOptions(uri, cropOptions())) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
