@@ -101,6 +101,38 @@ internal fun readAndroidCallContacts(context: Context): Map<String, AndroidCallC
     } ?: emptyMap()
 }.getOrDefault(emptyMap())
 
+/** Reuses provider snapshots while navigating between SahlBit screens. A new
+ * activity-resume revision invalidates the snapshot so external changes are seen. */
+private object RecentCallsSnapshotCache {
+    private val lock = Any()
+    private var recordsRevision = Int.MIN_VALUE
+    private var recordsSnapshot: List<RecentCallRecord> = emptyList()
+    private var contactsRevision = Int.MIN_VALUE
+    private var contactsSnapshot: Map<String, AndroidCallContact> = emptyMap()
+
+    fun records(context: Context, revision: Int): List<RecentCallRecord> = synchronized(lock) {
+        if (recordsRevision != revision) {
+            recordsSnapshot = readRecentCallRecords(context)
+            recordsRevision = revision
+        }
+        recordsSnapshot
+    }
+
+    fun contacts(context: Context, revision: Int): Map<String, AndroidCallContact> = synchronized(lock) {
+        if (contactsRevision != revision) {
+            contactsSnapshot = readAndroidCallContacts(context)
+            contactsRevision = revision
+        }
+        contactsSnapshot
+    }
+}
+
+internal fun readRecentCallRecordsCached(context: Context, revision: Int): List<RecentCallRecord> =
+    RecentCallsSnapshotCache.records(context, revision)
+
+internal fun readAndroidCallContactsCached(context: Context, revision: Int): Map<String, AndroidCallContact> =
+    RecentCallsSnapshotCache.contacts(context, revision)
+
 private fun normalizeRecentNumber(number: String): String = number.map { ch ->
     when (ch) {
         in '۰'..'۹' -> ('0'.code + ch.code - '۰'.code).toChar()
@@ -203,33 +235,22 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
 }
 
 @Composable
-fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<LauncherEntry>, customContacts: List<CustomContact>, onBack: () -> Unit) {
+fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<LauncherEntry>, customContacts: List<CustomContact>, resumeRevision: Int, onBack: () -> Unit) {
     val context = LocalContext.current
-    var permissionRevision by remember { mutableIntStateOf(0) }
     var permissionGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) }
     var contactsGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
-    val hostActivity = context as? ComponentActivity
-    DisposableEffect(hostActivity) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val callLogNow = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-                val contactsNow = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-                if (callLogNow != permissionGranted) permissionGranted = callLogNow
-                if (contactsNow != contactsGranted) contactsGranted = contactsNow
-                permissionRevision++
-            }
-        }
-        hostActivity?.lifecycle?.addObserver(observer)
-        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
+    LaunchedEffect(resumeRevision) {
+        permissionGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+        contactsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> permissionGranted = granted; permissionRevision++ }
-    val records by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = permissionGranted, key2 = permissionRevision) {
-        value = if (permissionGranted) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> permissionGranted = granted }
+    val records by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = permissionGranted, key2 = resumeRevision) {
+        value = if (permissionGranted) withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, resumeRevision) } else emptyList()
     }
     val needsAndroidContacts = prefs.getBoolean("recent_show_android_unknown", false) ||
         customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
-    val androidContacts by produceState(initialValue = emptyMap<String, AndroidCallContact>(), key1 = contactsGranted, key2 = needsAndroidContacts, key3 = permissionRevision) {
-        value = if (contactsGranted && needsAndroidContacts) withContext(Dispatchers.IO) { readAndroidCallContacts(context) } else emptyMap()
+    val androidContacts by produceState(initialValue = emptyMap<String, AndroidCallContact>(), key1 = contactsGranted, key2 = needsAndroidContacts, key3 = resumeRevision) {
+        value = if (contactsGranted && needsAndroidContacts) withContext(Dispatchers.IO) { readAndroidCallContactsCached(context, resumeRevision) } else emptyMap()
     }
     val listState = rememberLazyListState()
     Column(Modifier.fillMaxSize().background(Color(0xFFFFF8E7)).padding(16.dp)) {
@@ -251,7 +272,7 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
             if (prefs.getBoolean("recent_show_saved_count", false)) Text("مخاطبان ذخیره‌شده: ${customContacts.size.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }}", color = Color(0xFF475569), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 8.dp)) {
                 items(records, key = { it.id }) { call ->
-                    RecentCallCard(call, entries, customContacts, prefs, androidContacts, photoRevision = permissionRevision) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
+                    RecentCallCard(call, entries, customContacts, prefs, androidContacts, photoRevision = resumeRevision) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
                 }
             }
         }
