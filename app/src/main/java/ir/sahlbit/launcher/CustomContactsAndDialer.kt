@@ -168,7 +168,7 @@ object CustomContactsStore {
             root.put(JSONObject().apply {
                 put("id", contact.id); put("name", contact.name)
                 put("phones", JSONArray().apply {
-                    contact.phones.forEach { phone -> put(JSONObject().apply {
+                    contact.phones.forEachIndexed { phoneIndex, phone -> put(JSONObject().apply {
                         put("id", phone.id); put("number", phone.number); put("photo", phone.photoUri ?: ""); put("contactUri", phone.contactUri ?: ""); put("label", phone.label)
                     }) }
                 })
@@ -402,7 +402,7 @@ fun CustomContactsPage(
                             val phoneBitmapValue = phoneBitmap
                             if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(phone.label.ifBlank { "شمارهٔ ${(contact.phones.indexOf(phone) + 1).toPersianDigits()}" }, color = CustomInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text(phone.label.ifBlank { "شمارهٔ ${(phoneIndex + 1).toPersianDigits()}" }, color = CustomInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                                 Text(phone.number.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
                             }
                         }

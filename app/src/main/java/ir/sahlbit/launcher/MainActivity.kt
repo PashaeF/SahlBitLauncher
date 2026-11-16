@@ -1256,7 +1256,7 @@ private fun SahlBitApp(
                             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), shape = RoundedCornerShape(20.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(40.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                                    else Icon(Icons.Default.Android, null, tint = Teal, modifier = Modifier.size(40.dp))
+                                    else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(40.dp))
                                     Text(app.label, color = Ink, modifier = Modifier.weight(1f), maxLines = 2)
                                     if (alreadyAdded) Text("افزوده شده", color = Color(0xFF168A45), fontSize = 12.sp)
                                     else Button(onClick = {
