@@ -527,8 +527,8 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
     LaunchedEffect(backspacePressed) {
         if (backspacePressed) {
             latestBackspace()
-            delay(420)
-            while (backspacePressed) { latestBackspace(); delay(160) }
+            delay(500)
+            while (backspacePressed) { latestBackspace(); delay(240) }
         }
     }
     Column(Modifier.fillMaxSize().background(if (showHeader) CustomCream else Color.Transparent).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
