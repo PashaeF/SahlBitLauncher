@@ -130,6 +130,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Reuse bounded application-icon cache entries for primary app shortcuts and slow the dialer's repeated backspace action; enlarge the dialer number display and improve button spacing.
 - Apply consistent 20 dp rounded corners to text inputs and remaining layout cards; preserve Android screen-timeout values shorter than 15 seconds instead of silently clamping them.
 - Guard the Android 7 rejected-call log type so the recent-calls screen remains compatible with Android 5.
+- Report Android 5/5.1 as unsupported for the custom InCallService role and keep those devices on the system phone interface rather than showing the dialer role as active.
 - Scroll the selected call-state chip fully into view.
 - Prevent any setup/PIN-creation screen from being rendered when an administrator PIN already exists.
 - Keep the default home-page selection valid when a page is deleted, and preserve Android 5/5.1 install-time `CALL_PHONE` permission compatibility.
