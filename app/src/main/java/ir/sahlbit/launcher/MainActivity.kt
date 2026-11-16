@@ -357,6 +357,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private data class PickedContactSelection(
+    val name: String,
+    val number: String,
+    val phoneUri: String,
+    val lookupUri: String?,
+    val photoSourceUri: String?,
+    val allNumbers: List<Pair<String, String>>
+)
+
 @Composable
 private fun SahlBitApp(
     prefs: android.content.SharedPreferences,
@@ -541,63 +550,66 @@ private fun SahlBitApp(
     val contactPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
-            runCatching {
-                context.contentResolver.query(
-                    uri,
-                    arrayOf(
-                        ContactsContract.CommonDataKinds.Phone._ID,
-                        ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                        ContactsContract.CommonDataKinds.Phone.NUMBER,
-                        ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
-                        ContactsContract.CommonDataKinds.Phone.CONTACT_ID
-                    ),
-                    null, null, null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val name = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)).orEmpty().ifBlank { "مخاطب" }
-                        val number = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
-                        val photoColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
-                        val photoSource = if (photoColumn >= 0) cursor.getString(photoColumn) else null
-                        val contactIdColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
-                        val contactId = if (contactIdColumn >= 0) cursor.getLong(contactIdColumn) else -1L
-                        val lookup = if (contactId >= 0L) runCatching {
-                            ContactsContract.Contacts.getLookupUri(context.contentResolver, android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId))?.toString()
-                        }.getOrNull() else null
-                        if (number.isBlank()) {
-                            android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
-                        } else {
-                            val allNumbers = if (contactId >= 0L) runCatching {
-                                context.contentResolver.query(
-                                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone._ID),
-                                    "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                                    arrayOf(contactId.toString()),
-                                    null
-                                )?.use { phoneCursor ->
-                                    buildList {
-                                        while (phoneCursor.moveToNext()) {
-                                            val value = phoneCursor.getString(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
-                                            val rowId = phoneCursor.getLong(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone._ID))
-                                            if (value.isNotBlank()) add(value to ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString())
-                                        }
-                                    }.distinctBy { it.first }
-                                }.orEmpty()
-                            }.getOrDefault(emptyList()) else emptyList()
-                            if (allNumbers.size > 1) {
-                                pendingContactName = name
-                                pendingContactLookup = lookup
-                                pendingContactPhotoSource = photoSource
-                                pendingContactOptions = allNumbers
-                            } else {
-                                addPickedContact(name, number, uri.toString(), lookup, photoSource)
-                            }
+            coroutineScope.launch {
+                val selection = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.query(
+                            uri,
+                            arrayOf(
+                                ContactsContract.CommonDataKinds.Phone._ID,
+                                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                                ContactsContract.CommonDataKinds.Phone.PHOTO_URI,
+                                ContactsContract.CommonDataKinds.Phone.CONTACT_ID
+                            ),
+                            null, null, null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val name = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)).orEmpty().ifBlank { "مخاطب" }
+                                val number = cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
+                                val photoColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.PHOTO_URI)
+                                val photoSource = if (photoColumn >= 0) cursor.getString(photoColumn) else null
+                                val contactIdColumn = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                                val contactId = if (contactIdColumn >= 0) cursor.getLong(contactIdColumn) else -1L
+                                val lookup = if (contactId >= 0L) runCatching {
+                                    ContactsContract.Contacts.getLookupUri(
+                                        context.contentResolver,
+                                        android.content.ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
+                                    )?.toString()
+                                }.getOrNull() else null
+                                val allNumbers = if (contactId >= 0L) runCatching {
+                                    context.contentResolver.query(
+                                        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                        arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone._ID),
+                                        "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                        arrayOf(contactId.toString()),
+                                        null
+                                    )?.use { phoneCursor ->
+                                        buildList {
+                                            while (phoneCursor.moveToNext()) {
+                                                val value = phoneCursor.getString(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)).orEmpty().trim()
+                                                val rowId = phoneCursor.getLong(phoneCursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone._ID))
+                                                if (value.isNotBlank()) add(value to ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString())
+                                            }
+                                        }.distinctBy { it.first }
+                                    }.orEmpty()
+                                }.getOrDefault(emptyList()) else emptyList()
+                                PickedContactSelection(name, number, uri.toString(), lookup, photoSource, allNumbers)
+                            } else null
                         }
-                    } else {
-                        android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست.", android.widget.Toast.LENGTH_LONG).show()
+                    }.getOrNull()
+                }
+                when {
+                    selection == null -> android.widget.Toast.makeText(context, "اطلاعات مخاطب قابل خواندن نیست.", android.widget.Toast.LENGTH_LONG).show()
+                    selection.number.isBlank() -> android.widget.Toast.makeText(context, "برای این مخاطب شمارهٔ تلفنی ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
+                    selection.allNumbers.size > 1 -> {
+                        pendingContactName = selection.name
+                        pendingContactLookup = selection.lookupUri
+                        pendingContactPhotoSource = selection.photoSourceUri
+                        pendingContactOptions = selection.allNumbers
                     }
-                } ?: android.widget.Toast.makeText(context, "انتخابگر مخاطبان اطلاعاتی برنگرداند.", android.widget.Toast.LENGTH_LONG).show()
-            }.onFailure {
-                android.widget.Toast.makeText(context, "خواندن اطلاعات مخاطب ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
+                    else -> addPickedContact(selection.name, selection.number, selection.phoneUri, selection.lookupUri, selection.photoSourceUri)
+                }
             }
         }
     }
