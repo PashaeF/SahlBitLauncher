@@ -2515,6 +2515,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         val homeElementOrder = savedHomeElementOrder.filter { it in activeHomeElements } + activeHomeElements.filterNot { it in savedHomeElementOrder }
         val renderHomeElementOrder = if (pageContentMode == "none") homeElementOrder + "content" else homeElementOrder
         renderHomeElementOrder.forEachIndexed { elementIndex, element ->
+            if (elementIndex > 0) Spacer(Modifier.height(8.dp))
             when (element) {
                 "clock" -> {
                     AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
@@ -2555,7 +2556,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + (renderHomeElementOrder.size.coerceAtLeast(1) - 1).coerceAtLeast(0).dp * 8
+                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
                 val responsiveCardHeight = ((screenHeight - headerHeight - 20.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
@@ -2626,7 +2627,6 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }
                 }
             }
-            if (elementIndex < renderHomeElementOrder.lastIndex && element !in setOf("entries", "recent", "dialer", "content")) Spacer(Modifier.height(8.dp))
         }
 
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
