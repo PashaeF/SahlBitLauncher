@@ -1490,9 +1490,9 @@ private fun SahlBitApp(
         }
         "pinverify" -> SettingsPage("تأیید پین فعلی", "برای تغییر پین، ابتدا رمز فعلی مدیر را وارد کنید.", { navigateBack("security") }) {
             PinField("پین فعلی", oldPinInput) { oldPinInput = it.filter(Char::isDigit).take(12) }
-            Spacer(Modifier.height(0.dp))
+            Spacer(Modifier.height(4.dp))
             TextButton(onClick = { mathA = SecureRandom().nextInt(8) + 2; mathB = SecureRandom().nextInt(8) + 2; mathOperation = if (SecureRandom().nextBoolean()) "+" else "−"; mathAnswer = ""; error = ""; navigateTo("mathrecovery") }) { Text("پین را فراموش کرده‌ام") }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(4.dp))
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 val salt = prefs.getString("admin_pin_salt", "") ?: ""
@@ -1502,7 +1502,7 @@ private fun SahlBitApp(
         }
         "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { navigateBack("login") }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
-            Text("${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("\u2066${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟\u2069", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3).toPersianDigitsText() }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
@@ -1538,7 +1538,7 @@ private fun SahlBitApp(
             val compactAbout = LocalConfiguration.current.screenHeightDp < 640
             val aboutLogoSize = if (compactAbout) 76.dp else 96.dp
             val aboutButtonHeight = if (compactAbout) 38.dp else 44.dp
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(24.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (compactAbout) 3.dp else 6.dp)) {
                     Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(aboutLogoSize))
                     Text("سهل‌بیت", color = Color.White, fontSize = if (compactAbout) 24.sp else 28.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
@@ -1547,10 +1547,10 @@ private fun SahlBitApp(
                     }
                 }
             }
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), verticalArrangement = Arrangement.spacedBy(if (compactAbout) 4.dp else 6.dp)) {
-                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 13.sp, lineHeight = 19.sp)
-                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaeft.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
+                    Text("توسعه‌دهنده: امیرعلی پاشایی فرد", color = Ink, fontSize = 14.sp, lineHeight = 20.sp)
+                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://pashaef.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("وب‌سایت: PashaeF.ir", color = Ink) }
                     OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("ایمیل: Pashae@iran.ir", color = Ink) }
                     OutlinedButton(onClick = { dialerNumber = "09145880814"; navigateTo("dialer") }, modifier = Modifier.fillMaxWidth().height(aboutButtonHeight)) { Text("شمارهٔ تماس: ۰۹۱۴۵۸۸۰۸۱۴", color = Ink) }
                 }
@@ -2308,30 +2308,46 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             onDismissRequest = { showLauncherRequired = false },
             title = { Text("ابتدا برنامه صفحه اصلی را تغییر دهید") },
             text = { Text("سهل‌بیت هنوز برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه شماست. اندروید تا زمانی که برنامهٔ دیگری را به‌عنوان صفحه اصلی انتخاب نکنید، ممکن است اجازهٔ حذف سهل‌بیت را ندهد. با انتخاب برنامهٔ دیگر، اطلاعات سهل‌بیت حذف نمی‌شود و می‌توانید دوباره به همین صفحه برگردید.") },
-            confirmButton = { Button(onClick = {
-                showLauncherRequired = false
-                runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
-                    .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }
-            }) { Text("انتخاب برنامه صفحه اصلی دیگر") } },
-            dismissButton = { TextButton(onClick = { showLauncherRequired = false }) { Text("انصراف") } }
+            confirmButton = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        showLauncherRequired = false
+                        runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
+                            .onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS)) } }
+                    }) { Text("انتخاب برنامه صفحه اصلی دیگر") }
+                    TextButton(onClick = { showLauncherRequired = false }) { Text("انصراف") }
+                }
+            },
+            dismissButton = {}
         )
         if (showDeleteConfirm) AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("تأیید حذف برنامه سهل‌بیت") },
             text = { Text("با ادامه، اندروید صفحهٔ تأیید حذف را نمایش می‌دهد. پس از تأیید آن صفحه، برنامه سهل‌بیت، تنظیمات، پین مدیر، مخاطبان اختصاصی و داده‌های ذخیره‌شدهٔ آن از تلفن همراه حذف می‌شوند. اگر اندروید اجازهٔ حذف مستقیم ندهد، می‌توانید از صفحهٔ اطلاعات برنامه در تنظیمات اقدام کنید.") },
-            confirmButton = { Button(onClick = {
-                showDeleteConfirm = false
-                runCatching { uninstallRequest.launch(Intent(Intent.ACTION_DELETE, Uri.parse("package:" + context.packageName))) }
-                    .onFailure { showFallback = true }
-            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("تأیید و حذف") } },
-            dismissButton = { Row { TextButton(onClick = { showDeleteConfirm = false; openAppDetails() }) { Text("اطلاعات برنامه") }; TextButton(onClick = { showDeleteConfirm = false }) { Text("انصراف") } } }
+            confirmButton = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        showDeleteConfirm = false
+                        runCatching { uninstallRequest.launch(Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:" + context.packageName)).putExtra(Intent.EXTRA_RETURN_RESULT, true)) }
+                            .onFailure { showFallback = true }
+                    }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))) { Text("تأیید و حذف") }
+                    TextButton(onClick = { showDeleteConfirm = false; openAppDetails() }) { Text("اطلاعات برنامه در تنظیمات اندروید") }
+                    TextButton(onClick = { showDeleteConfirm = false }) { Text("انصراف") }
+                }
+            },
+            dismissButton = {}
         )
         if (showFallback) AlertDialog(
             onDismissRequest = { showFallback = false },
-            title = { Text("باز کردن اطلاعات برنامه") },
+            title = { Text("باز کردن اطلاعات برنامه در تنظیمات اندروید") },
             text = { Text("باز کردن درخواست حذف مستقیم ممکن نشد. از صفحهٔ اطلاعات برنامه در تنظیمات اندروید، گزینهٔ حذف را انتخاب کنید.") },
-            confirmButton = { Button(onClick = { showFallback = false; openAppDetails() }) { Text("باز کردن اطلاعات برنامه") } },
-            dismissButton = { TextButton(onClick = { showFallback = false }) { Text("بستن") } }
+            confirmButton = {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(onClick = { showFallback = false; openAppDetails() }) { Text("باز کردن اطلاعات برنامه در تنظیمات اندروید") }
+                    TextButton(onClick = { showFallback = false }) { Text("بستن") }
+                }
+            },
+            dismissButton = {}
         )
     }
 }
