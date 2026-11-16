@@ -196,14 +196,18 @@ private fun openUsageAccessSettings(context: Context) {
 
 @Composable
 private fun PermissionCard(title: String, description: String, buttonLabel: String, granted: Boolean, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+    val context = LocalContext.current
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
                 Text(if (granted) "فعال" else "نیازمند اجازه", color = if (granted) Color(0xFF168A45) else Color(0xFFB45309), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
             Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
-            OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(if (granted && buttonLabel.startsWith("اعطای")) "بررسی وضعیت دسترسی" else buttonLabel) }
+            OutlinedButton(onClick = {
+                if (granted) android.widget.Toast.makeText(context, "این دسترسی یا نقش در حال حاضر فعال است.", android.widget.Toast.LENGTH_SHORT).show()
+                else onClick()
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (granted) "بررسی وضعیت" else buttonLabel) }
         }
     }
 }
@@ -1404,9 +1408,9 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
             else android.widget.Toast.makeText(context, "برنامه‌ای برای این میان‌بر پیدا نشد.", android.widget.Toast.LENGTH_SHORT).show()
         }.onFailure { android.widget.Toast.makeText(context, "بازکردن برنامه ممکن نشد.", android.widget.Toast.LENGTH_SHORT).show() }
     }
-    @Composable fun Shortcut(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, intent: Intent) {
+    @Composable fun Shortcut(title: String, glyph: String, intent: Intent) {
         Column(Modifier.width(66.dp).clip(RoundedCornerShape(20.dp)).background(Color.White).clickable { launchShortcut(intent) }.padding(vertical = 10.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Icon(icon, null, tint = Forest, modifier = Modifier.size(25.dp))
+            Text(glyph, fontSize = 25.sp)
             Text(title, color = Ink, fontSize = 10.sp, maxLines = 1)
         }
     }
@@ -1419,11 +1423,11 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         PermissionCard("دسترسی آمار مصرف برنامه‌ها", "برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده در ۳۰ روز اخیر لازم است. این دسترسی ویژه در تنظیمات اندروید فعال می‌شود.", "فعال‌سازی دسترسی آمار مصرف", usageAccessGranted, { openUsageAccessSettings(context) })
         Text("میان‌بر برنامه‌های اصلی", color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Shortcut("مخاطبین", Icons.Default.Person, Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI))
-            Shortcut("پیام‌ها", Icons.Default.Message, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MESSAGING))
-            Shortcut("تلفن", Icons.Default.Call, Intent(Intent.ACTION_DIAL))
-            Shortcut("تنظیمات", Icons.Default.Settings, Intent(Settings.ACTION_SETTINGS))
-            Shortcut("فایل‌ها", Icons.Default.Folder, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_FILES))
+            Shortcut("مخاطبین", "👤", Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI))
+            Shortcut("پیام‌ها", "✉", Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MESSAGING))
+            Shortcut("تلفن", "☎", Intent(Intent.ACTION_DIAL))
+            Shortcut("تنظیمات", "⚙", Intent(Settings.ACTION_SETTINGS))
+            Shortcut("فایل‌ها", "📁", Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_FILES))
         }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
@@ -1433,7 +1437,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(44.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                        else Icon(Icons.Default.Android, null, tint = Teal, modifier = Modifier.size(44.dp))
+                        else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(44.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(app.label, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2115,7 +2119,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         if (pressed && enabled) {
             latestOnStep()
             delay(320)
-            while (pressed && enabled) { latestOnStep(); delay(65) }
+            while (pressed && enabled) { latestOnStep(); delay(160) }
         }
     }
     Box(Modifier.size(48.dp).clickable(interactionSource = interaction, indication = null, enabled = enabled) {}, contentAlignment = Alignment.Center) {
@@ -2128,9 +2132,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         Column(Modifier.padding(14.dp).alpha(if (enabled) 1f else .45f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, color = Ink, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-                RepeatableStepButton("−", enabled && value > min) { onChange((value - 1).coerceAtLeast(min)) }
-                Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest)
                 RepeatableStepButton("+", enabled && value < max) { onChange((value + 1).coerceAtMost(max)) }
+                Text(value.toPersianDigits(), fontSize = 22.sp, color = Forest)
+                RepeatableStepButton("−", enabled && value > min) { onChange((value - 1).coerceAtLeast(min)) }
             }
         }
     }

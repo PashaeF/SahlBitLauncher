@@ -76,7 +76,11 @@ private fun normalizeRecentNumber(number: String): String = number.map { ch ->
         in '٠'..'٩' -> ('0'.code + ch.code - '٠'.code).toChar()
         else -> ch
     }
-}.filter(Char::isDigit)
+}.filter(Char::isDigit).joinToString("")
+
+private fun toPersianRecentDigits(value: String): String = value.map { ch ->
+    if (ch in "0123456789") ("۰".code + ch.code - "0".code).toChar() else ch
+}.joinToString("")
 
 @Composable
 fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customContacts: List<CustomContact>, prefs: android.content.SharedPreferences, onCall: (String) -> Unit) {
@@ -147,7 +151,7 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 if (showName || showNumber) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (showName) Text(resolvedName.toPersianDigitsText(), color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = nameSize.sp, maxLines = 2, lineHeight = (nameSize + 4).sp)
+                    if (showName) Text(toPersianRecentDigits(resolvedName), color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = nameSize.sp, maxLines = 2, lineHeight = (nameSize + 4).sp)
                     if (showNumber) Text(displayNumber, color = Color(0xFF475569), fontSize = 13.sp, lineHeight = 18.sp)
                 }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -193,7 +197,7 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماسی برای نمایش وجود ندارد.", color = Color(0xFF172033), textAlign = TextAlign.Center) }
         } else {
             if (prefs.getBoolean("recent_show_saved_count", false)) Text("مخاطبان ذخیره‌شده: ${customContacts.size.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }}", color = Color(0xFF475569), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 8.dp)) {
+            LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 8.dp)) {
                 items(records, key = { it.id }) { call ->
                     RecentCallCard(call, entries, customContacts, prefs) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
                 }
