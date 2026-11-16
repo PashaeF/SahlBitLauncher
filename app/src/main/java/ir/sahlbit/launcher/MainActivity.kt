@@ -1711,8 +1711,24 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         }.onFailure { android.widget.Toast.makeText(context, "بازکردن برنامه ممکن نشد.", android.widget.Toast.LENGTH_SHORT).show() }
     }
     @Composable fun Shortcut(title: String, glyph: String, intent: Intent) {
+        val shortcutBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, title, intent.action, intent.categories?.joinToString()) {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    val resolved = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                    val drawable = resolved?.loadIcon(context.packageManager)
+                    if (drawable == null) null else {
+                        val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bitmap)
+                        drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas)
+                        bitmap.asImageBitmap()
+                    }
+                }.getOrNull()
+            }
+        }
+        val shortcutBitmapValue = shortcutBitmap
         Column(Modifier.width(66.dp).clip(RoundedCornerShape(20.dp)).background(Color.White).clickable { launchShortcut(intent) }.padding(vertical = 10.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(glyph, fontSize = 25.sp)
+            if (shortcutBitmapValue != null) Image(shortcutBitmapValue, contentDescription = title, modifier = Modifier.size(25.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+            else Text(glyph, fontSize = 25.sp)
             Text(title, color = Ink, fontSize = 10.sp, maxLines = 1)
         }
     }
