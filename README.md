@@ -39,7 +39,8 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Add installed launchable apps to selected pages; the app list loads metadata first and decodes icons lazily for visible rows.
 - Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent call history is loaded once when any page needs it.
 - Contact photos are decoded near their display resolution to avoid allocating full-size camera images for small avatars.
-- Recent-call Android contact details are loaded once per list session instead of querying the Contacts provider separately for every visible call card; the list refreshes when the app resumes.
+- Recent-call records and Android contact details are cached across internal screen navigation and refreshed when the activity resumes, avoiding repeated provider queries when entering and leaving the recent-calls page.
+- Scaled recent-call photos use a bounded in-memory LRU cache keyed by the photo URI and resume revision, avoiding repeated decoding for multiple calls from the same contact while still refreshing after returning to SahlBit.
 - In-call contact lookup/photo decoding and gallery/camera crop-result persistence run off the UI thread to reduce call-screen and photo-selection jank.
 - The selected default home page is remapped when pages are reordered or deleted, including when the selected default page itself is removed.
 - Persian dimension values retain left-to-right ordering with English units (for example, ۲۰ dp).
@@ -123,7 +124,8 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
 - Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
 - Keep long-press number controls bound to the latest value during repeated increments/decrements.
-- Size home cards from the available screen height and reduce the top header gap without moving the settings icon away from the top-left corner.
+- Size home cards from the available screen height, keep equal visual top/left margins for the settings icon, and enlarge the icon slightly.
+- Guard the Android 7 rejected-call log type so the recent-calls screen remains compatible with Android 5.
 - Scroll the selected call-state chip fully into view.
 - Prevent any setup/PIN-creation screen from being rendered when an administrator PIN already exists.
 - Keep the default home-page selection valid when a page is deleted, and preserve Android 5/5.1 install-time `CALL_PHONE` permission compatibility.
