@@ -875,7 +875,7 @@ private fun SahlBitApp(
             val previewClockSize = minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 64).coerceAtLeast(180)
             val homeClockSize = minOf(clockSizeDp, LocalConfiguration.current.screenWidthDp - 32).coerceAtLeast(120)
             val previewDigitSize = (clockDigitSizeSp * previewClockSize.toFloat() / homeClockSize.toFloat()).toInt()
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)), shape = RoundedCornerShape(16.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E7)), shape = RoundedCornerShape(20.dp)) {
                 Box(Modifier.fillMaxWidth().padding(12.dp), contentAlignment = Alignment.Center) {
                     AnalogClock(Modifier.size(previewClockSize.dp), digitLanguage = clockDigitLanguage, digitSizeSp = previewDigitSize, showSecondHand = showSecondHand, hourHandLength = clockHourLength, minuteHandLength = clockMinuteLength, secondHandLength = clockSecondLength)
                 }
@@ -894,7 +894,7 @@ private fun SahlBitApp(
                 pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1); prefs.edit().putInt("default_home_page", prefs.getInt("default_home_page", 0).coerceIn(0, next - 1)).apply()
                 LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
             }
-            var defaultHomePage by remember(pageCount) { mutableIntStateOf(prefs.getInt("default_home_page", 0).coerceIn(0, pageCount - 1)) }
+            var defaultHomePage by remember(selectedPage, pageCount) { mutableIntStateOf(prefs.getInt("default_home_page", 0).coerceIn(0, pageCount - 1)) }
             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("صفحه پیش‌فرض هنگام بازشدن تلفن همراه", color = Ink, fontWeight = FontWeight.Bold)
@@ -2350,7 +2350,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
         val clockSize = clockPrefs.getInt("clock_size_dp", 360).coerceIn(180, 360)
-        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - 46.dp - 52.dp).coerceAtLeast(120.dp)
+        val maxClockHeight = (screenHeight - (currentPageRowCount * 24).dp - currentPageRowGap - (if (showBatteryOnCurrentPage) 64.dp else 0.dp) - (if (showWeekdayText || showWeekdayMarks) 46.dp else 0.dp) - (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) - 20.dp).coerceAtLeast(120.dp)
         val effectiveClockSize = minOf(clockSize.dp, (screenWidth - 32.dp).coerceAtLeast(120.dp), maxClockHeight).value.toInt()
         val clockDigits = clockPrefs.getInt("clock_digit_size_sp", 40).coerceIn(20, 56)
         val clockLanguage = clockPrefs.getString("clock_digit_language", "english") ?: "english"
@@ -2390,9 +2390,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + 48.dp
+                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + 10.dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
-                val responsiveCardHeight = ((screenHeight - headerHeight - 52.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
+                val responsiveCardHeight = ((screenHeight - headerHeight - 20.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
@@ -2485,7 +2485,7 @@ private fun remapPageLayoutPreferences(
     mapping: Map<Int, Int>,
     duplicate: Pair<Int, Int>? = null
 ) {
-    listOf("row_counts_per_page", "row_layouts", "row_alignments").forEach { key ->
+    listOf("row_counts_per_page", "row_layouts", "row_alignments", "page_recent_calls", "page_clock_enabled", "page_battery_enabled", "page_content_mode", "page_weekday_mode", "page_settings_icon_enabled").forEach { key ->
         val old = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }
             .getOrDefault(org.json.JSONObject())
         val updated = org.json.JSONObject()
@@ -2497,6 +2497,8 @@ private fun remapPageLayoutPreferences(
         }
         prefs.edit().putString(key, updated.toString()).apply()
     }
+    val defaultPage = prefs.getInt("default_home_page", 0)
+    mapping[defaultPage]?.let { mapped -> prefs.edit().putInt("default_home_page", mapped).apply() }
 }
 
 private fun createSalt(): String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }

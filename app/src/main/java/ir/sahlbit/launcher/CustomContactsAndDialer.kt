@@ -325,7 +325,7 @@ fun CustomContactsPage(
         Text(if (editingId == null) "مخاطب جدید" else "ویرایش مخاطب", color = CustomInk, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
         phones.forEachIndexed { index, phone ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     val phoneBitmap = remember(phone.photoUri, photoRefreshRevision) { phone.photoUri?.let { raw -> runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
