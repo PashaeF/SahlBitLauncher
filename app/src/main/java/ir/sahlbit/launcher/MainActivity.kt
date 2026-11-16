@@ -1764,13 +1764,8 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
             value = withContext(Dispatchers.IO) {
                 runCatching {
                     val resolved = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                    val drawable = resolved?.loadIcon(context.packageManager)
-                    if (drawable == null) null else {
-                        val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                        val canvas = android.graphics.Canvas(bitmap)
-                        drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas)
-                        bitmap.asImageBitmap()
-                    }
+                    val packageName = resolved?.activityInfo?.packageName
+                    packageName?.let { decodeCachedApplicationIcon(context, it, 96)?.asImageBitmap() }
                 }.getOrNull()
             }
         }
