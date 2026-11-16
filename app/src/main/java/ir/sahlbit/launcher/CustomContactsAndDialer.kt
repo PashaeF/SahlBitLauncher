@@ -130,7 +130,8 @@ data class CustomContactPhone(
     val id: String = UUID.randomUUID().toString(),
     val number: String,
     val photoUri: String? = null,
-    val contactUri: String? = null
+    val contactUri: String? = null,
+    val label: String = ""
 )
 data class CustomContact(val id: String = UUID.randomUUID().toString(), val name: String, val phones: List<CustomContactPhone>)
 
@@ -152,7 +153,8 @@ object CustomContactsStore {
                                 id = phone.optString("id", UUID.randomUUID().toString()),
                                 number = phone.optString("number"),
                                 photoUri = phone.optString("photo").takeIf(String::isNotBlank),
-                                contactUri = phone.optString("contactUri").takeIf(String::isNotBlank)
+                                contactUri = phone.optString("contactUri").takeIf(String::isNotBlank),
+                                label = phone.optString("label")
                             ))
                         }
                     }
@@ -167,7 +169,7 @@ object CustomContactsStore {
                 put("id", contact.id); put("name", contact.name)
                 put("phones", JSONArray().apply {
                     contact.phones.forEach { phone -> put(JSONObject().apply {
-                        put("id", phone.id); put("number", phone.number); put("photo", phone.photoUri ?: ""); put("contactUri", phone.contactUri ?: "")
+                        put("id", phone.id); put("number", phone.number); put("photo", phone.photoUri ?: ""); put("contactUri", phone.contactUri ?: ""); put("label", phone.label)
                     }) }
                 })
             })
@@ -306,6 +308,26 @@ fun CustomContactsPage(
             androidContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
         }
     }
+    val phonePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val index = photoTarget
+        val uri = result.data?.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null && index in phones.indices) {
+            val photo = runCatching {
+                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                }
+            }.getOrNull()
+            if (!photo.isNullOrBlank()) {
+                phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = photo, contactUri = uri.toString()) }
+                message = "تصویر مخاطب اندروید برای این شماره انتخاب شد."
+            } else message = "برای مخاطب انتخاب‌شده تصویری ثبت نشده است."
+        }
+        photoTarget = -1
+    }
+    val phonePhotoPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) phonePhotoPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+        else message = "برای انتخاب تصویر از برنامه مخاطبین اندروید، دسترسی مخاطبان لازم است."
+    }
 
     Column(Modifier.fillMaxSize().background(CustomCream).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -326,19 +348,29 @@ fun CustomContactsPage(
             Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("افزودن از برنامهٔ مخاطبین اندروید")
         }
         Text(if (editingId == null) "مخاطب جدید" else "ویرایش مخاطب", color = CustomInk, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
+        OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true, trailingIcon = { if (name.isNotEmpty()) IconButton(onClick = { name = "" }) { Icon(Icons.Default.Close, "پاک‌کردن نام", tint = CustomBlue) } })
         phones.forEachIndexed { index, phone ->
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
                     val phoneBitmapValue = phoneBitmap
-                    if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
-                    OutlinedTextField(phone.number.toPersianDigitsText(), { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value.toPersianDigitsText()) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
+                    if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
+                    OutlinedTextField(value = phone.label, onValueChange = { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(label = value.take(24)) } }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان شمارهٔ ${(index + 1).toPersianDigits()}") }, placeholder = { Text("مثلاً همراه، منزل یا محل کار") }, singleLine = true, trailingIcon = { if (phone.label.isNotEmpty()) IconButton(onClick = { phones = phones.toMutableList().also { it[index] = it[index].copy(label = "") } }) { Icon(Icons.Default.Close, "پاک‌کردن عنوان شماره", tint = CustomBlue) } })
+                    OutlinedTextField(value = phone.number.toPersianDigitsText(), onValueChange = { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value.toPersianDigitsText()) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
-                        OutlinedButton(onClick = { photoTarget = index; launchCameraCapture() }, modifier = Modifier.weight(1f)) { Text("دوربین") }
-                        if (phones.size > 1) IconButton(onClick = { phones = phones.filterIndexed { i, _ -> i != index } }) { Icon(Icons.Default.Delete, "حذف شماره", tint = Color(0xFFB3261E)) }
+                        OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text("گالری", fontSize = 12.sp) }
+                        OutlinedButton(onClick = { photoTarget = index; launchCameraCapture() }, modifier = Modifier.weight(1f)) { Text("دوربین", fontSize = 12.sp) }
+                        OutlinedButton(onClick = {
+                            photoTarget = index
+                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) phonePhotoPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+                            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) phonePhotoPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                            else phonePhotoPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
+                        }, modifier = Modifier.weight(1f)) { Text("مخاطبین", fontSize = 12.sp) }
+                        IconButton(onClick = {
+                            phones = if (phones.size > 1) phones.filterIndexed { i, _ -> i != index }
+                            else phones.toMutableList().also { it[index] = it[index].copy(number = "", label = "", photoUri = null, contactUri = null) }
+                        }) { Icon(Icons.Default.Delete, "پاک‌کردن اطلاعات شماره", tint = Color(0xFFB3261E)) }
                     }
                 }
             }
@@ -346,7 +378,7 @@ fun CustomContactsPage(
         OutlinedButton(onClick = { phones = phones + CustomContactPhone(number = "") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("افزودن شمارهٔ دیگر") }
         Button(onClick = {
             val cleanName = name.trim()
-            val cleanPhones = phones.map { it.copy(number = it.number.trim()) }.filter { it.number.isNotBlank() }
+            val cleanPhones = phones.map { it.copy(number = it.number.trim(), label = it.label.trim()) }.filter { it.number.isNotBlank() }
             if (cleanName.isBlank() || cleanPhones.isEmpty()) {
                 message = "نام مخاطب و دست‌کم یک شمارهٔ تماس را وارد کنید."
             } else {
@@ -361,15 +393,18 @@ fun CustomContactsPage(
         Text("مخاطبان ذخیره‌شده", color = CustomInk, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         if (contacts.isEmpty()) Text("هنوز مخاطب اختصاصی ثبت نشده است.", color = CustomInk)
         contacts.forEach { contact ->
-            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(contact.name, color = CustomInk, fontWeight = FontWeight.Bold)
                     contact.phones.forEach { phone ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
                             val phoneBitmapValue = phoneBitmap
-                    if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
-                            Text(phone.number.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
+                            if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(phone.label.ifBlank { "شمارهٔ ${(contact.phones.indexOf(phone) + 1).toPersianDigits()}" }, color = CustomInk, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text(phone.number.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
+                            }
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
