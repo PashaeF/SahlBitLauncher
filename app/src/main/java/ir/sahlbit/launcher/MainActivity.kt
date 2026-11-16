@@ -1672,16 +1672,28 @@ private fun SahlBitApp(
             text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("روش دریافت تصویر را انتخاب کنید.")
                 TextButton(onClick = {
-                    val source = photoEntry.photoSourceUri ?: runCatching {
-                        context.contentResolver.query(Uri.parse(photoEntry.contactUri ?: ""), arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-                    }.getOrNull()
-                    if (!source.isNullOrBlank()) {
-                        val old = entries.firstOrNull { it.id == photoEntry.id }?.photoUri
-                        entries = entries.map { if (it.id == photoEntry.id) it.copy(photoUri = null, photoSource = "contact", photoSourceUri = source) else it }
-                        LauncherEntryStore.save(prefs, entries)
-                        old?.takeIf { entries.none { e -> e.photoUri == old } }?.let { deleteOwnedContactPhoto(context, it) }
-                    } else android.widget.Toast.makeText(context, "تصویر مخاطب در دفترچه تلفن موجود نیست", android.widget.Toast.LENGTH_LONG).show()
-                    photoSourceDialogEntry = null
+                    coroutineScope.launch {
+                        val source = photoEntry.photoSourceUri ?: withContext(Dispatchers.IO) {
+                            runCatching {
+                                context.contentResolver.query(
+                                    Uri.parse(photoEntry.contactUri ?: ""),
+                                    arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                                    null, null, null
+                                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                            }.getOrNull()
+                        }
+                        if (!source.isNullOrBlank()) {
+                            val old = entries.firstOrNull { it.id == photoEntry.id }?.photoUri
+                            entries = entries.map { if (it.id == photoEntry.id) it.copy(photoUri = null, photoSource = "contact", photoSourceUri = source) else it }
+                            LauncherEntryStore.save(prefs, entries)
+                            old?.takeIf { entries.none { e -> e.photoUri == old } }?.let { oldPhoto ->
+                                withContext(Dispatchers.IO) { deleteOwnedContactPhoto(context, oldPhoto) }
+                            }
+                        } else {
+                            android.widget.Toast.makeText(context, "تصویر مخاطب در دفترچه تلفن موجود نیست", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                        photoSourceDialogEntry = null
+                    }
                 }, modifier = Modifier.fillMaxWidth()) {
                     Text((if (photoEntry.photoSource == "contact") "✓ " else "") + "استفاده از عکس مخاطب در برنامهٔ مخاطبین اندروید")
                 }
