@@ -1177,7 +1177,7 @@ private fun SahlBitApp(
             if (pageContentMode == "entries" && selectedPageEntryCount > rowCardCounts.sum()) Text("توجه: این صفحه ${selectedPageEntryCount.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${rowCardCounts.sum().toPersianDigits()} کارت است. برای نمایش همهٔ موارد، تعداد ردیف‌ها یا کارت‌های هر ردیف را افزایش دهید.", color = Color(0xFFB3261E), fontSize = 13.sp)
             Text("تنظیم تعداد کارت برای هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6, enabled = pageContentMode == "entries") { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
                         
@@ -1201,7 +1201,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(10.dp))
             Text("پیش‌نمایش زندهٔ چیدمان", color = Forest, fontWeight = FontWeight.Bold)
             Text("این پیش‌نمایش، کارت‌های واقعی همین صفحه را با ترتیب و تعداد کارت‌های هر ردیف نشان می‌دهد. اگر صفحه هنوز موردی نداشته باشد، جایگاه کارت‌ها به‌صورت نمونه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
-            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), modifier = Modifier.fillMaxWidth()) {
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     val previewEntries = entries.filter { it.page == selectedPage }
                     val previewShowContacts = prefs.getBoolean("show_contact_names", false)
