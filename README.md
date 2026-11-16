@@ -104,8 +104,11 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Bump the development source to versionCode 30 / versionName 0.6.4.
 - Persist completed setup and route navigation across activity recreation; prevent an existing administrator PIN from being recreated through a stale setup route.
 - Preserve each route's saveable UI state, including scroll position, while navigating between management pages.
-- Reorder the management dashboard categories to the requested order, except the separate recent-calls viewing page which remains pending.
+- Reorder the management dashboard categories to the requested order, except the separate recent-calls viewing page, which is now shared with the home-screen call-card renderer.
 - Explain Android Direct Boot and the first unlock after reboot, including the security trade-off of removing the device lock.
+- Add a dedicated recent-calls management screen that uses the same configurable call-card component as the home screen.
+- Expand recent-call card settings for photo/name sources and priorities, optional name/number/status display, call-button mode and sizing, and card spacing.
+- Load installed-app labels and icons off the UI thread, display app logos, and add shortcuts for Contacts, Messages, Phone, Settings, and Files.
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
 - Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
 - Keep long-press number controls bound to the latest value during repeated increments/decrements.

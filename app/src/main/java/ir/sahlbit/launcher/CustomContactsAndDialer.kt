@@ -462,24 +462,105 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
 
 @Composable
 fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+    var showPhotos by remember { mutableStateOf(prefs.getBoolean("recent_show_photos", true)) }
+    var photoSource by remember { mutableStateOf(prefs.getString("recent_photo_source", "custom") ?: "custom") }
     var avatarSize by remember { mutableIntStateOf(prefs.getInt("recent_avatar_size", 64).coerceIn(40, 112)) }
     var avatarRadius by remember { mutableIntStateOf(prefs.getInt("recent_avatar_radius", 20).coerceIn(0, 50)) }
+    var showNames by remember { mutableStateOf(prefs.getBoolean("recent_show_names", true)) }
+    var nameSource by remember { mutableStateOf(prefs.getString("recent_name_source", "custom") ?: "custom") }
+    var showAndroidUnknown by remember { mutableStateOf(prefs.getBoolean("recent_show_android_unknown", false)) }
+    var showNumbers by remember { mutableStateOf(prefs.getBoolean("recent_show_numbers", true)) }
     var nameSize by remember { mutableIntStateOf(prefs.getInt("recent_name_size", 15).coerceIn(11, 24)) }
-    var showNames by remember { mutableStateOf(prefs.getBoolean("recent_show_names", false)) }
+    var showStatusIcon by remember { mutableStateOf(prefs.getBoolean("recent_show_status_icon", true)) }
+    var showStatusText by remember { mutableStateOf(prefs.getBoolean("recent_show_status_text", false)) }
+    var statusIconSize by remember { mutableIntStateOf(prefs.getInt("recent_status_icon_size", 24).coerceIn(16, 48)) }
+    var buttonMode by remember { mutableStateOf(prefs.getString("recent_call_button_mode", "both") ?: "both") }
+    var callIconSize by remember { mutableIntStateOf(prefs.getInt("recent_call_icon_size", 26).coerceIn(16, 48)) }
+    var callTextSize by remember { mutableIntStateOf(prefs.getInt("recent_call_text_size", 14).coerceIn(10, 24)) }
+    var cardSpacing by remember { mutableIntStateOf(prefs.getInt("recent_card_spacing", 12).coerceIn(4, 30)) }
     var showSavedCount by remember { mutableStateOf(prefs.getBoolean("recent_show_saved_count", false)) }
+    fun saveBoolean(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
+    fun saveString(key: String, value: String) { prefs.edit().putString(key, value).apply() }
+    fun saveInt(key: String, value: Int) { prefs.edit().putInt(key, value).apply() }
+    @Composable fun RadioChoice(label: String, selected: Boolean, onSelect: () -> Unit) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable(onClick = onSelect).padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = onSelect)
+            Text(label, color = CustomInk, modifier = Modifier.weight(1f), lineHeight = 22.sp)
+        }
+    }
+    @Composable fun SwitchChoice(label: String, checked: Boolean, onChange: (Boolean) -> Unit, description: String? = null) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(label, color = CustomInk, fontWeight = FontWeight.SemiBold)
+                if (description != null) Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+            }
+            Switch(checked = checked, onCheckedChange = onChange)
+        }
+    }
     Column(Modifier.fillMaxSize().background(CustomCream).verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = CustomBlue) }
             Text("سفارشی‌سازی صفحه تماس‌های اخیر", color = CustomBlue, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         }
-        Text("نمایش نام و تصویر مخاطب و تعداد مخاطبان ذخیره‌شده را مطابق نیاز تنظیم کنید.", color = CustomInk, lineHeight = 24.sp)
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("نمایش نام مخاطب", Modifier.weight(1f), color = CustomInk); Switch(showNames, { showNames = it; prefs.edit().putBoolean("recent_show_names", it).apply() }) }
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("نمایش تعداد مخاطبان ذخیره‌شده", Modifier.weight(1f), color = CustomInk); Switch(showSavedCount, { showSavedCount = it; prefs.edit().putBoolean("recent_show_saved_count", it).apply() }) }
-        Text("اندازهٔ تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = CustomInk)
-        Slider(avatarSize.toFloat(), { avatarSize = it.toInt(); prefs.edit().putInt("recent_avatar_size", avatarSize).apply() }, valueRange = 40f..112f, modifier = Modifier.fillMaxWidth(.8f))
-        Text("گردی گوشهٔ تصویر: ${avatarRadius.toPersianDigits()} dp", color = CustomInk)
-        Slider(avatarRadius.toFloat(), { avatarRadius = it.toInt(); prefs.edit().putInt("recent_avatar_radius", avatarRadius).apply() }, valueRange = 0f..50f, modifier = Modifier.fillMaxWidth(.8f))
-        Text("اندازهٔ نام مخاطب: ${nameSize.toPersianDigits()} sp", color = CustomInk)
-        Slider(nameSize.toFloat(), { nameSize = it.toInt(); prefs.edit().putInt("recent_name_size", nameSize).apply() }, valueRange = 11f..24f, modifier = Modifier.fillMaxWidth(.8f))
+        Text("اجزای هر کادر تماس، منبع نام و تصویر، وضعیت تماس و ظاهر دکمه تماس را تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند.", color = CustomInk, lineHeight = 24.sp)
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("تصویر مخاطب", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                SwitchChoice("نمایش تصویر مخاطب", showPhotos, { showPhotos = it; saveBoolean("recent_show_photos", it) }, "اگر خاموش باشد، ستون تصویر حذف می‌شود و فضای آن به بخش اطلاعات تماس می‌رسد.")
+                if (showPhotos) {
+                    Text("منبع تصویر و اولویت نمایش", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    RadioChoice("فقط تصویر مخاطبین اختصاصی سهل‌بیت (پیش‌فرض)", photoSource == "custom") { photoSource = "custom"; saveString("recent_photo_source", photoSource) }
+                    RadioChoice("فقط تصویر مخاطبین اندروید", photoSource == "android") { photoSource = "android"; saveString("recent_photo_source", photoSource) }
+                    RadioChoice("هر دو؛ ابتدا تصویر مخاطب اختصاصی سهل‌بیت", photoSource == "both_custom_first") { photoSource = "both_custom_first"; saveString("recent_photo_source", photoSource) }
+                    RadioChoice("هر دو؛ ابتدا تصویر مخاطبین اندروید", photoSource == "both_android_first") { photoSource = "both_android_first"; saveString("recent_photo_source", photoSource) }
+                    Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Slider(avatarSize.toFloat(), { avatarSize = it.toInt().coerceIn(40, 112); saveInt("recent_avatar_size", avatarSize) }, valueRange = 40f..112f)
+                    Text("گردی گوشه تصویر: ${avatarRadius.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Slider(avatarRadius.toFloat(), { avatarRadius = it.toInt().coerceIn(0, 50); saveInt("recent_avatar_radius", avatarRadius) }, valueRange = 0f..50f)
+                }
+            }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("نام و شماره تماس", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                SwitchChoice("نمایش نام مخاطب", showNames, { showNames = it; saveBoolean("recent_show_names", it) })
+                if (showNames) {
+                    Text("منبع نام مخاطب و اولویت نمایش", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    RadioChoice("نام مخاطبین اختصاصی سهل‌بیت (پیش‌فرض)", nameSource == "custom") { nameSource = "custom"; saveString("recent_name_source", nameSource) }
+                    RadioChoice("نام مخاطبین اندروید", nameSource == "android") { nameSource = "android"; saveString("recent_name_source", nameSource) }
+                    RadioChoice("هر دو؛ ابتدا نام مخاطب اختصاصی سهل‌بیت", nameSource == "custom_first") { nameSource = "custom_first"; saveString("recent_name_source", nameSource) }
+                    RadioChoice("هر دو؛ ابتدا نام مخاطبین اندروید", nameSource == "android_first") { nameSource = "android_first"; saveString("recent_name_source", nameSource) }
+                    SwitchChoice("نمایش نام و تصویر مخاطبان اندروید که در مخاطبین اختصاصی سهل‌بیت ثبت نشده‌اند", showAndroidUnknown, { showAndroidUnknown = it; saveBoolean("recent_show_android_unknown", it) }, "اگر خاموش باشد، برای این شماره‌ها فقط شماره تماس نمایش داده می‌شود.")
+                    Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Slider(nameSize.toFloat(), { nameSize = it.toInt().coerceIn(11, 24); saveInt("recent_name_size", nameSize) }, valueRange = 11f..24f)
+                }
+                SwitchChoice("نمایش شماره تماس", showNumbers, { showNumbers = it; saveBoolean("recent_show_numbers", it) })
+                SwitchChoice("نمایش تعداد مخاطبان ذخیره‌شده", showSavedCount, { showSavedCount = it; saveBoolean("recent_show_saved_count", it) })
+            }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("وضعیت تماس", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                SwitchChoice("نمایش علامت وضعیت تماس", showStatusIcon, { showStatusIcon = it; saveBoolean("recent_show_status_icon", it) })
+                SwitchChoice("نمایش نوشتار فارسی وضعیت تماس", showStatusText, { showStatusText = it; saveBoolean("recent_show_status_text", it) })
+                Text("اندازه علامت وضعیت تماس: ${statusIconSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Slider(statusIconSize.toFloat(), { statusIconSize = it.toInt().coerceIn(16, 48); saveInt("recent_status_icon_size", statusIconSize) }, valueRange = 16f..48f)
+            }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("دکمه تماس و فاصله کادرها", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("نحوه نمایش دکمه تماس", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                RadioChoice("فقط آیکون تماس", buttonMode == "icon") { buttonMode = "icon"; saveString("recent_call_button_mode", buttonMode) }
+                RadioChoice("فقط نوشته تماس", buttonMode == "text") { buttonMode = "text"; saveString("recent_call_button_mode", buttonMode) }
+                RadioChoice("آیکون و نوشته تماس", buttonMode == "both") { buttonMode = "both"; saveString("recent_call_button_mode", buttonMode) }
+                Text("اندازه آیکون تماس: ${callIconSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Slider(callIconSize.toFloat(), { callIconSize = it.toInt().coerceIn(16, 48); saveInt("recent_call_icon_size", callIconSize) }, valueRange = 16f..48f)
+                Text("اندازه نوشته تماس: ${callTextSize.toPersianDigits()} sp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Slider(callTextSize.toFloat(), { callTextSize = it.toInt().coerceIn(10, 24); saveInt("recent_call_text_size", callTextSize) }, valueRange = 10f..24f)
+                Text("فاصله بین کادرهای تماس: ${cardSpacing.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Slider(cardSpacing.toFloat(), { cardSpacing = it.toInt().coerceIn(4, 30); saveInt("recent_card_spacing", cardSpacing) }, valueRange = 4f..30f)
+            }
+        }
     }
 }

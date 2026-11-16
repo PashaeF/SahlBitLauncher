@@ -243,7 +243,7 @@ class MainActivity : ComponentActivity() {
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)
         if (pending) recoveryPrefs.edit().remove(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING).remove(SahlBitApplication.KEY_CRASH_TIME).commit()
         setContent {
-            MaterialTheme(typography = SahlBitTypography, colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
+            MaterialTheme(typography = SahlBitTypography, shapes = androidx.compose.material3.Shapes(extraSmall = RoundedCornerShape(20.dp), small = RoundedCornerShape(20.dp), medium = RoundedCornerShape(20.dp), large = RoundedCornerShape(20.dp), extraLarge = RoundedCornerShape(20.dp)), colorScheme = lightColorScheme(primary = Forest, onPrimary = Color.White, primaryContainer = Color(0xFFDBEAFE), onPrimaryContainer = Color(0xFF1E3A8A), secondary = Teal, onSecondary = Color.White, background = Cream, onBackground = Ink, surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFF1F5F9), onSurfaceVariant = Color(0xFF475569), outline = Color(0xFFE2E8F0), error = Color(0xFFB3261E))) {
                 CompositionLocalProvider(
                     LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = Vazirmatn)
                 ) {
@@ -793,6 +793,7 @@ private fun SahlBitApp(
             onCallConfirmation = { navigateTo("callconfirm") },
             onCustomContacts = { navigateTo("customcontacts") },
             onDialer = { dialerNumber = ""; navigateTo("dialer") },
+            onRecentCalls = { navigateTo("recentcalls") },
             onRecentCallsCustomization = { navigateTo("recentcustom") },
             onUpdates = { navigateTo("updates") },
             onSelectLauncher = onSelectLauncher, onAndroidSettings = { navigateTo("androidsettings") }, onUninstall = { navigateTo("uninstall") }
@@ -815,6 +816,7 @@ private fun SahlBitApp(
             else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
             else { pendingCallNumber = number; callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }
         })
+        "recentcalls" -> RecentCallsPage(prefs = prefs, entries = entries, customContacts = customContacts, onBack = { navigateBack("dashboard") })
         "recentcustom" -> RecentCallsCustomizationPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "allapps" -> AllAppsScreen(onBack = { navigateBack("dashboard") }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { navigateBack("dashboard") }) {
@@ -1349,6 +1351,8 @@ private fun SahlBitApp(
 
 }
 
+private data class InstalledAppRow(val packageName: String, val label: String, val icon: androidx.compose.ui.graphics.ImageBitmap?)
+
 @Composable
 private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDetails: (String) -> Unit) {
     val context = LocalContext.current
@@ -1358,13 +1362,14 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
         appOps.checkOpNoThrow("android:get_usage_stats", android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
     }.getOrDefault(false)
     var usageAccessGranted by remember { mutableStateOf(hasUsageAccess()) }
+    var refreshRevision by remember { mutableIntStateOf(0) }
     val hostActivity = context as? ComponentActivity
     DisposableEffect(hostActivity) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) usageAccessGranted = hasUsageAccess() }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) { usageAccessGranted = hasUsageAccess(); refreshRevision++ } }
         hostActivity?.lifecycle?.addObserver(observer)
         onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
     }
-    val apps by produceState(initialValue = emptyList<android.content.pm.ResolveInfo>(), key1 = usageAccessGranted) {
+    val apps by produceState(initialValue = emptyList<InstalledAppRow>(), key1 = usageAccessGranted, key2 = refreshRevision) {
         value = withContext(Dispatchers.IO) {
             val usageByPackage = if (usageAccessGranted) runCatching {
                 val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
@@ -1374,28 +1379,68 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
             runCatching {
                 pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0)
                     .distinctBy { it.activityInfo.packageName }
-                    .sortedWith(compareByDescending<android.content.pm.ResolveInfo> { (it.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 }
-                        .thenByDescending { usageByPackage[it.activityInfo.packageName] ?: 0L }
-                        .thenBy { it.loadLabel(pm).toString().lowercase() })
+                    .map { info ->
+                        val pkg = info.activityInfo.packageName
+                        val label = runCatching { info.loadLabel(pm).toString() }.getOrDefault(pkg)
+                        val icon = runCatching {
+                            val drawable = info.loadIcon(pm)
+                            val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                            val canvas = android.graphics.Canvas(bitmap)
+                            drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bitmap.asImageBitmap()
+                        }.getOrNull()
+                        Triple(InstalledAppRow(pkg, label, icon), (info.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0, usageByPackage[pkg] ?: 0L)
+                    }
+                    .sortedWith(compareByDescending<Triple<InstalledAppRow, Boolean, Long>> { it.second }.thenByDescending { it.third }.thenBy { it.first.label.lowercase() })
+                    .map { it.first }
             }.getOrDefault(emptyList())
         }
     }
     var search by remember { mutableStateOf("") }
-    val filteredApps = apps.filter { it.loadLabel(pm).toString().contains(search, ignoreCase = true) }
+    val filteredApps = remember(apps, search) { apps.filter { it.label.contains(search, ignoreCase = true) } }
+    fun launchShortcut(intent: Intent) {
+        runCatching {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent.resolveActivity(pm) != null) context.startActivity(intent)
+            else android.widget.Toast.makeText(context, "برنامه‌ای برای این میان‌بر پیدا نشد.", android.widget.Toast.LENGTH_SHORT).show()
+        }.onFailure { android.widget.Toast.makeText(context, "بازکردن برنامه ممکن نشد.", android.widget.Toast.LENGTH_SHORT).show() }
+    }
+    @Composable fun Shortcut(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, intent: Intent) {
+        Column(Modifier.width(66.dp).clip(RoundedCornerShape(20.dp)).background(Color.White).clickable { launchShortcut(intent) }.padding(vertical = 10.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Icon(icon, null, tint = Forest, modifier = Modifier.size(25.dp))
+            Text(title, color = Ink, fontSize = 10.sp, maxLines = 1)
+        }
+    }
     Column(Modifier.fillMaxSize().background(Cream).padding(16.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }; Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Forest) }
+            Text("برنامه‌های تلفن همراه", color = Forest, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
         Text("برنامه‌های سیستمی ابتدا نمایش داده می‌شوند؛ سایر برنامه‌ها بر اساس زمان استفاده در ۳۰ روز اخیر مرتب شده‌اند.", color = Ink, modifier = Modifier.padding(bottom = 8.dp))
         PermissionCard("دسترسی آمار مصرف برنامه‌ها", "برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده در ۳۰ روز اخیر لازم است. این دسترسی ویژه در تنظیمات اندروید فعال می‌شود.", "فعال‌سازی دسترسی آمار مصرف", usageAccessGranted, { openUsageAccessSettings(context) })
-        OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
+        Text("میان‌بر برنامه‌های اصلی", color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Shortcut("مخاطبین", Icons.Default.Person, Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI))
+            Shortcut("پیام‌ها", Icons.Default.Message, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_MESSAGING))
+            Shortcut("تلفن", Icons.Default.Call, Intent(Intent.ACTION_DIAL))
+            Shortcut("تنظیمات", Icons.Default.Settings, Intent(Settings.ACTION_SETTINGS))
+            Shortcut("فایل‌ها", Icons.Default.Folder, Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_FILES))
+        }
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) }, trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "پاک‌کردن جستجو", tint = Forest) } })
         Spacer(Modifier.height(12.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(filteredApps, key = { it.activityInfo.packageName }) { item ->
-                val pkg = item.activityInfo.packageName
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White).border(1.dp, Color(0xFFD8C9A8), RoundedCornerShape(14.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(item.loadLabel(pm).toString(), color = Ink, fontWeight = FontWeight.SemiBold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedButton(onClick = { onDetails(pkg) }, modifier = Modifier.weight(1f)) { Text("جزئیات") }
-                        Button(onClick = { onLaunch(pkg) }, modifier = Modifier.weight(1f)) { Text("اجرا") }
+            items(filteredApps, key = { it.packageName }) { app ->
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                    Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(44.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                        else Icon(Icons.Default.Android, null, tint = Teal, modifier = Modifier.size(44.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(app.label, color = Ink, fontWeight = FontWeight.SemiBold, maxLines = 2)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { onDetails(app.packageName) }, modifier = Modifier.weight(1f)) { Text("جزئیات") }
+                                Button(onClick = { onLaunch(app.packageName) }, modifier = Modifier.weight(1f)) { Text("اجرا") }
+                            }
+                        }
                     }
                 }
             }
@@ -1841,7 +1886,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     }
 }
 
-@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onCustomContacts: () -> Unit, onDialer: () -> Unit, onRecentCallsCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
+@Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onCustomContacts: () -> Unit, onDialer: () -> Unit, onRecentCalls: () -> Unit, onRecentCallsCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
@@ -1853,6 +1898,7 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
             item { DashboardCard("مخاطبین اختصاصی", "ساخت مخاطب و ثبت چند شماره با تصویر جداگانه", "customcontacts", onCustomContacts) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس ورودی و خروجی", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
             item { DashboardCard("شماره‌گیر اختصاصی", "شماره‌گیری با صفحه‌کلید سهل‌بیت", "dialer", onDialer) }
+            item { DashboardCard("تماس‌های اخیر", "مشاهده فهرست تماس‌های اخیر", "recentcalls", onRecentCalls) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس‌های اخیر", "تنظیم تصویر، نام و اندازهٔ اطلاعات تماس‌ها", "recentcustom", onRecentCallsCustomization) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر پین و بازیابی دسترسی مدیر", "security", onSecurity) }
             item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
@@ -2203,33 +2249,11 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val pageEntries = entries.filter { it.page == index }
                 if (showRecentCallsOnCurrentPage) {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
-                    else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
+                    else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                         if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
-                            val matchingContact = entries.firstOrNull { it.kind == "contact" && it.phoneNumber?.toEnglishDigits()?.filter(Char::isDigit) == call.number.toEnglishDigits().filter(Char::isDigit) }
-                            val matchingCustomPhone = customContacts.asSequence().flatMap { contact -> contact.phones.asSequence().map { phone -> contact to phone } }.firstOrNull { it.second.number.toEnglishDigits().filter(Char::isDigit) == call.number.toEnglishDigits().filter(Char::isDigit) }
-                            val recentPhotoUri = matchingContact?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri } ?: matchingCustomPhone?.second?.photoUri
-                            val photoBitmap = remember(recentPhotoUri, permissionRevision) { recentPhotoUri?.let { uri -> runCatching { context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
-                            val callName = call.name.ifBlank { matchingContact?.title ?: matchingCustomPhone?.first?.name ?: call.number.ifBlank { "شمارهٔ ناشناس" } }
-                            val (callSymbol, callColor) = when (call.type) {
-                                android.provider.CallLog.Calls.MISSED_TYPE, android.provider.CallLog.Calls.REJECTED_TYPE -> "×" to Color(0xFFB3261E)
-                                android.provider.CallLog.Calls.INCOMING_TYPE -> "↙" to Color(0xFF168A45)
-                                android.provider.CallLog.Calls.OUTGOING_TYPE -> if (call.durationSeconds > 0) "↗" to Color(0xFF1976D2) else "↗" to Color(0xFFB3261E)
-                                else -> "☎" to Color(0xFF64748B)
-                            }
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
-                                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Box(Modifier.size(recentAvatarSize.dp).clip(RoundedCornerShape(recentAvatarRadius.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
-                                        if (photoBitmap != null) Image(photoBitmap, contentDescription = callName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(recentAvatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                                        else Text(callSymbol, color = callColor, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        if (recentShowNames) Text(callName.toPersianDigitsText(), color = fg, fontWeight = FontWeight.Bold, fontSize = recentNameSize.sp, maxLines = 2, lineHeight = (recentNameSize + 4).sp)
-                                        Text(call.number.toPersianDigitsText(), color = fg.copy(alpha = .75f), fontSize = 12.sp, lineHeight = 17.sp)
-                                        Text(if (call.type == android.provider.CallLog.Calls.MISSED_TYPE) "تماس ورودی بدون پاسخ" else if (call.type == android.provider.CallLog.Calls.INCOMING_TYPE) "تماس ورودی پاسخ‌داده‌شده" else if (call.durationSeconds > 0) "تماس خروجی با برقراری مکالمه" else "تماس خروجی بدون برقراری مکالمه", color = callColor, fontSize = 11.sp, lineHeight = 16.sp)
-                                    }
-                                    OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(call.number)))) } }, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) { Icon(Icons.Default.Call, null); Text("تماس", fontSize = 12.sp) }
-                                }
+                            RecentCallCard(call, entries, customContacts, launcherPrefs) { number ->
+                                runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
                             }
                         }
                     }
