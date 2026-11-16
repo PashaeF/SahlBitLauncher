@@ -123,6 +123,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Expand recent-call card settings for photo/name sources and priorities, optional name/number/status display, call-button mode and sizing, and card spacing.
 - Constrain recent-call avatar and button sizes to the available card width and use a stacked compact layout on very narrow cards to prevent overflow.
 - Load installed-app labels and icons off the UI thread, display app logos, and add shortcuts for Contacts, Messages, Phone, Settings, and Files.
+- Keep Android contact-provider photo lookups and obsolete-photo cleanup off the UI thread in both the home-screen contact editor and the dedicated-contact editor; bind asynchronous photo results to the original phone row to avoid updating the wrong number after list edits.
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
 - Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
 - Keep long-press number controls bound to the latest value during repeated increments/decrements.
