@@ -2113,20 +2113,53 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
     fun saveText(key: String, value: String) { prefs.edit().putString("confirm_call_$key", value).apply() }
 
     SettingsPage("سفارشی‌سازی کادر تأیید تماس", "ظاهر پنجره‌ای را تنظیم کنید که پس از انتخاب کارت مخاطب نمایش داده می‌شود. تغییرها بلافاصله ذخیره می‌شوند.", onBack) {
-        var selectedPreviewContactId by remember { mutableStateOf(contacts.firstOrNull()?.id) }
+        var selectedPreviewContactId by remember(contacts.firstOrNull()?.id) { mutableStateOf(contacts.firstOrNull()?.id) }
         var previewContactMenu by remember { mutableStateOf(false) }
-        var sampleContactName by remember { mutableStateOf(contacts.firstOrNull()?.title ?: "مخاطب نمونه") }
-        var sampleContactNumber by remember { mutableStateOf(contacts.firstOrNull()?.phoneNumber?.toPersianDigitsText() ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
-        var previewPhotoUri by remember { mutableStateOf(contacts.firstOrNull()?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri }) }
-        if (contacts.isNotEmpty()) {
-            OutlinedButton(onClick = { previewContactMenu = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(contacts.firstOrNull { it.id == selectedPreviewContactId }?.let { "${it.title} — ${it.phoneNumber.orEmpty()}" } ?: "انتخاب مخاطب ذخیره‌شده", modifier = Modifier.weight(1f))
-                Icon(Icons.Default.ArrowDropDown, null)
+        var sampleContactName by remember(contacts.firstOrNull()?.id) { mutableStateOf(contacts.firstOrNull()?.title ?: "مخاطب نمونه") }
+        var sampleContactNumber by remember(contacts.firstOrNull()?.id) { mutableStateOf(contacts.firstOrNull()?.phoneNumber?.toPersianDigitsText() ?: "۰۹۱۲۰۰۰۰۰۰۰۰") }
+        var previewPhotoUri by remember(contacts.firstOrNull()?.id) { mutableStateOf(contacts.firstOrNull()?.let { if (it.photoSource == "contact") it.photoSourceUri else it.photoUri }) }
+        val androidPreviewContactPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val uri = result.data?.data
+            if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
+                val selected = runCatching {
+                    context.contentResolver.query(uri, arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts.PHOTO_URI), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2)) else null
+                    }
+                }.getOrNull()
+                if (selected != null) {
+                    val phone = runCatching {
+                        context.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER), "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?", arrayOf(selected.first), null)?.use { cursor ->
+                            if (cursor.moveToFirst()) cursor.getString(0) else null
+                        }
+                    }.getOrNull()
+                    selectedPreviewContactId = null
+                    sampleContactName = selected.second.orEmpty().ifBlank { "مخاطب نمونه" }
+                    sampleContactNumber = phone.orEmpty().toPersianDigitsText()
+                    previewPhotoUri = selected.third
+                }
             }
-            DropdownMenu(expanded = previewContactMenu, onDismissRequest = { previewContactMenu = false }) {
-                contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
-                    DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
-                    pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty().toPersianDigitsText()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty().toPersianDigitsText(); previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri; previewContactMenu = false }) }
+        }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("انتخاب مخاطب برای پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
+                if (contacts.isNotEmpty()) {
+                    OutlinedButton(onClick = { previewContactMenu = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                        Text(contacts.firstOrNull { it.id == selectedPreviewContactId }?.let { "${it.title} — ${it.phoneNumber.orEmpty()}" } ?: "انتخاب مخاطب افزوده‌شده به صفحه اصلی", modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, null)
+                    }
+                    DropdownMenu(expanded = previewContactMenu, onDismissRequest = { previewContactMenu = false }) {
+                        contacts.groupBy { it.page }.toSortedMap().forEach { (page, pageContacts) ->
+                            DropdownMenuItem(text = { Text("صفحهٔ ${(page + 1).toPersianDigits()}", fontWeight = FontWeight.Bold) }, enabled = false, onClick = {})
+                            pageContacts.forEach { contact -> DropdownMenuItem(text = { Text("${contact.title} — ${contact.phoneNumber.orEmpty().toPersianDigitsText()}") }, onClick = { selectedPreviewContactId = contact.id; sampleContactName = contact.title; sampleContactNumber = contact.phoneNumber.orEmpty().toPersianDigitsText(); previewPhotoUri = if (contact.photoSource == "contact") contact.photoSourceUri else contact.photoUri; previewContactMenu = false }) }
+                        }
+                    }
+                } else {
+                    Text("هنوز مخاطبی به صفحه اصلی سهل‌بیت اضافه نشده است. می‌توانید برای پیش‌نمایش، مخاطبی را از برنامه مخاطبین اندروید انتخاب کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                }
+                OutlinedButton(onClick = { androidPreviewContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                    Icon(Icons.Default.PersonSearch, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("انتخاب مخاطب از برنامه مخاطبین اندروید")
                 }
             }
         }
