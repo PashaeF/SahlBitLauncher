@@ -493,6 +493,7 @@ private fun SahlBitApp(
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     fun readSystemScreenTimeoutSeconds(): Int = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 60000) / 1000).coerceIn(15, 1800) }.getOrDefault(60)
     var screenTimeoutSeconds by remember { mutableIntStateOf(readSystemScreenTimeoutSeconds()) }
     var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toPersianDigits()) }
@@ -618,16 +619,28 @@ private fun SahlBitApp(
     }
     val contactPhotoCropLauncher = androidx.activity.compose.rememberLauncherForActivityResult(CropImageContract()) { result ->
         val targetId = selectedPhotoEntryId
-        val savedPhoto = if (result.isSuccessful && targetId != null) result.uriContent?.let { saveSquarePhotoFromUri(context, it, "contact_") } else null
-        if (targetId != null && savedPhoto != null) {
-            val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
-            entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null, contactUri = null) else it }
-            LauncherEntryStore.save(prefs, entries)
-            oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
-        } else if (result.error != null) {
-            android.widget.Toast.makeText(context, "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
+        val croppedUri = result.uriContent
+        if (result.isSuccessful && targetId != null && croppedUri != null) {
+            coroutineScope.launch {
+                val savedPhoto = withContext(Dispatchers.IO) {
+                    saveSquarePhotoFromUri(context, croppedUri, "contact_")
+                }
+                if (savedPhoto != null) {
+                    val oldPhoto = entries.firstOrNull { it.id == targetId }?.photoUri
+                    entries = entries.map { if (it.id == targetId) it.copy(photoUri = savedPhoto, photoSource = "gallery", photoSourceUri = null, contactUri = null) else it }
+                    LauncherEntryStore.save(prefs, entries)
+                    oldPhoto?.takeIf { old -> entries.none { it.photoUri == old } }?.let { old -> deleteOwnedContactPhoto(context, old) }
+                } else {
+                    android.widget.Toast.makeText(context, "ذخیرهٔ تصویر برش‌خورده ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
+                }
+                selectedPhotoEntryId = null
+            }
+        } else {
+            if (result.error != null) {
+                android.widget.Toast.makeText(context, "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
+            }
+            selectedPhotoEntryId = null
         }
-        selectedPhotoEntryId = null
     }
     val galleryPicker = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && selectedPhotoEntryId != null) contactPhotoCropLauncher.launch(CropImageContractOptions(uri, contactPhotoCropOptions()))
