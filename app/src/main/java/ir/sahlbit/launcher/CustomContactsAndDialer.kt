@@ -212,14 +212,16 @@ fun CustomContactsPage(
     }
     val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
         val index = photoTarget
+        val targetPhoneId = phones.getOrNull(index)?.id
         val croppedUri = result.uriContent
-        if (result.isSuccessful && index in phones.indices && croppedUri != null) {
+        if (result.isSuccessful && targetPhoneId != null && croppedUri != null) {
             photoTarget = -1
             coroutineScope.launch {
                 val saved = withContext(Dispatchers.IO) { saveSquarePhotoFromUri(context, croppedUri) }
-                if (saved != null && index in phones.indices) {
+                val currentIndex = phones.indexOfFirst { it.id == targetPhoneId }
+                if (saved != null && currentIndex >= 0) {
                     phones = phones.toMutableList().also {
-                        it[index] = it[index].copy(photoUri = saved, contactUri = null)
+                        it[currentIndex] = it[currentIndex].copy(photoUri = saved, contactUri = null)
                     }
                 } else message = "ذخیرهٔ تصویر برش‌خورده ناموفق بود."
             }
