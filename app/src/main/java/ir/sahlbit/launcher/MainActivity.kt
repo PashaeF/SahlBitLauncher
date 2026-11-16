@@ -1069,7 +1069,7 @@ private fun SahlBitApp(
                     Text("ترتیب نمایش عناصر فعال", color = Ink, fontWeight = FontWeight.Bold)
                     Text("با دکمه‌های بالا و پایین، ترتیب نمایش عناصر را در صفحه اصلی تغییر دهید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
                     if (normalizedElementOrder.isEmpty()) {
-                        Text("در این صفحه عنصری برای مرتب‌سازی فعال نیست.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), textAlign = TextAlign.Center)
+                        Text("در این صفحه عنصری برای مرتب‌سازی فعال نیست.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     } else {
                         normalizedElementOrder.forEachIndexed { orderIndex, element ->
                             val label = when (element) {
@@ -2544,39 +2544,35 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }.getOrDefault(emptyList())
         val homeElementOrder = savedHomeElementOrder.filter { it in activeHomeElements } + activeHomeElements.filterNot { it in savedHomeElementOrder }
         val renderHomeElementOrder = if (pageContentMode == "none") homeElementOrder + "content" else homeElementOrder
-        renderHomeElementOrder.forEachIndexed { elementIndex, element ->
+        for (elementIndex in renderHomeElementOrder.indices) {
+            val element = renderHomeElementOrder[elementIndex]
             if (elementIndex > 0) Spacer(Modifier.height(8.dp))
             when (element) {
                 "clock" -> {
                     AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
                 }
                 "weekday" -> {
-                    {
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (showWeekdayText) Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                if (showWeekdayText && showWeekdayMarks) Spacer(Modifier.width(14.dp))
-                if (showWeekdayMarks) Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp))
-            }
-        }
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (showWeekdayText) Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                        if (showWeekdayText && showWeekdayMarks) Spacer(Modifier.width(14.dp))
+                        if (showWeekdayMarks) Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp))
+                    }
                 }
                 "battery" -> {
-                    {
-            Spacer(Modifier.height(2.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                val batteryMode = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getString("battery_display_mode", if (context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic"
-                if (batteryMode == "numeric" || batteryMode == "both") Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
-                if (batteryMode == "graphic" || batteryMode == "both") {
-                    Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
-                    Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
-                }
-                if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
-            }
-        }
+                    Spacer(Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        val batteryMode = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getString("battery_display_mode", if (context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic"
+                        if (batteryMode == "numeric" || batteryMode == "both") Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
+                        if (batteryMode == "graphic" || batteryMode == "both") {
+                            Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
+                            Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
+                        }
+                        if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
+                    }
                 }
                 "entries", "recent", "dialer", "content" -> {
-                    if (elementIndex > 0) Spacer(Modifier.height(8.dp))
-                            HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
+                    HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
