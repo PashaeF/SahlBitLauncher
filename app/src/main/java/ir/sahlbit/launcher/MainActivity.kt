@@ -1569,7 +1569,7 @@ private fun SahlBitApp(
                 Column(Modifier.fillMaxWidth().padding(if (compactAbout) 10.dp else 14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(if (compactAbout) 3.dp else 6.dp)) {
                     Image(painterResource(R.drawable.sahlbit_logo_transparent), contentDescription = "لوگوی سهل‌بیت", modifier = Modifier.size(aboutLogoSize))
                     Text("سهل‌بیت", color = Color.White, fontSize = if (compactAbout) 24.sp else 28.sp, fontWeight = FontWeight.Bold, lineHeight = 30.sp)
-                    Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(50)) {
+                    Surface(color = Color.White.copy(alpha = .14f), shape = RoundedCornerShape(20.dp)) {
                         Text("نسخهٔ " + BuildConfig.VERSION_NAME.toPersianDigitsText(), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp))
                     }
                 }
@@ -2613,9 +2613,6 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val pageContentMode = runCatching { org.json.JSONObject(launcherPrefs.getString("page_content_mode", "{}") ?: "{}").optString(pager.currentPage.toString(), "") }.getOrDefault("").ifBlank { if (pageFlag("page_recent_calls", false)) "recent" else "entries" }
     val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
     val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
-    val showRecentCallsOnCurrentPage = pageContentMode == "recent"
-    val showDialerOnCurrentPage = pageContentMode == "dialer"
-    val showNoContentOnCurrentPage = pageContentMode == "none"
     val showSettingsIconOnCurrentPage = pageFlag("page_settings_icon_enabled", true)
     val weekdayMode = runCatching { org.json.JSONObject(launcherPrefs.getString("page_weekday_mode", "{}") ?: "{}").optString(pager.currentPage.toString(), "both") }.getOrDefault("both")
     val showWeekdayText = weekdayMode == "text" || weekdayMode == "both"
@@ -2729,12 +2726,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val storedRows = rowRoot.optJSONArray(index.toString())
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
-                val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
                 val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) + (if (pageWeekdayEnabled) 42.dp else 0.dp) + (if (pageBatteryEnabled) 64.dp else 0.dp) + (if (pageSettingsIconEnabled) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
                 val responsiveCardHeight = ((screenHeight - headerHeight - 36.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
-                val savedAlignments = alignRoot.opt(index.toString())
-                val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
                 if (pageContentModeForIndex == "recent") {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }

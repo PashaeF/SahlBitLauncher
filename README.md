@@ -36,7 +36,12 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Add contacts from Android Contacts and choose among their distinct phone numbers.
 - Create SahlBit-only contacts with multiple numbers and a separate photo for each number.
 - Show a page's recent call log instead of its cards, with call-state indicators, contact photos, and direct dial actions.
-- Add installed launchable apps to selected pages.
+- Add installed launchable apps to selected pages; the app list loads metadata first and decodes icons lazily for visible rows.
+- Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent call history is loaded once when any page needs it.
+- Contact photos are decoded near their display resolution to avoid allocating full-size camera images for small avatars.
+- Persian dimension values retain left-to-right ordering with English units (for example, ۲۰ dp).
+- The first app-only brightness value is captured from the current Android brightness; subsequent Quick Settings changes do not alter the SahlBit window in app-only mode.
+- Repeatable plus/minus controls support single taps and slower continuous changes while held.
 - Change contact-card photos and reorder cards from the management screen.
 
 ### Calling and Telecom
@@ -107,6 +112,9 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Reorder the management dashboard categories to the requested order, except the separate recent-calls viewing page, which is now shared with the home-screen call-card renderer.
 - Explain Android Direct Boot and the first unlock after reboot, including the security trade-off of removing the device lock.
 - Add a dedicated recent-calls management screen that uses the same configurable call-card component as the home screen.
+- Keep the Android-only contact visibility switch available even when contact names are hidden, and expose the READ_CONTACTS permission status/action at the bottom of recent-call customization.
+- Explain that READ_CALL_LOG is separate from READ_CONTACTS and may be granted through the Android default-Dialer role's phone permission set, subject to the platform's restricted-permission rules.
+- Let the call-confirmation preview select an Android contact after checking/asking for READ_CONTACTS.
 - Expand recent-call card settings for photo/name sources and priorities, optional name/number/status display, call-button mode and sizing, and card spacing.
 - Load installed-app labels and icons off the UI thread, display app logos, and add shortcuts for Contacts, Messages, Phone, Settings, and Files.
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
