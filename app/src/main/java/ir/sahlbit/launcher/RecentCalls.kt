@@ -104,13 +104,14 @@ internal fun readAndroidCallContacts(context: Context): Map<String, AndroidCallC
 /** Reuses provider snapshots while navigating between SahlBit screens. A new
  * activity-resume revision invalidates the snapshot so external changes are seen. */
 private object RecentCallsSnapshotCache {
-    private val lock = Any()
+    private val recordsLock = Any()
+    private val contactsLock = Any()
     private var recordsRevision = Int.MIN_VALUE
     private var recordsSnapshot: List<RecentCallRecord> = emptyList()
     private var contactsRevision = Int.MIN_VALUE
     private var contactsSnapshot: Map<String, AndroidCallContact> = emptyMap()
 
-    fun records(context: Context, revision: Int): List<RecentCallRecord> = synchronized(lock) {
+    fun records(context: Context, revision: Int): List<RecentCallRecord> = synchronized(recordsLock) {
         if (recordsRevision != revision) {
             recordsSnapshot = readRecentCallRecords(context)
             recordsRevision = revision
@@ -118,7 +119,7 @@ private object RecentCallsSnapshotCache {
         recordsSnapshot
     }
 
-    fun contacts(context: Context, revision: Int): Map<String, AndroidCallContact> = synchronized(lock) {
+    fun contacts(context: Context, revision: Int): Map<String, AndroidCallContact> = synchronized(contactsLock) {
         if (contactsRevision != revision) {
             contactsSnapshot = readAndroidCallContacts(context)
             contactsRevision = revision
