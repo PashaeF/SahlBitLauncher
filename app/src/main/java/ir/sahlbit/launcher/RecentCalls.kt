@@ -70,7 +70,7 @@ fun readRecentCallRecords(context: Context, limit: Int = 30): List<RecentCallRec
  * This avoids issuing a separate PhoneLookup provider query from every visible call card.
  * Must be called from a background dispatcher.
  */
-private fun readAndroidCallContacts(context: Context): Map<String, AndroidCallContact> = runCatching {
+internal fun readAndroidCallContacts(context: Context): Map<String, AndroidCallContact> = runCatching {
     context.contentResolver.query(
         ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
         arrayOf(
