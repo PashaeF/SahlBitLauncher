@@ -39,6 +39,9 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Add installed launchable apps to selected pages; the app list loads metadata first and decodes icons lazily for visible rows.
 - Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent call history is loaded once when any page needs it.
 - Contact photos are decoded near their display resolution to avoid allocating full-size camera images for small avatars.
+- Recent-call Android contact details are loaded once per list session instead of querying the Contacts provider separately for every visible call card; the list refreshes when the app resumes.
+- In-call contact lookup/photo decoding and gallery/camera crop-result persistence run off the UI thread to reduce call-screen and photo-selection jank.
+- The selected default home page is remapped when pages are reordered or deleted, including when the selected default page itself is removed.
 - Persian dimension values retain left-to-right ordering with English units (for example, ۲۰ dp).
 - The first app-only brightness value is captured from the current Android brightness; subsequent Quick Settings changes do not alter the SahlBit window in app-only mode.
 - Repeatable plus/minus controls support single taps and slower continuous changes while held.
@@ -54,7 +57,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Speaker route changes are reflected after Telecom reports the updated audio route.
 - Proximity screen-off and wake behavior during an active call.
 - Android contact photos are read live from the Contacts provider and are not copied into SahlBit storage; gallery and camera photos are square-cropped and stored internally.
-- Direct calls from contact cards request `CALL_PHONE` permission at runtime; if permission is denied or direct calling fails, the system dialer is opened instead.
+- Direct calls from contact cards request `CALL_PHONE` permission at runtime on Android 6 and newer; Android 5.0/5.1 use the install-time permission declaration. If permission is denied or direct calling fails, the system dialer is opened instead.
 - SahlBit must be selected as the Android default Dialer for its custom in-call interface to be used. Android 5.0/5.1 continues to use the system call interface.
 - Proximity monitoring uses Android's `PROXIMITY_SCREEN_OFF_WAKE_LOCK` when supported. The call activity does not hold the display on with `FLAG_KEEP_SCREEN_ON`.
 
@@ -123,6 +126,7 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Size home cards from the available screen height and reduce the top header gap without moving the settings icon away from the top-left corner.
 - Scroll the selected call-state chip fully into view.
 - Prevent any setup/PIN-creation screen from being rendered when an administrator PIN already exists.
+- Keep the default home-page selection valid when a page is deleted, and preserve Android 5/5.1 install-time `CALL_PHONE` permission compatibility.
 - Add a bounded, cancellable update check and read GitHub update metadata from the latest published Release asset.
 
 ## Version 0.6.2 changes
