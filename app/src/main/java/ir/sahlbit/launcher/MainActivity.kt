@@ -2517,7 +2517,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 else -> Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
             }
             Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp)
                 Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp, lineHeight = 20.sp, maxLines = 3)
             }
@@ -2773,7 +2773,14 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val storedRows = rowRoot.optJSONArray(index.toString())
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
-                val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) + (if (pageWeekdayEnabled) 42.dp else 0.dp) + (if (pageBatteryEnabled) 64.dp else 0.dp) + (if (pageSettingsIconEnabled) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
+                val pageElementCount = (if (pageClockEnabled) 1 else 0) +
+                    (if (pageWeekdayEnabled) 1 else 0) +
+                    (if (pageBatteryEnabled) 1 else 0) + 1
+                val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) +
+                    (if (pageWeekdayEnabled) 42.dp else 0.dp) +
+                    (if (pageBatteryEnabled) 64.dp else 0.dp) +
+                    (if (pageSettingsIconEnabled) 48.dp else 8.dp) +
+                    ((pageElementCount - 1).coerceAtLeast(0) * 8).dp
                 val pageEntries = entries.filter { it.page == index }
                 var remainingEntries = pageEntries.size
                 val renderedRowCount = pageRowCounts.count { rowCount ->
