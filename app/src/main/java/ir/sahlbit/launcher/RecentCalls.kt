@@ -198,12 +198,17 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     val callTextSize = prefs.getInt("recent_call_text_size", 14).coerceIn(10, 24)
     val buttonMode = prefs.getString("recent_call_button_mode", "both") ?: "both"
     val spacing = prefs.getInt("recent_card_spacing", 18).coerceIn(4, 30)
-    val (statusSymbol, statusColor, statusLabel) = when (call.type) {
-        CallLog.Calls.MISSED_TYPE -> Triple("×", Color(0xFFB3261E), "تماس ورودی بدون پاسخ")
-        CallLog.Calls.REJECTED_TYPE -> Triple("×", Color(0xFFB3261E), "تماس ورودی ردشده")
-        CallLog.Calls.INCOMING_TYPE -> Triple("↙", Color(0xFF168A45), "تماس ورودی پاسخ‌داده‌شده")
-        CallLog.Calls.OUTGOING_TYPE -> if (call.durationSeconds > 0) Triple("↗", Color(0xFF1976D2), "تماس خروجی با برقراری مکالمه") else Triple("↗", Color(0xFFB3261E), "تماس خروجی بدون برقراری مکالمه")
-        else -> Triple("☎", Color(0xFF64748B), "وضعیت تماس نامشخص")
+    val (statusSymbol, statusColor, statusLabel) = if (
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N && call.type == 5
+    ) {
+        Triple("×", Color(0xFFB3261E), "تماس ورودی ردشده")
+    } else {
+        when (call.type) {
+            CallLog.Calls.MISSED_TYPE -> Triple("×", Color(0xFFB3261E), "تماس ورودی بدون پاسخ")
+            CallLog.Calls.INCOMING_TYPE -> Triple("↙", Color(0xFF168A45), "تماس ورودی پاسخ‌داده‌شده")
+            CallLog.Calls.OUTGOING_TYPE -> if (call.durationSeconds > 0) Triple("↗", Color(0xFF1976D2), "تماس خروجی با برقراری مکالمه") else Triple("↗", Color(0xFFB3261E), "تماس خروجی بدون برقراری مکالمه")
+            else -> Triple("☎", Color(0xFF64748B), "وضعیت تماس نامشخص")
+        }
     }
     val displayNumber = "⁦${call.number.map { ch -> if (ch in '0'..'9') ('۰'.code + ch.code - '0'.code).toChar() else ch }}⁩"
     Card(Modifier.fillMaxWidth().padding(bottom = spacing.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
