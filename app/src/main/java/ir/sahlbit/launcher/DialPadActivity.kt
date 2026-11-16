@@ -6,6 +6,10 @@ import android.os.Build
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.MotionEvent
+import android.text.InputType
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -47,16 +51,48 @@ class DialPadActivity : Activity() {
             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
     }
 
+    private val deleteHandler = Handler(Looper.getMainLooper())
+    private var deleteHeld = false
+    private var deleteLongPress = false
+    private val repeatDelete = object : Runnable {
+        override fun run() {
+            if (deleteHeld) {
+                deleteLongPress = true
+                deleteOne()
+                deleteHandler.postDelayed(this, 140)
+            }
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         applyImmersive()
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(24, 24, 24, 24); setBackgroundColor(0xFFF6F2E8.toInt()) }
-        root.addView(TextView(this).apply { text = "شماره‌گیر سهل‌بیت"; textSize = 26f; setTextColor(0xFF244B3D.toInt()); gravity = Gravity.CENTER }, ViewGroup.LayoutParams(-1, 80))
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setBackgroundColor(0xFFF6F2E8.toInt())
+        }
+        root.addView(TextView(this).apply {
+            text = "شماره‌گیر سهل‌بیت"
+            textSize = 24f
+            setTextColor(0xFF244B3D.toInt())
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, dp(54)))
         number = EditText(this).apply {
-            textSize = 28f; gravity = Gravity.CENTER; hint = "شماره تلفن"; setSingleLine(true)
+            textSize = 30f
+            gravity = Gravity.CENTER
+            textDirection = View.TEXT_DIRECTION_LTR
+            inputType = InputType.TYPE_CLASS_PHONE
+            showSoftInputOnFocus = false
+            hint = "شماره تلفن"
             setText(intent?.data?.schemeSpecificPart.orEmpty().toPersianDialDigits())
             setSelection(text.length)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
         }
+        root.addView(number, LinearLayout.LayoutParams(-1, dp(82)))
         number.addTextChangedListener(object : TextWatcher {
             private var formatting = false
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -74,29 +110,66 @@ class DialPadActivity : Activity() {
                 }
             }
         })
-        root.addView(number, ViewGroup.LayoutParams(-1, 76))
-        val keys = GridLayout(this).apply { columnCount = 3; rowCount = 5; useDefaultMargins = true }
-        listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#", "+").forEachIndexed { index, key ->
+        val keys = GridLayout(this).apply {
+            columnCount = 3
+            rowCount = 4
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
+            useDefaultMargins = true
+        }
+        listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#").forEachIndexed { index, key ->
             val params = GridLayout.LayoutParams(
                 GridLayout.spec(index / 3, 1, 1f),
                 GridLayout.spec(index % 3, 1, 1f)
-            ).apply { width = 0; height = 60 }
+            ).apply {
+                width = 0
+                height = 0
+                setMargins(dp(4), dp(4), dp(4), dp(4))
+            }
             keys.addView(Button(this).apply {
-                text = key; textSize = 26f; isAllCaps = false
+                text = if (key == "۰") "۰\n+ " else key
+                textSize = if (key == "۰") 21f else 26f
+                isAllCaps = false
                 setOnClickListener { number.append(key) }
+                if (key == "۰") setOnLongClickListener { number.append("+"); true }
             }, params)
         }
-        root.addView(keys, LinearLayout.LayoutParams(-1, 300))
-        root.addView(Button(this).apply { text = "تماس"; textSize = 24f; setOnClickListener { placeCall() } }, LinearLayout.LayoutParams(-1, 76))
+        root.addView(keys, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(Button(this).apply {
-            text = "پاک‌کردن"
-            setOnClickListener {
-                val end = number.selectionStart.coerceAtLeast(0)
-                if (end > 0) number.text.delete(end - 1, end)
+            text = "تماس"
+            textSize = 22f
+            isAllCaps = false
+            setOnClickListener { placeCall() }
+        }, LinearLayout.LayoutParams(-1, dp(62)))
+        root.addView(Button(this).apply {
+            text = "⌫     پاک کردن"
+            textSize = 18f
+            isAllCaps = false
+            setOnTouchListener { _, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        deleteHeld = true
+                        deleteLongPress = false
+                        deleteHandler.postDelayed(repeatDelete, 420)
+                        true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        deleteHeld = false
+                        deleteHandler.removeCallbacks(repeatDelete)
+                        if (!deleteLongPress) deleteOne()
+                        true
+                    }
+                    else -> true
+                }
             }
-        }, LinearLayout.LayoutParams(-1, 60))
+        }, LinearLayout.LayoutParams(-1, dp(56)))
         applyVazirmatn(root)
         setContentView(root)
+    }
+
+    private fun deleteOne() {
+        if (!::number.isInitialized) return
+        val end = number.selectionStart.coerceAtLeast(0)
+        if (end > 0) number.text.delete(end - 1, end)
     }
 
     private fun applyVazirmatn(view: View) {
@@ -137,6 +210,8 @@ class DialPadActivity : Activity() {
         if (requestCode == REQUEST_CALL_PERMISSION && grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) placePendingCall()
         else if (requestCode == REQUEST_CALL_PERMISSION) android.widget.Toast.makeText(this, "برای تماس، اجازهٔ برقراری تماس لازم است.", android.widget.Toast.LENGTH_LONG).show()
     }
+
+    override fun onDestroy() { deleteHeld = false; deleteHandler.removeCallbacksAndMessages(null); super.onDestroy() }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
