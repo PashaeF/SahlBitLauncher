@@ -39,7 +39,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Add installed launchable apps to selected pages; the app list loads metadata first and decodes icons lazily for visible rows.
 - Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent call history is loaded once when any page needs it.
 - Contact photos are decoded near their display resolution to avoid allocating full-size camera images for small avatars.
-- Recent-call records and Android contact details are cached across internal screen navigation and refreshed when the activity resumes, avoiding repeated provider queries when entering and leaving the recent-calls page.
+- Recent-call records and Android contact details are cached across internal screen navigation and refreshed when the activity resumes; the Call Log provider query is bounded to the latest 30 records to avoid scanning the full history.
 - Scaled recent-call photos use a bounded in-memory LRU cache keyed by the photo URI and resume revision, avoiding repeated decoding for multiple calls from the same contact while still refreshing after returning to SahlBit.
 - In-call contact lookup/photo decoding and gallery/camera crop-result persistence run off the UI thread to reduce call-screen and photo-selection jank.
 - The selected default home page is remapped when pages are reordered or deleted, including when the selected default page itself is removed.
