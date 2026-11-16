@@ -214,6 +214,7 @@ fun CustomContactsPage(
         val index = photoTarget
         val croppedUri = result.uriContent
         if (result.isSuccessful && index in phones.indices && croppedUri != null) {
+            photoTarget = -1
             coroutineScope.launch {
                 val saved = withContext(Dispatchers.IO) { saveSquarePhotoFromUri(context, croppedUri) }
                 if (saved != null && index in phones.indices) {
@@ -221,7 +222,6 @@ fun CustomContactsPage(
                         it[index] = it[index].copy(photoUri = saved, contactUri = null)
                     }
                 } else message = "ذخیرهٔ تصویر برش‌خورده ناموفق بود."
-                photoTarget = -1
             }
         } else {
             if (result.error != null) message = "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید."
