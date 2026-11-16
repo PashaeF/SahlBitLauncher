@@ -2652,21 +2652,19 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         counts.optInt(pager.currentPage.toString(), storedRows?.length() ?: launcherPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
     }.getOrDefault(2)
     val currentPageRowGap = ((currentPageRowCount - 1).coerceAtLeast(0) * 3).dp
-    val pageContentModesSnapshot = launcherPrefs.getString("page_content_mode", "{}") ?: "{}"
-    val legacyRecentFlagsSnapshot = launcherPrefs.getString("page_recent_calls", "{}") ?: "{}"
-    val hasRecentCallsPage = remember(pageCount, pageContentModesSnapshot, legacyRecentFlagsSnapshot) {
-        runCatching {
-            val modes = org.json.JSONObject(pageContentModesSnapshot)
-            val legacy = org.json.JSONObject(legacyRecentFlagsSnapshot)
-            (0 until pageCount).any { page ->
-                val stored = modes.optString(page.toString(), "")
-                if (stored in setOf("entries", "recent", "dialer", "none")) stored == "recent"
-                else legacy.optBoolean(page.toString(), false)
-            }
-        }.getOrDefault(false)
-    }
-    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = hasRecentCallsPage, key2 = permissionRevision) {
-        value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, permissionRevision) } else emptyList()
+    val recentPageIsVisible = pageContentMode == "recent"
+    val recentCallRecords by produceState(
+        initialValue = emptyList<RecentCallRecord>(),
+        key1 = recentPageIsVisible,
+        key2 = pager.currentPage,
+        key3 = permissionRevision
+    ) {
+        value = if (
+            recentPageIsVisible &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
+        ) {
+            withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, permissionRevision) }
+        } else emptyList()
     }
     val androidRecentPhotoSource = launcherPrefs.getString("recent_photo_source", "custom") ?: "custom"
     val androidRecentNameSource = launcherPrefs.getString("recent_name_source", "custom") ?: "custom"
@@ -2675,15 +2673,16 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
     val androidRecentContacts by produceState(
         initialValue = emptyMap<String, AndroidCallContact>(),
-        key1 = hasRecentCallsPage,
-        key2 = permissionRevision,
-        key3 = needsAndroidRecentContacts
+        key1 = recentPageIsVisible,
+        key2 = pager.currentPage,
+        key3 = permissionRevision,
+        key4 = needsAndroidRecentContacts
     ) {
         val granted = androidx.core.content.ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.READ_CONTACTS
         ) == PackageManager.PERMISSION_GRANTED
-        value = if (hasRecentCallsPage && granted && needsAndroidRecentContacts) {
+        value = if (recentPageIsVisible && granted && needsAndroidRecentContacts) {
             withContext(Dispatchers.IO) { readAndroidCallContactsCached(context, permissionRevision) }
         } else emptyMap()
     }
