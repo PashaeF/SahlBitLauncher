@@ -160,8 +160,15 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     }
     val contactsGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
     val allowAndroid = matchingCustom == null && prefs.getBoolean("recent_show_android_unknown", false)
+    val androidSourcesRequested =
+        (prefs.getString("recent_photo_source", "custom") ?: "custom") != "custom" ||
+        (prefs.getString("recent_name_source", "custom") ?: "custom") != "custom"
     val androidContact = androidContacts[normalized].takeIf {
-        contactsGranted && (allowAndroid || !matchingCustom?.second?.contactUri.isNullOrBlank())
+        contactsGranted && (
+            allowAndroid ||
+                !matchingCustom?.second?.contactUri.isNullOrBlank() ||
+                (matchingCustom != null && androidSourcesRequested)
+            )
     }
     val customName = matchingCustom?.first?.name.orEmpty()
     val androidName = call.name.ifBlank { androidContact?.name.orEmpty() }
