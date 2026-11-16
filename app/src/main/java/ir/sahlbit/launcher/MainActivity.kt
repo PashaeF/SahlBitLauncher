@@ -195,6 +195,17 @@ private fun openUsageAccessSettings(context: Context) {
 }
 
 @Composable
+@Composable
+private fun RequiredPermissionsSection(count: Int, content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.height(8.dp))
+        Divider(color = Color(0xFFCBD5E1), thickness = 1.dp)
+        Spacer(Modifier.height(4.dp))
+        Text(if (count == 1) "دسترسی لازم تنظیمات این صفحه" else "دسترسی‌های لازم تنظیمات این صفحه", color = Forest, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        content()
+    }
+}
+
 private fun PermissionCard(title: String, description: String, buttonLabel: String, granted: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
@@ -849,7 +860,6 @@ private fun SahlBitApp(
         }
         "pages" -> SettingsPage("مدیریت صفحه‌ها و چیدمان", "نام‌گذاری، افزودن، حذف و جابه‌جایی صفحه‌ها و تنظیم تعداد و چینش کارت‌ها. با حذف صفحه، کارت‌های آن به صفحهٔ قبلی منتقل می‌شوند؛ اگر صفحهٔ اول باشد، کارت‌ها در صفحهٔ اولِ باقی‌مانده حفظ می‌شوند.", { navigateBack("dashboard") }) {
             val previewContentWidth = (LocalConfiguration.current.screenWidthDp.dp - 32.dp).coerceAtLeast(240.dp)
-            PermissionCard("برنامه صفحه اصلی (لانچر) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
             NumberSetting("تعداد صفحه‌ها", pageCount, 1, Int.MAX_VALUE) { requested ->
                 val next = requested.coerceAtLeast(1)
                 if (next < pageCount) {
@@ -1003,19 +1013,14 @@ private fun SahlBitApp(
                     }
                 }
             }
+            RequiredPermissionsSection(1) {
+                PermissionCard("برنامه صفحه اصلی (لانچر) پیش‌فرض", "برای نمایش سهل‌بیت با فشردن دکمهٔ خانه، آن را به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض انتخاب کنید.", "انتخاب برنامه صفحه اصلی", isHomeRoleHeld(context), onSelectLauncher)
+            }
+
         }
         "contacts" -> SettingsPage("مخاطبان و برنامه‌های صفحه اصلی", "مدیر می‌تواند مخاطب واقعی را از دفترچه تلفن یا برنامه را از فهرست برنامه‌های قابل‌اجرا انتخاب کند. انتخاب‌ها فقط در صفحه اصلی سهل‌بیت نمایش داده می‌شوند.", { navigateBack("dashboard") }) {
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
-            PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "در صورت تمایل، سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب کنید تا رابط تماس اختصاصی آن نمایش داده شود.", "انتخاب برنامهٔ تلفن پیش‌فرض", isDialerRoleHeld(context), onSelectDialer)
-            PermissionCard(
-                title = "دسترسی به مخاطبان",
-                description = "برای نمایش نام کامل، همهٔ شماره‌ها و تصویر زندهٔ مخاطب لازم است. در اندروید ۶ و جدیدتر، این اجازه فقط پس از اقدام شما درخواست می‌شود؛ در اندروید ۵ هنگام نصب برنامه نمایش داده می‌شود. بدون آن، انتخابگر سیستم فقط امکان انتخاب محدود یک شماره را فراهم می‌کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
-                buttonLabel = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) "انتخاب مخاطب با انتخابگر سیستم" else "اعطای دسترسی به مخاطبان",
-                granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
-                onClick = { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
-            )
-            PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود. در اندروید ۵ تماس از طریق شماره‌گیر سیستم انجام می‌شود.", "اعطای اجازهٔ برقراری تماس", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در اندروید ۵ تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
             val recentCallsMode = loadPageFlag("page_recent_calls", selectedPage, false)
             if (recentCallsMode) Text("این صفحه برای نمایش تماس‌های اخیر تنظیم شده است؛ انتخاب مخاطب و برنامه در این صفحه غیرفعال است.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
@@ -1099,12 +1104,23 @@ private fun SahlBitApp(
                     }
                 }
             }
+            RequiredPermissionsSection(3) {
+                PermissionCard("نقش برنامهٔ تلفن پیش‌فرض", "در صورت تمایل، سهل‌بیت را به‌عنوان برنامهٔ تلفن پیش‌فرض انتخاب کنید تا رابط تماس اختصاصی آن نمایش داده شود.", "انتخاب برنامهٔ تلفن پیش‌فرض", isDialerRoleHeld(context), onSelectDialer)
+                PermissionCard(
+                    title = "دسترسی به مخاطبان",
+                    description = "برای نمایش نام کامل، همهٔ شماره‌ها و تصویر زندهٔ مخاطب لازم است. در اندروید ۶ و جدیدتر، این اجازه فقط پس از اقدام شما درخواست می‌شود؛ در اندروید ۵ هنگام نصب برنامه نمایش داده می‌شود. بدون آن، انتخابگر سیستم فقط امکان انتخاب محدود یک شماره را فراهم می‌کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
+                    buttonLabel = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) "انتخاب مخاطب با انتخابگر سیستم" else "اعطای دسترسی به مخاطبان",
+                    granted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED,
+                    onClick = { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) contactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)) else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) android.widget.Toast.makeText(context, "دسترسی به مخاطبان قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else contactsPermission.launch(android.Manifest.permission.READ_CONTACTS) }
+                )
+                PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم با شمارهٔ انتخاب‌شده لازم است. این دسترسی فقط با تأیید شما فعال می‌شود. در اندروید ۵ تماس از طریق شماره‌گیر سیستم انجام می‌شود.", "اعطای اجازهٔ برقراری تماس", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) android.widget.Toast.makeText(context, "در اندروید ۵ تماس از طریق شماره‌گیر سیستم انجام می‌شود.", android.widget.Toast.LENGTH_LONG).show() else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) })
+            }
+
         }
         "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { navigateBack("dashboard") }) {
             DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { navigateTo("clock") }
             DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { navigateTo("callconfirm") }
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
-            PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
             var homeContactRadius by remember { mutableIntStateOf(prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)) }
             var homeAppRadius by remember { mutableIntStateOf(prefs.getInt("home_app_radius", 20).coerceIn(0, 50)) }
             NumberSetting("گردی گوشهٔ تصویر مخاطبان: ${homeContactRadius.toPersianDigits()} dp", homeContactRadius, 0, 50) { homeContactRadius = it; prefs.edit().putInt("home_contact_radius", it).apply() }
@@ -1183,6 +1199,10 @@ private fun SahlBitApp(
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
             Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
+            RequiredPermissionsSection(1) {
+                PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context), { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
+            }
+
         }
         "security" -> SettingsPage("امنیت و پین مدیر", "برای تغییر رمز ورود مدیر یا بازیابی دسترسی از گزینه زیر استفاده کنید.", { navigateBack("dashboard") }) {
             Button(onClick = { oldPinInput = ""; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinverify") }, modifier = Modifier.fillMaxWidth()) { Text("تغییر پین مدیر") }
@@ -1229,8 +1249,7 @@ private fun SahlBitApp(
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
             PermissionCard("اجازهٔ نصب به‌روزرسانی‌ها", "این دسترسی ویژه فقط برای آن است که سهل‌بیت فایل APK نسخه‌ای را که مدیر از منبع رسمی انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. بدون آن، دانلود و بررسی نسخه ممکن است اما نصب از داخل برنامه انجام نمی‌شود. تأیید نهایی نصب همیشه با مدیر است.", "اجازهٔ نصب برنامه‌های ناشناس", installGranted, { if (installGranted) android.widget.Toast.makeText(context, "اجازهٔ نصب برنامه‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) } })
             PermissionCard("دسترسی تغییر تنظیمات سیستم", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستم", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستم قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
-            Text("تنظیم بلندی صدا به مجوز جداگانه‌ای نیاز ندارد؛ سهل‌بیت از مسیر رسمی AudioManager استفاده می‌کند و تغییرها مستقیماً در صدای سیستم اندروید اعمال می‌شوند.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
-            PermissionCard("دسترسی به سابقهٔ تماس‌ها", "این دسترسی فقط برای نمایش فهرست تماس‌های اخیر در صفحه‌ای است که خودتان انتخاب می‌کنید. تا زمانی که این قابلیت را فعال نکنید، سابقهٔ تماس‌ها خوانده نمی‌شود.", "اعطای دسترسی به سابقهٔ تماس‌ها", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) else android.widget.Toast.makeText(context, "دسترسی به سابقهٔ تماس‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() })
+            PermissionCard("دسترسی به سابقهٔ تماس‌ها", "این دسترسی مستقل READ_CALL_LOG است و فقط برای نمایش فهرست تماس‌های اخیر در صفحه‌ای است که خودتان انتخاب می‌کنید. از دسترسی مخاطبان به‌تنهایی به دست نمی‌آید؛ اندروید آن را جداگانه کنترل می‌کند و در نسخه‌های جدید ممکن است محدودیت نصب‌کننده نیز اعمال شود. تا زمانی که این قابلیت را فعال نکنید، سابقهٔ تماس‌ها خوانده نمی‌شود.", "اعطای دسترسی به سابقهٔ تماس‌ها", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) else android.widget.Toast.makeText(context, "دسترسی به سابقهٔ تماس‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() })
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") }, onCallDeveloper = { dialerNumber = "09145880814"; navigateTo("dialer") })
@@ -1526,7 +1545,6 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
     }
     SettingsPage("صدا و زنگ‌ها", "این نوارها مستقیماً صدای سیستم اندروید را تغییر می‌دهند. تغییر صدا از دکمه‌های فیزیکی یا تنظیمات اندروید نیز هنگام بازگشت در این صفحه منعکس می‌شود.", onBack) {
         val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
-        PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این دسترسی فقط با تأیید شما در تنظیمات اندروید فعال می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
         Text("صدای زنگ تماس: ${ring.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_RING).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(ring, { ring = it; audio.setStreamVolume(android.media.AudioManager.STREAM_RING, it.toInt(), 0) }, valueRange = 0f..maxVolume(android.media.AudioManager.STREAM_RING))
         Text("صدای اعلان‌ها: ${notification.toInt().toPersianDigits()} از ${maxVolume(android.media.AudioManager.STREAM_NOTIFICATION).toInt().toPersianDigits()}", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -1543,7 +1561,10 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_RINGTONE, "انتخاب زنگ تماس") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ تماس") }
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_NOTIFICATION, "انتخاب صدای اعلان") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب صدای اعلان") }
         OutlinedButton(onClick = { pick(android.media.RingtoneManager.TYPE_ALARM, "انتخاب زنگ هشدار") }, modifier = Modifier.fillMaxWidth()) { Text("انتخاب زنگ هشدار") }
-        Text("برای ذخیرهٔ زنگ انتخاب‌شده، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+        if (!systemWriteGranted) Text("برای ذخیرهٔ زنگ انتخاب‌شده، دسترسی تغییر تنظیمات سیستم را از کادر پایین این صفحه فعال کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+        RequiredPermissionsSection(1) {
+            PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این دسترسی فقط با تأیید شما در تنظیمات اندروید فعال می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", systemWriteGranted, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
+        }
     }
 }
 
@@ -1649,7 +1670,6 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     fun saveText(key: String, value: String) { prefs.edit().putString(prefix + key, value).apply() }
     val palette = listOf("#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#F1F5F9", "#FFFFFF", "#168A45", "#BE232D", "#1976D2", "#455A64")
     SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
-        PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم از صفحهٔ اصلی لازم است. این دسترسی فقط پس از تأیید شما در پنجرهٔ اندروید فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", callPermissionGranted, onRequestCallPermission)
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
         val statusChipScroll = rememberScrollState()
         val incomingChipRequester = remember { BringIntoViewRequester() }
@@ -1778,6 +1798,9 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Button(onClick = {}, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = secondaryColor, contentColor = secondaryTextColor)) { Text("✕  $secondLabel", fontSize = buttonTextSize.sp) }
                 }
             }
+        }
+        RequiredPermissionsSection(1) {
+            PermissionCard("اجازهٔ برقراری تماس", "برای شروع تماس مستقیم از صفحهٔ اصلی لازم است. این دسترسی فقط پس از تأیید شما در پنجرهٔ اندروید فعال می‌شود.", "اعطای اجازهٔ برقراری تماس", callPermissionGranted, onRequestCallPermission)
         }
     }
 }
