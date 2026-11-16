@@ -621,6 +621,7 @@ private fun SahlBitApp(
         val targetId = selectedPhotoEntryId
         val croppedUri = result.uriContent
         if (result.isSuccessful && targetId != null && croppedUri != null) {
+            selectedPhotoEntryId = null
             coroutineScope.launch {
                 val savedPhoto = withContext(Dispatchers.IO) {
                     saveSquarePhotoFromUri(context, croppedUri, "contact_")
@@ -633,7 +634,6 @@ private fun SahlBitApp(
                 } else {
                     android.widget.Toast.makeText(context, "ذخیرهٔ تصویر برش‌خورده ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
                 }
-                selectedPhotoEntryId = null
             }
         } else {
             if (result.error != null) {
