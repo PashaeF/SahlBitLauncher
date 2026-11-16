@@ -72,6 +72,7 @@ class DialPadActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
             setPadding(dp(16), dp(12), dp(16), dp(12))
             setBackgroundColor(0xFFF6F2E8.toInt())
         }
@@ -129,6 +130,7 @@ class DialPadActivity : Activity() {
                 text = if (key == "۰") "۰\n+ " else key
                 textSize = if (key == "۰") 21f else 26f
                 isAllCaps = false
+                textDirection = View.TEXT_DIRECTION_LTR
                 setOnClickListener { number.append(key) }
                 if (key == "۰") setOnLongClickListener { number.append("+"); true }
             }, params)
@@ -138,12 +140,14 @@ class DialPadActivity : Activity() {
             text = "تماس"
             textSize = 22f
             isAllCaps = false
+            textDirection = View.TEXT_DIRECTION_RTL
             setOnClickListener { placeCall() }
         }, LinearLayout.LayoutParams(-1, dp(62)))
         root.addView(Button(this).apply {
             text = "⌫     پاک کردن"
             textSize = 18f
             isAllCaps = false
+            textDirection = View.TEXT_DIRECTION_RTL
             setOnTouchListener { _, event ->
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
