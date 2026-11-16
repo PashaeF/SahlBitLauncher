@@ -2738,7 +2738,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (showWeekdayText) Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        if (showWeekdayText && showWeekdayMarks) Spacer(Modifier.width(14.dp))
+                        if (showWeekdayText && showWeekdayMarks) Spacer(Modifier.width(20.dp))
                         if (showWeekdayMarks) Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp))
                     }
                 }
