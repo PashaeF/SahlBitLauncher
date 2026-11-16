@@ -1291,14 +1291,7 @@ private fun SahlBitApp(
                             .map { resolve ->
                                 val pkg = resolve.activityInfo.packageName
                                 val label = runCatching { resolve.loadLabel(pm).toString() }.getOrDefault(pkg)
-                                val icon = runCatching {
-                                    val drawable = resolve.loadIcon(pm)
-                                    val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                                    val canvas = android.graphics.Canvas(bitmap)
-                                    drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas)
-                                    bitmap.asImageBitmap()
-                                }.getOrNull()
-                                InstalledAppRow(pkg, label, icon)
+                                InstalledAppRow(pkg, label, null)
                             }.sortedBy { it.label.lowercase() }
                     }.getOrDefault(emptyList())
                 }
@@ -1312,9 +1305,14 @@ private fun SahlBitApp(
                     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(visibleApps, key = { it.packageName }) { app ->
                             val alreadyAdded = entries.any { it.kind == "app" && it.packageName == app.packageName && it.page == selectedPage }
+                            val appIcon by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, app.packageName) {
+                                value = withContext(Dispatchers.IO) {
+                                    decodeCachedApplicationIcon(context, app.packageName, 96)?.asImageBitmap()
+                                }
+                            }
                             Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), shape = RoundedCornerShape(20.dp)) {
                                 Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(40.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                    if (appIcon != null) Image(appIcon!!, contentDescription = app.label, modifier = Modifier.size(40.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                                     else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(40.dp))
                                     Text(app.label, color = Ink, modifier = Modifier.weight(1f), maxLines = 2)
                                     if (alreadyAdded) Text("افزوده شده", color = Color(0xFF168A45), fontSize = 12.sp)
@@ -1809,14 +1807,7 @@ private fun AllAppsScreen(onBack: () -> Unit, onLaunch: (String) -> Unit, onDeta
             items(filteredApps, key = { it.packageName }) { app ->
                 val appIcon by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, app.packageName) {
                     value = withContext(Dispatchers.IO) {
-                        runCatching {
-                            val drawable = pm.getApplicationIcon(app.packageName)
-                            val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                            val canvas = android.graphics.Canvas(bitmap)
-                            drawable.setBounds(0, 0, 96, 96)
-                            drawable.draw(canvas)
-                            bitmap.asImageBitmap()
-                        }.getOrNull()
+                        decodeCachedApplicationIcon(context, app.packageName, 96)?.asImageBitmap()
                     }
                 }
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
@@ -2831,11 +2822,11 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                         if (contactBitmapValue != null) Image(contactBitmapValue, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else if (entry.kind == "app") {
                                             val iconBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.packageName) {
-                                                value = entry.packageName?.let { pkg -> withContext(Dispatchers.IO) { runCatching {
-                                                    val drawable = context.packageManager.getApplicationIcon(pkg)
-                                                    val bmp = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                                                    val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
-                                                }.getOrNull() } }
+                                                value = entry.packageName?.let { pkg ->
+                                                    withContext(Dispatchers.IO) {
+                                                        decodeCachedApplicationIcon(context, pkg, 96)?.asImageBitmap()
+                                                    }
+                                                }
                                             }
                                             val iconBitmapValue = iconBitmap
                                             if (iconBitmapValue != null) Image(iconBitmapValue, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
