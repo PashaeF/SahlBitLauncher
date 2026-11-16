@@ -195,7 +195,6 @@ private fun openUsageAccessSettings(context: Context) {
 }
 
 @Composable
-@Composable
 private fun RequiredPermissionsSection(count: Int, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Spacer(Modifier.height(8.dp))
@@ -206,6 +205,7 @@ private fun RequiredPermissionsSection(count: Int, content: @Composable ColumnSc
     }
 }
 
+@Composable
 private fun PermissionCard(title: String, description: String, buttonLabel: String, granted: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
