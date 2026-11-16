@@ -404,6 +404,23 @@ private fun SahlBitApp(
     fun savePageFlag(key: String, page: Int, value: Boolean) { val root = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()); root.put(page.toString(), value); prefs.edit().putString(key, root.toString()).apply() }
     var recentCallsFlagsRevision by remember { mutableIntStateOf(0) }
     var pendingRecentCallsPage by remember { mutableIntStateOf(0) }
+    var pendingRecentContentMode by remember { mutableStateOf("recent") }
+    fun loadPageContentMode(page: Int): String = runCatching {
+        val stored = org.json.JSONObject(prefs.getString("page_content_mode", "{}") ?: "{}").optString(page.toString(), "")
+        if (stored in setOf("entries", "recent", "dialer", "none")) stored else if (loadPageFlag("page_recent_calls", page, false)) "recent" else "entries"
+    }.getOrDefault(if (loadPageFlag("page_recent_calls", page, false)) "recent" else "entries")
+    fun savePageContentMode(page: Int, mode: String) {
+        val root = runCatching { org.json.JSONObject(prefs.getString("page_content_mode", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        root.put(page.toString(), mode)
+        prefs.edit().putString("page_content_mode", root.toString()).apply()
+        savePageFlag("page_recent_calls", page, mode == "recent")
+        recentCallsFlagsRevision++
+    }
+    fun loadPageWeekdayMode(page: Int): String = runCatching { org.json.JSONObject(prefs.getString("page_weekday_mode", "{}") ?: "{}").optString(page.toString(), "both") }.getOrDefault("both")
+    fun savePageWeekdayMode(page: Int, mode: String) {
+        val root = runCatching { org.json.JSONObject(prefs.getString("page_weekday_mode", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject())
+        root.put(page.toString(), mode); prefs.edit().putString("page_weekday_mode", root.toString()).apply()
+    }
     var confirmPageDeletion by remember { mutableStateOf(false) }
     var gridColumns by remember { mutableIntStateOf(prefs.getInt("grid_columns", 2).coerceIn(1, 6)) }
     fun loadRowsPerPage(page: Int): Int = runCatching {
@@ -557,7 +574,7 @@ private fun SahlBitApp(
         contactPickerPending = false
     }
     val recentCallsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) savePageFlag("page_recent_calls", pendingRecentCallsPage, true)
+        if (granted) savePageContentMode(pendingRecentCallsPage, pendingRecentContentMode)
         else android.widget.Toast.makeText(context, "برای نمایش تماس‌های اخیر، اجازهٔ مشاهدهٔ سابقهٔ تماس لازم است. انتخاب شما ذخیره نشد.", android.widget.Toast.LENGTH_LONG).show()
         recentCallsFlagsRevision++
     }
@@ -874,21 +891,27 @@ private fun SahlBitApp(
                 }
                 if (next > pageCount) pageNames = pageNames + (pageCount until next).map { "صفحه ${(it + 1).toPersianDigits()}" }
                 pageNames = pageNames.take(next)
-                pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1)
+                pageCount = next; selectedPage = selectedPage.coerceAtMost(next - 1); prefs.edit().putInt("default_home_page", prefs.getInt("default_home_page", 0).coerceIn(0, next - 1)).apply()
                 LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", next).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
             }
+            var defaultHomePage by remember(pageCount) { mutableIntStateOf(prefs.getInt("default_home_page", 0).coerceIn(0, pageCount - 1)) }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("صفحه پیش‌فرض هنگام بازشدن تلفن همراه", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("هر بار که صفحه اصلی سهل‌بیت از نو باز می‌شود، این صفحه نمایش داده خواهد شد. این انتخاب، صفحه‌ای را که اکنون در حال ویرایش آن هستید تغییر نمی‌دهد.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                    PageDropdown("صفحه پیش‌فرض", defaultHomePage, pageNames) {
+                        defaultHomePage = it
+                        prefs.edit().putInt("default_home_page", it).apply()
+                    }
+                }
+            }
             PageDropdown("صفحهٔ در حال ویرایش", selectedPage, pageNames) { selectedPage = it }
+            var pageContentMode by remember(selectedPage, recentCallsFlagsRevision, resumeRevision) { mutableStateOf(loadPageContentMode(selectedPage)) }
+            val showRecentCallsOnPage = pageContentMode == "recent"
             var showClockOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_clock_enabled", selectedPage, true)) }
             var showBatteryOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_battery_enabled", selectedPage, true)) }
-            var showRecentCallsOnPage by remember(selectedPage, recentCallsFlagsRevision, resumeRevision) { mutableStateOf(loadPageFlag("page_recent_calls", selectedPage, false)) }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("ساعت دیواری در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink); Switch(showClockOnPage, { showClockOnPage = it; savePageFlag("page_clock_enabled", selectedPage, it) }) }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایشگر میزان شارژ و علامت در حال شارژ در این صفحه باشد", modifier = Modifier.weight(1f), color = Ink, lineHeight = 23.sp); Switch(showBatteryOnPage, { showBatteryOnPage = it; savePageFlag("page_battery_enabled", selectedPage, it) }) }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("نمایش تماس‌های اخیر", modifier = Modifier.weight(1f), color = Ink); Switch(showRecentCallsOnPage, { enabled ->
-                if (!enabled) { showRecentCallsOnPage = false; savePageFlag("page_recent_calls", selectedPage, false) }
-                else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) { showRecentCallsOnPage = true; savePageFlag("page_recent_calls", selectedPage, true) }
-                else { pendingRecentCallsPage = selectedPage; recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) }
-            }) }
-            if (showRecentCallsOnPage) Text("در این صفحه، بخش کارت‌ها به فهرست تماس‌های اخیر اختصاص می‌یابد و چیدمان کارت‌ها در صفحهٔ اصلی نمایش داده نمی‌شود.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
+            var showSettingsIconOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_settings_icon_enabled", selectedPage, true)) }
+            var weekdayMode by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageWeekdayMode(selectedPage)) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (pageCount < Int.MAX_VALUE) {
@@ -930,19 +953,99 @@ private fun SahlBitApp(
                     dismissButton = { TextButton(onClick = { confirmPageDeletion = false }) { Text("انصراف") } }
                 )
             }
-            NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6, enabled = !showRecentCallsOnPage) { value ->
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("نمایش آیکون چرخ‌دنده برای ورود به صفحه ورود مدیر", color = Ink, modifier = Modifier.weight(1f), lineHeight = 22.sp)
+                        Switch(showSettingsIconOnPage, { showSettingsIconOnPage = it; savePageFlag("page_settings_icon_enabled", selectedPage, it) })
+                    }
+                    Text("با خاموش‌کردن این گزینه، آیکون ورود مدیر در همین صفحه پنهان می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+                }
+            }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("نمایش ساعت دیواری در این صفحه", color = Ink, modifier = Modifier.weight(1f))
+                        Switch(showClockOnPage, { showClockOnPage = it; savePageFlag("page_clock_enabled", selectedPage, it) })
+                    }
+                }
+            }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("نمایش چند شنبه", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("می‌توانید چندشنبه را به شکل علامت، نوشتار فارسی، هر دو یا اصلاً نمایش ندهید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                    listOf("off" to "نمایش داده نشود", "marks" to "چندشنبه به صورت خط و علامت", "text" to "چندشنبه به صورت نوشتار فارسی", "both" to "نمایش هر دو").forEach { (mode, label) ->
+                        Row(Modifier.fillMaxWidth().clickable { weekdayMode = mode; savePageWeekdayMode(selectedPage, mode) }.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = weekdayMode == mode, onClick = { weekdayMode = mode; savePageWeekdayMode(selectedPage, mode) })
+                            Text(label, color = Ink, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("نمایش نمایشگر میزان شارژ و علامت در حال شارژ در این صفحه", color = Ink, modifier = Modifier.weight(1f), lineHeight = 22.sp)
+                        Switch(showBatteryOnPage, { showBatteryOnPage = it; savePageFlag("page_battery_enabled", selectedPage, it) })
+                    }
+                }
+            }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("محتوای بخش اصلی این صفحه", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("یکی از چهار گزینه زیر را انتخاب کنید. فقط همان بخش در فضای اصلی صفحه نمایش داده می‌شود.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+                    val modeOptions = listOf(
+                        Triple("entries", "نمایش مخاطبان و برنامه‌های منتخب در این صفحه", "کارت‌های مخاطبان و برنامه‌هایی که در بخش مربوطه انتخاب کرده‌اید نمایش داده می‌شوند."),
+                        Triple("recent", "نمایش تماس‌های اخیر در این صفحه", "فهرست تماس‌های اخیر جای کارت‌های مخاطبان و برنامه‌ها را می‌گیرد."),
+                        Triple("dialer", "نمایش شماره‌گیر اختصاصی در این صفحه", "شماره‌گیر سهل‌بیت بدون عنوان و دکمه بازگشت، مستقیماً در همین صفحه نمایش داده می‌شود."),
+                        Triple("none", "هیچکدام؛ این فضا به سایر عناصر اختصاص داده شود", "اگر نمایش چندشنبه یا نمایشگر میزان شارژ فعال باشد، فضای اصلی به همان عناصر اختصاص داده می‌شود.")
+                    )
+                    modeOptions.forEach { (mode, label, description) ->
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable {
+                            if (mode == "recent" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+                                pendingRecentCallsPage = selectedPage
+                                pendingRecentContentMode = mode
+                                recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG)
+                            } else {
+                                pageContentMode = mode
+                                savePageContentMode(selectedPage, mode)
+                            }
+                        }.padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = pageContentMode == mode, onClick = {
+                                if (mode == "recent" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+                                    pendingRecentCallsPage = selectedPage
+                                    pendingRecentContentMode = mode
+                                    recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG)
+                                } else {
+                                    pageContentMode = mode
+                                    savePageContentMode(selectedPage, mode)
+                                }
+                            })
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(label, color = Ink, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
+                                Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 19.sp)
+                            }
+                        }
+                    }
+                }
+            }
+            if (showRecentCallsOnPage && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+                Text("برای نمایش تماس‌های اخیر، دسترسی سابقه تماس‌ها را از بخش دسترسی‌های لازم پایین این صفحه فعال کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            NumberSetting("تعداد ردیف‌ها", gridRows, 1, 6, enabled = pageContentMode == "entries") { value ->
                 gridRows = value; saveRowsPerPage(selectedPage, value)
                 rowCardCounts = (rowCardCounts.take(value) + List((value - rowCardCounts.size).coerceAtLeast(0)) { gridColumns })
                 rowAlignments = (rowAlignments.take(value) + List((value - rowAlignments.size).coerceAtLeast(0)) { "center" })
                 persistRowLayout()
             }
             val selectedPageEntryCount = entries.count { it.page == selectedPage }
-            if (selectedPageEntryCount > rowCardCounts.sum()) Text("توجه: این صفحه ${selectedPageEntryCount.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${rowCardCounts.sum().toPersianDigits()} کارت است. برای نمایش همهٔ موارد، تعداد ردیف‌ها یا کارت‌های هر ردیف را افزایش دهید.", color = Color(0xFFB3261E), fontSize = 13.sp)
-            Text("تنظیم تعداد کارت هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
+            if (pageContentMode == "entries" && selectedPageEntryCount > rowCardCounts.sum()) Text("توجه: این صفحه ${selectedPageEntryCount.toPersianDigits()} مورد دارد، اما ظرفیت چیدمان فعلی ${rowCardCounts.sum().toPersianDigits()} کارت است. برای نمایش همهٔ موارد، تعداد ردیف‌ها یا کارت‌های هر ردیف را افزایش دهید.", color = Color(0xFFB3261E), fontSize = 13.sp)
+            Text("تنظیم تعداد کارت برای هر ردیف", color = Ink, fontWeight = FontWeight.Bold)
             rowCardCounts.forEachIndexed { row, count ->
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6, enabled = !showRecentCallsOnPage) { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
+                        NumberSetting("تعداد کارت در ردیف ${(row + 1).toPersianDigits()}", count, 1, 6, enabled = pageContentMode == "entries") { value -> rowCardCounts = rowCardCounts.toMutableList().also { it[row] = value }; persistRowLayout() }
                         
                     }
                 }
@@ -1028,8 +1131,8 @@ private fun SahlBitApp(
             val capacityForSelectedPage = loadRowCounts(selectedPage).sum()
             val selectedCountForPage = entries.count { it.page == selectedPage }
             PageDropdown("صفحه‌ای که می‌خواهید ویرایش کنید", selectedPage, pageNames) { selectedPage = it }
-            val recentCallsMode = loadPageFlag("page_recent_calls", selectedPage, false)
-            if (recentCallsMode) Text("این صفحه برای نمایش تماس‌های اخیر تنظیم شده است؛ انتخاب مخاطب و برنامه در این صفحه غیرفعال است.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
+            val recentCallsMode = loadPageContentMode(selectedPage) != "entries"
+            if (recentCallsMode) Text("این صفحه برای نمایش بخش دیگری به‌جز مخاطبان و برنامه‌ها تنظیم شده است؛ انتخاب مخاطب و برنامه در این صفحه غیرفعال است.", color = Color(0xFFB45309), fontSize = 13.sp, lineHeight = 22.sp)
             Button(onClick = { showContactSourceDialog = true }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth()) { Text("انتخاب مخاطب") }
             if (selectedCountForPage > capacityForSelectedPage) {
                 Spacer(Modifier.height(8.dp))
@@ -1204,7 +1307,7 @@ private fun SahlBitApp(
                 }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
-            Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر بالای این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر پایین این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
             RequiredPermissionsSection(1) {
                 PermissionCard("دسترسی تغییر تنظیمات سیستم", "برای اعمال برخی تنظیمات ظاهری و تغییرات سیستم لازم است. فعال‌سازی فقط با تأیید شما در تنظیمات اندروید انجام می‌شود.", "اعطای دسترسی تغییر تنظیمات سیستم", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context), { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) })
             }
@@ -2208,12 +2311,21 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val dayText = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[day - 1]
     val marks = when (day) { 6 -> "◯"; 7 -> "│"; 1 -> "│  │"; 2 -> "│  │  │"; 3 -> "│  │  │  │"; 4 -> "│  │  │  │  │"; else -> "━━━━━━━━" }
     val batteryColor = when { battery >= 81 -> Color(0xFF087A35); battery >= 51 -> Color(0xFF36A653); battery >= 31 -> Color(0xFF9DBB35); battery >= 21 -> Color(0xFFE2B72D); else -> Color(0xFFD32F2F) }
-    val pager = rememberPagerState(pageCount = { pageCount.coerceAtLeast(1) })
+    val defaultHomePage = launcherPrefs.getInt("default_home_page", 0).coerceIn(0, pageCount.coerceAtLeast(1) - 1)
+    val pager = rememberPagerState(initialPage = defaultHomePage, pageCount = { pageCount.coerceAtLeast(1) })
+    LaunchedEffect(defaultHomePage) { if (pager.currentPage != defaultHomePage) pager.scrollToPage(defaultHomePage) }
     fun pageFlag(key: String, default: Boolean): Boolean = runCatching { org.json.JSONObject(launcherPrefs.getString(key, "{}") ?: "{}").optBoolean(pager.currentPage.toString(), default) }.getOrDefault(default)
+    val pageContentMode = runCatching { org.json.JSONObject(launcherPrefs.getString("page_content_mode", "{}") ?: "{}").optString(pager.currentPage.toString(), "") }.getOrDefault("").ifBlank { if (pageFlag("page_recent_calls", false)) "recent" else "entries" }
     val showClockOnCurrentPage = pageFlag("page_clock_enabled", true)
     val showBatteryOnCurrentPage = pageFlag("page_battery_enabled", true)
-    val showRecentCallsOnCurrentPage = pageFlag("page_recent_calls", false)
-    val currentPageRowCount = if (showRecentCallsOnCurrentPage) 0 else runCatching {
+    val showRecentCallsOnCurrentPage = pageContentMode == "recent"
+    val showDialerOnCurrentPage = pageContentMode == "dialer"
+    val showNoContentOnCurrentPage = pageContentMode == "none"
+    val showSettingsIconOnCurrentPage = pageFlag("page_settings_icon_enabled", true)
+    val weekdayMode = runCatching { org.json.JSONObject(launcherPrefs.getString("page_weekday_mode", "{}") ?: "{}").optString(pager.currentPage.toString(), "both") }.getOrDefault("both")
+    val showWeekdayText = weekdayMode == "text" || weekdayMode == "both"
+    val showWeekdayMarks = weekdayMode == "marks" || weekdayMode == "both"
+    val currentPageRowCount = if (pageContentMode != "entries") 0 else runCatching {
         val counts = org.json.JSONObject(launcherPrefs.getString("row_counts_per_page", "{}") ?: "{}")
         val layouts = org.json.JSONObject(launcherPrefs.getString("row_layouts", "{}") ?: "{}")
         val storedRows = layouts.optJSONArray(pager.currentPage.toString())
@@ -2224,16 +2336,16 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().height(18.dp)) {
-            IconButton(onClick = {
+        Box(Modifier.fillMaxWidth().height(if (showSettingsIconOnCurrentPage) 48.dp else 8.dp)) {
+            if (showSettingsIconOnCurrentPage) IconButton(onClick = {
                 if (!settingsHintShown) {
                     android.widget.Toast.makeText(context, "لطفاً ${adminTapThreshold.toPersianDigits()} بار ضربه بزنید تا صفحه ورود مدیر باز شود.", android.widget.Toast.LENGTH_SHORT).show()
                     settingsHintShown = true
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.align(Alignment.TopEnd).size(32.dp).offset(x = (-10).dp)) {
-                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(21.dp))
+            }, modifier = Modifier.align(Alignment.TopEnd).size(40.dp).offset(x = (-10).dp, y = 2.dp)) {
+                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(23.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -2246,10 +2358,14 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         val hourLength = clockPrefs.getFloat("clock_hour_hand_length", 0.40f)
         val minuteLength = clockPrefs.getFloat("clock_minute_hand_length", 0.65f)
         val secondLength = clockPrefs.getFloat("clock_second_hand_length", 0.90f)
-        if (showClockOnCurrentPage) {
-            AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
+        if (showClockOnCurrentPage) AnalogClock(Modifier.size(effectiveClockSize.dp), digitLanguage = clockLanguage, digitSizeSp = clockDigits, showSecondHand = secondsVisible, hourHandLength = hourLength, minuteHandLength = minuteLength, secondHandLength = secondLength)
+        if (showWeekdayText || showWeekdayMarks) {
             Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) { Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(8.dp)); Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp)) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (showWeekdayText) Text(dayText, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                if (showWeekdayText && showWeekdayMarks) Spacer(Modifier.width(14.dp))
+                if (showWeekdayMarks) Text(marks, color = fg, fontSize = 25.sp, fontWeight = FontWeight.Bold, modifier = Modifier.offset(y = 2.dp))
+            }
         }
         if (showBatteryOnCurrentPage) {
             Spacer(Modifier.height(2.dp))
@@ -2263,7 +2379,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
             }
         }
-        Spacer(Modifier.height(1.dp))
+        Spacer(Modifier.height(if (showBatteryOnCurrentPage || showWeekdayText || showWeekdayMarks) 10.dp else 4.dp))
         HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -2274,7 +2390,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp + 46.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp)
+                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + 48.dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
                 val responsiveCardHeight = ((screenHeight - headerHeight - 52.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
@@ -2290,6 +2406,10 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                             }
                         }
                     }
+                } else if (showDialerOnCurrentPage) {
+                    DialerPage(onBack = {}, onCall = onDialerCall, showHeader = false)
+                } else if (showNoContentOnCurrentPage) {
+                    Spacer(Modifier.fillMaxSize())
                 } else if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                 } else {
