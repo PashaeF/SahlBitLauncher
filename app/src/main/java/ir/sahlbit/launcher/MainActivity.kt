@@ -2673,7 +2673,10 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = hasRecentCallsPage, key2 = permissionRevision) {
         value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, permissionRevision) } else emptyList()
     }
+    val androidRecentPhotoSource = launcherPrefs.getString("recent_photo_source", "custom") ?: "custom"
+    val androidRecentNameSource = launcherPrefs.getString("recent_name_source", "custom") ?: "custom"
     val needsAndroidRecentContacts = launcherPrefs.getBoolean("recent_show_android_unknown", false) ||
+        androidRecentPhotoSource != "custom" || androidRecentNameSource != "custom" ||
         customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
     val androidRecentContacts by produceState(
         initialValue = emptyMap<String, AndroidCallContact>(),
