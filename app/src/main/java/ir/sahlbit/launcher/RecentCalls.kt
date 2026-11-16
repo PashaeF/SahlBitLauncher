@@ -227,15 +227,43 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
                     if (showName) Text(toPersianRecentDigits(resolvedName), color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = nameSize.sp, maxLines = 2, lineHeight = (nameSize + 4).sp)
                     if (showNumber) Text(displayNumber, color = Color(0xFF475569), fontSize = 13.sp, lineHeight = 18.sp)
                 }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (showStatusIcon) Text(statusSymbol, color = statusColor, fontSize = statusSize.sp, fontWeight = FontWeight.Bold)
-                        if (showStatusText) Text(statusLabel, color = statusColor, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 2)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val compactLayout = maxWidth < 176.dp
+                    val effectiveIconSize = minOf(callIconSize.dp, if (compactLayout) 20.dp else if (maxWidth < 220.dp) 32.dp else 48.dp)
+                    val effectiveTextSize = minOf(callTextSize, if (compactLayout) 11 else if (maxWidth < 220.dp) 16 else 24).sp
+
+                    @Composable
+                    fun StatusArea(modifier: Modifier) {
+                        Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (showStatusIcon) Text(statusSymbol, color = statusColor, fontSize = statusSize.sp, fontWeight = FontWeight.Bold)
+                            if (showStatusText) Text(statusLabel, color = statusColor, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 2)
+                        }
                     }
-                    OutlinedButton(onClick = { onCall(call.number) }, shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)) {
-                        if (buttonMode != "text") Icon(Icons.Default.Call, null, modifier = Modifier.size(callIconSize.dp).scale(scaleX = -1f, scaleY = 1f))
-                        if (buttonMode == "both") Spacer(Modifier.width(6.dp))
-                        if (buttonMode != "icon") Text("تماس", fontSize = callTextSize.sp)
+
+                    @Composable
+                    fun CallAction(modifier: Modifier) {
+                        OutlinedButton(
+                            onClick = { onCall(call.number) },
+                            modifier = modifier,
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = if (compactLayout) 8.dp else 10.dp, vertical = 6.dp)
+                        ) {
+                            if (buttonMode != "text") Icon(Icons.Default.Call, null, modifier = Modifier.size(effectiveIconSize).scale(scaleX = -1f, scaleY = 1f))
+                            if (buttonMode == "both") Spacer(Modifier.width(6.dp))
+                            if (buttonMode != "icon") Text("تماس", fontSize = effectiveTextSize, maxLines = 1, softWrap = false)
+                        }
+                    }
+
+                    if (compactLayout) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (showStatusIcon || showStatusText) StatusArea(Modifier.fillMaxWidth())
+                            CallAction(Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatusArea(Modifier.weight(1f))
+                            CallAction(Modifier)
+                        }
                     }
                 }
             }
