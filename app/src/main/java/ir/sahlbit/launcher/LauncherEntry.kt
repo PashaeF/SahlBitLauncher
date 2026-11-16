@@ -1,6 +1,8 @@
 package ir.sahlbit.launcher
 
 import org.json.JSONArray
+import android.graphics.Bitmap
+import android.util.LruCache
 import org.json.JSONObject
 import java.util.UUID
 
@@ -95,3 +97,35 @@ internal fun decodeScaledBitmap(
         android.graphics.BitmapFactory.decodeStream(it, null, options)
     }
 }.getOrNull()
+
+
+/**
+ * Bounded in-memory cache for scaled contact photos. The revision is supplied
+ * by the owning screen so photos can be refreshed after returning from Android.
+ * Call from a background dispatcher.
+ */
+private val scaledContactPhotoCache = object : LruCache<String, Bitmap>(8 * 1024) {
+    override fun sizeOf(key: String, value: Bitmap): Int = (value.byteCount / 1024).coerceAtLeast(1)
+}
+
+internal fun decodeCachedScaledBitmap(
+    context: android.content.Context,
+    uri: android.net.Uri,
+    targetSizePx: Int = 256,
+    cacheRevision: Int = 0
+): Bitmap? {
+    val key = "$uri|$targetSizePx|$cacheRevision"
+    synchronized(scaledContactPhotoCache) {
+        scaledContactPhotoCache.get(key)?.let { return it }
+    }
+    val decoded = decodeScaledBitmap(context, uri, targetSizePx) ?: return null
+    synchronized(scaledContactPhotoCache) {
+        val existing = scaledContactPhotoCache.get(key)
+        if (existing != null) {
+            if (decoded !== existing && !decoded.isRecycled) decoded.recycle()
+            return existing
+        }
+        scaledContactPhotoCache.put(key, decoded)
+    }
+    return decoded
+}
