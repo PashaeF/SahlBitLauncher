@@ -2162,6 +2162,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
 @Composable
 private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPreferences, contacts: List<LauncherEntry>, resumeRevision: Int, onBack: () -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val palette = listOf("#168A45", "#B3261E", "#1976D2", "#455A64", "#6B9FC9", "#2E7D32", "#FFC94D", "#172033", "#FFFFFF", "#BE232D")
     fun intValue(key: String, fallback: Int) = prefs.getInt("confirm_call_$key", fallback)
     fun textValue(key: String, fallback: String) = prefs.getString("confirm_call_$key", fallback) ?: fallback
@@ -2193,21 +2194,34 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         val androidPreviewContactPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val uri = result.data?.data
             if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
-                val selected = runCatching {
-                    context.contentResolver.query(uri, arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts.PHOTO_URI), null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2)) else null
+                coroutineScope.launch {
+                    val selectedContact = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val selected = context.contentResolver.query(
+                                uri,
+                                arrayOf(ContactsContract.Contacts._ID, ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts.PHOTO_URI),
+                                null, null, null
+                            )?.use { cursor ->
+                                if (cursor.moveToFirst()) Triple(cursor.getString(0), cursor.getString(1), cursor.getString(2)) else null
+                            }
+                            if (selected != null) {
+                                val phone = context.contentResolver.query(
+                                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                                    "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?",
+                                    arrayOf(selected.first), null
+                                )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                                selected to phone
+                            } else null
+                        }.getOrNull()
                     }
-                }.getOrNull()
-                if (selected != null) {
-                    val phone = runCatching {
-                        context.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER), "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID}=?", arrayOf(selected.first), null)?.use { cursor ->
-                            if (cursor.moveToFirst()) cursor.getString(0) else null
-                        }
-                    }.getOrNull()
-                    selectedPreviewContactId = null
-                    sampleContactName = selected.second.orEmpty().ifBlank { "مخاطب نمونه" }
-                    sampleContactNumber = phone.orEmpty().toPersianDigitsText()
-                    previewPhotoUri = selected.third
+                    if (selectedContact != null) {
+                        val selected = selectedContact.first
+                        selectedPreviewContactId = null
+                        sampleContactName = selected.second.orEmpty().ifBlank { "مخاطب نمونه" }
+                        sampleContactNumber = selectedContact.second.orEmpty().toPersianDigitsText()
+                        previewPhotoUri = selected.third
+                    }
                 }
             }
         }
