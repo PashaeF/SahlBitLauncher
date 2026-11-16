@@ -414,6 +414,25 @@ fun CustomContactsPage(
                 }
             }
         }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("دسترسی لازم تنظیمات این صفحه", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("برای خواندن نام و تصویر مخاطبان از دفترچه تلفن اندروید، دسترسی مخاطبان لازم است. اگر این دسترسی فعال نباشد، اطلاعات مخاطبان اندروید در فهرست تماس‌های اخیر نمایش داده نمی‌شود.", color = CustomInk, fontSize = 12.sp, lineHeight = 20.sp)
+                Text(if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", color = if (contactsGranted) Color(0xFF168A45) else Color(0xFFB45309), fontWeight = FontWeight.Bold)
+                OutlinedButton(onClick = {
+                    if (contactsGranted) {
+                        contactsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+                        android.widget.Toast.makeText(context, if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", android.widget.Toast.LENGTH_SHORT).show()
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                    } else {
+                        android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی هنگام نصب برنامه تعیین می‌شود؛ برای تغییر آن باید مجوز نصب را در تنظیمات برنامه بررسی کنید.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                    Text(if (contactsGranted) "بررسی وضعیت دسترسی مخاطبان" else "اعطای دسترسی مخاطبان")
+                }
+            }
+        }
     }
 }
 
@@ -561,6 +580,22 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
 
 @Composable
 fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var contactsGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
+    val contactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        contactsGranted = granted
+        android.widget.Toast.makeText(context, if (granted) "دسترسی مخاطبان فعال شد." else "دسترسی مخاطبان فعال نشد.", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    val hostActivity = context as? ComponentActivity
+    DisposableEffect(hostActivity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                contactsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        hostActivity?.lifecycle?.addObserver(observer)
+        onDispose { hostActivity?.lifecycle?.removeObserver(observer) }
+    }
     var showPhotos by remember { mutableStateOf(prefs.getBoolean("recent_show_photos", true)) }
     var photoSource by remember { mutableStateOf(prefs.getString("recent_photo_source", "custom") ?: "custom") }
     var avatarSize by remember { mutableIntStateOf(prefs.getInt("recent_avatar_size", 64).coerceIn(40, 112)) }
@@ -629,10 +664,10 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                     RadioChoice("نام مخاطبین اندروید", nameSource == "android") { nameSource = "android"; saveString("recent_name_source", nameSource) }
                     RadioChoice("هر دو؛ ابتدا نام مخاطب اختصاصی سهل‌بیت", nameSource == "custom_first") { nameSource = "custom_first"; saveString("recent_name_source", nameSource) }
                     RadioChoice("هر دو؛ ابتدا نام مخاطبین اندروید", nameSource == "android_first") { nameSource = "android_first"; saveString("recent_name_source", nameSource) }
-                    SwitchChoice("نمایش نام و تصویر مخاطبان اندروید که در مخاطبین اختصاصی سهل‌بیت ثبت نشده‌اند", showAndroidUnknown, { showAndroidUnknown = it; saveBoolean("recent_show_android_unknown", it) }, "اگر خاموش باشد، برای این شماره‌ها فقط شماره تماس نمایش داده می‌شود.")
                     Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     Slider(nameSize.toFloat(), { nameSize = it.toInt().coerceIn(11, 24); saveInt("recent_name_size", nameSize) }, valueRange = 11f..24f)
                 }
+                SwitchChoice("نمایش نام و تصویر مخاطبان اندروید که در مخاطبین اختصاصی سهل‌بیت ثبت نشده‌اند", showAndroidUnknown, { showAndroidUnknown = it; saveBoolean("recent_show_android_unknown", it) }, "اگر خاموش باشد، برای شماره‌هایی که در مخاطبین اختصاصی سهل‌بیت نیستند فقط شماره تماس نمایش داده می‌شود.")
                 SwitchChoice("نمایش شماره تماس", showNumbers, { showNumbers = it; saveBoolean("recent_show_numbers", it) })
                 SwitchChoice("نمایش تعداد مخاطبان ذخیره‌شده", showSavedCount, { showSavedCount = it; saveBoolean("recent_show_saved_count", it) })
             }
