@@ -2694,8 +2694,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         initialValue = emptyMap<String, AndroidCallContact>(),
         key1 = recentPageIsVisible,
         key2 = pager.currentPage,
-        key3 = permissionRevision,
-        key4 = needsAndroidRecentContacts
+        key3 = permissionRevision to needsAndroidRecentContacts
     ) {
         val granted = androidx.core.content.ContextCompat.checkSelfPermission(
             context,
