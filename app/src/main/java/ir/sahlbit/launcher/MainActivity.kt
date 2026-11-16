@@ -382,10 +382,11 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
+    val setupAlreadyCompleted = pinHash != null || prefs.getBoolean("setup_completed", false) || completedWizardVersion >= 2
     var wizardStep by rememberSaveable { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
-    var wizardPinSetup by remember { mutableStateOf(pinHash == null && !prefs.getBoolean("setup_completed", false) && (completedWizardVersion >= 2 || initialized)) }
+    var wizardPinSetup by remember { mutableStateOf(pinHash == null && !setupAlreadyCompleted && initialized) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by rememberSaveable { mutableStateOf(if (pinHash != null || prefs.getBoolean("setup_completed", false)) { if (crashRecovery && pinHash != null) "recovery" else "home" } else "wizard") }
+    var route by rememberSaveable { mutableStateOf(if (setupAlreadyCompleted) { if (crashRecovery && pinHash != null) "recovery" else "home" } else "wizard") }
     var routeHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
     fun navigateTo(destination: String) {
         if (route != destination) {
@@ -700,16 +701,17 @@ private fun SahlBitApp(
         }
     }
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
-        if (pinHash != null && (route == "wizard" || route == "setpin")) {
+        val setupIsComplete = pinHash != null ||
+            prefs.getBoolean("setup_completed", false) ||
+            prefs.getInt("setup_wizard_version", 0) >= 2
+        if (setupIsComplete && (route == "wizard" || route == "setpin")) {
             prefs.edit().putBoolean("setup_completed", true).remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
             routeHistory = emptyList()
             val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
             val validManagementRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
-            route = if (adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
+            route = if (pinHash != null && adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
             pinInput = ""
-        } else if (route == "wizard" && prefs.getBoolean("setup_completed", false)) {
-            route = "home"
-            routeHistory = emptyList()
+            wizardPinSetup = false
         } else if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
             isWizardPermissionGranted(context, wizardStep)
             wizardRequestRevision = -1
@@ -763,12 +765,12 @@ private fun SahlBitApp(
     val routeStateHolder = rememberSaveableStateHolder()
     routeStateHolder.SaveableStateProvider(route) {
     when (route) {
-        "wizard" -> if (pinHash != null || prefs.getBoolean("setup_completed", false)) {
+        "wizard" -> if (pinHash != null || prefs.getBoolean("setup_completed", false) || prefs.getInt("setup_wizard_version", 0) >= 2) {
             LaunchedEffect(pinHash, route) {
                 routeHistory = emptyList()
-                route = if (pinHash != null && adminAuthenticated) {
-                    prefs.getString("last_management_route", "dashboard") ?: "dashboard"
-                } else "home"
+                wizardPinSetup = false
+                val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
+                route = if (pinHash != null && adminAuthenticated) lastRoute else "home"
             }
             Box(Modifier.fillMaxSize().background(Cream))
         } else if (wizardPinSetup) {
@@ -807,17 +809,19 @@ private fun SahlBitApp(
             onNext = {
                 wizardRequestRevision = -1
                 if (wizardStep >= 7) {
-                    prefs.edit().putBoolean("setup_completed", pinHash != null).remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
-                    if (pinHash != null) {
+                    val setupWasAlreadyCompleted = prefs.getBoolean("setup_completed", false) ||
+                        prefs.getInt("setup_wizard_version", 0) >= 2
+                    val hasExistingPin = pinHash != null
+                    prefs.edit().putBoolean("setup_completed", hasExistingPin || setupWasAlreadyCompleted)
+                        .remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
+                    if (hasExistingPin || setupWasAlreadyCompleted) {
+                        wizardPinSetup = false
                         routeHistory = emptyList()
                         val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
                         val validManagementRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
-                        route = if (adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
-                    } else if (!prefs.getBoolean("setup_completed", false)) {
-                        wizardPinSetup = true
+                        route = if (hasExistingPin && adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
                     } else {
-                        routeHistory = emptyList()
-                        route = "home"
+                        wizardPinSetup = true
                     }
                 } else {
                     wizardStep += 1
