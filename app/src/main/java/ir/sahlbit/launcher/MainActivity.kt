@@ -1131,14 +1131,16 @@ private fun SahlBitApp(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            OutlinedButton(
-                onClick = { navigateTo("contacts") },
-                enabled = pageContentMode == "entries",
-                modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp)
+            Card(
+                Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(enabled = pageContentMode == "entries") { navigateTo("contacts") },
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(20.dp)
             ) {
                 Text(
                     "برای تنظیم مخاطب یا برنامهٔ دلخواه در صفحهٔ اصلی، لطفاً به صفحهٔ «مخاطبان و برنامه‌های صفحهٔ اصلی» مراجعه فرمایید.",
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    color = Ink,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                     lineHeight = 23.sp
                 )
             }
