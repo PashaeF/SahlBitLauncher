@@ -1275,7 +1275,7 @@ private fun SahlBitApp(
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = if (recentCallsMode) Color.LightGray else Ink, fontWeight = FontWeight.Bold)
             Card(Modifier.fillMaxWidth().alpha(if (recentCallsMode) .45f else 1f), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 if (pageEntries.isEmpty()) {
-                    Text("هنوز مخاطب یا برنامه‌ای برای این صفحه انتخاب نشده است.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 14.dp), textAlign = TextAlign.Center, lineHeight = 22.sp)
+                    Text("هنوز مخاطب یا برنامه‌ای برای این صفحه انتخاب نشده است.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 14.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 22.sp)
                 } else {
                     LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pageEntries, key = { it.id }) { entry ->

@@ -396,7 +396,7 @@ fun CustomContactsPage(
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(contact.name, color = CustomInk, fontWeight = FontWeight.Bold)
-                    contact.phones.forEach { phone ->
+                    contact.phones.forEachIndexed { phoneIndex, phone ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
                             val phoneBitmapValue = phoneBitmap
