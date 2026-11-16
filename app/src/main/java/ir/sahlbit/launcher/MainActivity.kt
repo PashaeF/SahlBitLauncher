@@ -19,6 +19,7 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -2178,7 +2179,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
                     Text("هنوز مخاطبی به صفحه اصلی سهل‌بیت اضافه نشده است. می‌توانید برای پیش‌نمایش، مخاطبی را از برنامه مخاطبین اندروید انتخاب کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
                 }
                 OutlinedButton(onClick = { androidPreviewContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-                    Icon(Icons.Default.PersonSearch, null)
+                    Icon(Icons.Default.Person, null)
                     Spacer(Modifier.width(8.dp))
                     Text("انتخاب مخاطب از برنامه مخاطبین اندروید")
                 }
