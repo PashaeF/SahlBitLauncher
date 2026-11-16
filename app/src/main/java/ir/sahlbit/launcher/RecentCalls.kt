@@ -251,7 +251,7 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
             if (prefs.getBoolean("recent_show_saved_count", false)) Text("مخاطبان ذخیره‌شده: ${customContacts.size.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }}", color = Color(0xFF475569), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 8.dp)) {
                 items(records, key = { it.id }) { call ->
-                    RecentCallCard(call, entries, customContacts, prefs, androidContacts) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
+                    RecentCallCard(call, entries, customContacts, prefs, androidContacts, photoRevision = permissionRevision) { number -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) } }
                 }
             }
         }
