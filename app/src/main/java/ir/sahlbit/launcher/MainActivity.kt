@@ -1224,41 +1224,64 @@ private fun SahlBitApp(
             Spacer(Modifier.height(8.dp))
             val pm = context.packageManager
             val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            val installedApps by produceState(initialValue = emptyList<android.content.pm.ResolveInfo>(), key1 = resumeRevision) {
+            val installedApps by produceState(initialValue = emptyList<InstalledAppRow>(), key1 = resumeRevision) {
                 value = withContext(Dispatchers.IO) {
-                    runCatching { pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0).distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() } }.getOrDefault(emptyList())
+                    runCatching {
+                        pm.queryIntentActivities(launcherIntent, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PackageManager.MATCH_ALL else 0)
+                            .distinctBy { it.activityInfo.packageName }
+                            .map { resolve ->
+                                val pkg = resolve.activityInfo.packageName
+                                val label = runCatching { resolve.loadLabel(pm).toString() }.getOrDefault(pkg)
+                                val icon = runCatching {
+                                    val drawable = resolve.loadIcon(pm)
+                                    val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                                    val canvas = android.graphics.Canvas(bitmap)
+                                    drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas)
+                                    bitmap.asImageBitmap()
+                                }.getOrNull()
+                                InstalledAppRow(pkg, label, icon)
+                            }.sortedBy { it.label.lowercase() }
+                    }.getOrDefault(emptyList())
                 }
             }
             var appSearch by remember { mutableStateOf("") }
-            OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth().alpha(if (recentCallsMode) .45f else 1f), singleLine = true, label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
+            val visibleApps = remember(installedApps, appSearch) { installedApps.filter { it.label.contains(appSearch, ignoreCase = true) } }
             Text("افزودن برنامه به صفحهٔ انتخاب‌شده", color = if (recentCallsMode) Color.LightGray else Ink, fontWeight = FontWeight.Bold)
-            val visibleApps = installedApps.filter { it.loadLabel(pm).toString().contains(appSearch, ignoreCase = true) }
-            LazyColumn(Modifier.heightIn(max = 260.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(visibleApps, key = { it.activityInfo.packageName }) { resolve ->
-                    val pkg = resolve.activityInfo.packageName
-                    val label = resolve.loadLabel(pm).toString()
-                    val alreadyAdded = entries.any { it.kind == "app" && it.packageName == pkg && it.page == selectedPage }
-                    Row(Modifier.fillMaxWidth().clickable {
-                        if (!recentCallsMode && !alreadyAdded) {
-                            entries = entries + LauncherEntry(kind = "app", title = label, page = selectedPage, packageName = pkg)
-                            LauncherEntryStore.save(prefs, entries)
+            Card(Modifier.fillMaxWidth().alpha(if (recentCallsMode) .45f else 1f), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(value = appSearch, onValueChange = { appSearch = it }, enabled = !recentCallsMode, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(20.dp), label = { Text("جستجوی برنامه") }, leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f)) })
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(visibleApps, key = { it.packageName }) { app ->
+                            val alreadyAdded = entries.any { it.kind == "app" && it.packageName == app.packageName && it.page == selectedPage }
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)), shape = RoundedCornerShape(20.dp)) {
+                                Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    if (app.icon != null) Image(app.icon, contentDescription = app.label, modifier = Modifier.size(40.dp), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                    else Icon(Icons.Default.Android, null, tint = Teal, modifier = Modifier.size(40.dp))
+                                    Text(app.label, color = Ink, modifier = Modifier.weight(1f), maxLines = 2)
+                                    if (alreadyAdded) Text("افزوده شده", color = Color(0xFF168A45), fontSize = 12.sp)
+                                    else Button(onClick = {
+                                        if (!recentCallsMode) {
+                                            entries = entries + LauncherEntry(kind = "app", title = app.label, page = selectedPage, packageName = app.packageName)
+                                            LauncherEntryStore.save(prefs, entries)
+                                        }
+                                    }, enabled = !recentCallsMode, shape = RoundedCornerShape(20.dp)) { Text("افزودن") }
+                                }
+                            }
                         }
-                    }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(label, color = Ink, modifier = Modifier.weight(1f))
-                        if (alreadyAdded) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "افزوده شده", tint = Color(0xFF168A45))
-                            Spacer(Modifier.width(6.dp)); Text("افزوده شده", color = Color(0xFF168A45), fontSize = 12.sp)
-                        } else Text("افزودن +", color = Teal)
                     }
                 }
             }
             val pageEntries = entries.filter { it.page == selectedPage }
             Spacer(Modifier.height(10.dp)); Text("موارد انتخاب‌شده در ${pageNames.getOrElse(selectedPage) { "صفحه" }}", color = if (recentCallsMode) Color.LightGray else Ink, fontWeight = FontWeight.Bold)
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Card(Modifier.fillMaxWidth().alpha(if (recentCallsMode) .45f else 1f), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                if (pageEntries.isEmpty()) {
+                    Text("هنوز مخاطب یا برنامه‌ای برای این صفحه انتخاب نشده است.", color = Color(0xFF64748B), modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 14.dp), textAlign = TextAlign.Center, lineHeight = 22.sp)
+                } else {
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp).alpha(if (recentCallsMode) .45f else 1f), userScrollEnabled = !recentCallsMode, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(pageEntries, key = { it.id }) { entry ->
                     val position = pageEntries.indexOfFirst { it.id == entry.id }
                     val globalPosition = entries.indexOfFirst { it.id == entry.id }
-                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(14.dp)) {
+                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                         val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
                         val samePagePosition = samePageIndices.indexOf(globalPosition)
                         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1293,6 +1316,8 @@ private fun SahlBitApp(
                             }
                         }
                     }
+                }
+            }
                 }
             }
             RequiredPermissionsSection(3) {
