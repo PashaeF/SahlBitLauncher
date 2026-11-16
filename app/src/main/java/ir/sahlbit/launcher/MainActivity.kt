@@ -1928,6 +1928,7 @@ private fun AudioSettingsPage(prefs: android.content.SharedPreferences, onBack: 
 @Composable
 private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit, onNext: () -> Unit, onBack: () -> Unit) {
     val titles = listOf("خوش‌آمدگویی", "انتخاب برنامه صفحه اصلی (لانچر) پیش‌فرض", "اجازهٔ تغییر تنظیمات سیستم", "انتخاب برنامهٔ تلفن پیش‌فرض", "دسترسی به مخاطبان", "اجازهٔ برقراری تماس", "دسترسی آمار مصرف برنامه‌ها", "اجازهٔ نصب به‌روزرسانی‌های سهل‌بیت")
+    val dialerUnsupported = step == 3 && Build.VERSION.SDK_INT < Build.VERSION_CODES.M
     val descriptions = listOf(
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
         "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
@@ -1956,8 +1957,17 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
                 Text(descriptions[step], color = Ink, fontSize = 16.sp, lineHeight = 27.sp)
                 if (step > 0) {
                     Text("اگر اکنون به هر دلیل نتوانستید این اجازه را بدهید، اشکالی ندارد؛ بعداً از بخش «دسترسی‌ها و نقش‌های برنامه» در تنظیمات سهل‌بیت می‌توانید آن را فعال کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
-                    Text(when (granted) { true -> "این دسترسی فعال شده است."; false -> "این دسترسی هنوز فعال نشده است."; null -> "وضعیت این دسترسی در حال حاضر قابل بررسی نیست." }, color = when (granted) { true -> Color(0xFF168A45); false -> Color(0xFFB45309); null -> Color(0xFF64748B) }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    OutlinedButton(onClick = onGrant, modifier = Modifier.fillMaxWidth().height(54.dp)) { Text(if (granted == true) "بررسی تنظیم مربوط" else "رفتن به صفحهٔ اعطای اجازه") }
+                    Text(
+                        if (dialerUnsupported) "اندروید ۵ و ۵.۱ رابط تماس اختصاصی سهل‌بیت را پشتیبانی نمی‌کنند؛ تماس‌ها با برنامهٔ تلفن خود دستگاه مدیریت می‌شوند."
+                        else when (granted) { true -> "این دسترسی فعال شده است."; false -> "این دسترسی هنوز فعال نشده است."; null -> "وضعیت این دسترسی در حال حاضر قابل بررسی نیست." },
+                        color = if (dialerUnsupported) Color(0xFF64748B) else when (granted) { true -> Color(0xFF168A45); false -> Color(0xFFB45309); null -> Color(0xFF64748B) },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp
+                    )
+                    OutlinedButton(onClick = onGrant, enabled = !dialerUnsupported, modifier = Modifier.fillMaxWidth().height(54.dp)) {
+                        Text(if (dialerUnsupported) "در این نسخه پشتیبانی نمی‌شود" else if (granted == true) "بررسی تنظیم مربوط" else "رفتن به صفحهٔ اعطای اجازه")
+                    }
                 }
             }
         }
