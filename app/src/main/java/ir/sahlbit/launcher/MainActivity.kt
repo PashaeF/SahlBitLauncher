@@ -2701,8 +2701,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }
                 settingsTaps++
                 if (settingsTaps >= adminTapThreshold) { settingsTaps = 0; settingsHintShown = false; onAdminEntry() }
-            }, modifier = Modifier.align(Alignment.TopEnd).size(42.dp).offset(x = 10.dp, y = 0.dp)) {
-                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(27.dp))
+            }, modifier = Modifier.align(Alignment.TopEnd).size(44.dp).offset(x = 10.dp, y = 0.dp)) {
+                Icon(Icons.Default.Settings, "ورود مدیر", tint = fg.copy(alpha = .72f), modifier = Modifier.size(29.dp))
             }
         }
         val clockPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
@@ -2779,9 +2779,17 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) + (if (pageWeekdayEnabled) 42.dp else 0.dp) + (if (pageBatteryEnabled) 64.dp else 0.dp) + (if (pageSettingsIconEnabled) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
-                val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
-                val responsiveCardHeight = ((screenHeight - headerHeight - 36.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val pageEntries = entries.filter { it.page == index }
+                var remainingEntries = pageEntries.size
+                val renderedRowCount = pageRowCounts.count { rowCount ->
+                    if (remainingEntries <= 0) false
+                    else {
+                        remainingEntries -= rowCount
+                        true
+                    }
+                }.coerceAtLeast(1)
+                val rowGap = ((renderedRowCount - 1).coerceAtLeast(0) * 3).dp
+                val responsiveCardHeight = ((screenHeight - headerHeight - 36.dp - rowGap) / renderedRowCount).coerceAtLeast(24.dp)
                 if (pageContentModeForIndex == "recent") {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
