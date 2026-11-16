@@ -1953,20 +1953,23 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
     SettingsPage("سفارشی‌سازی صفحه تماس", "سه وضعیت تماس را جداگانه تنظیم کنید. تغییرها بلافاصله ذخیره می‌شوند. پیش‌نمایش پایین صفحه اندازه‌ها، فاصله‌ها، گوشه‌ها و رنگ‌ها را نشان می‌دهد.", onBack) {
         Text("وضعیت موردنظر برای ویرایش", color = Ink, fontWeight = FontWeight.Bold)
         val statusChipScroll = rememberScrollState()
-        val incomingChipRequester = remember { BringIntoViewRequester() }
-        val outgoingChipRequester = remember { BringIntoViewRequester() }
-        val activeChipRequester = remember { BringIntoViewRequester() }
         LaunchedEffect(profile) {
             when (profile) {
-                "incoming" -> incomingChipRequester.bringIntoView()
-                "outgoing" -> outgoingChipRequester.bringIntoView()
-                else -> activeChipRequester.bringIntoView()
+                "incoming" -> statusChipScroll.animateScrollTo(0)
+                "outgoing" -> {
+                    delay(80)
+                    statusChipScroll.animateScrollTo(statusChipScroll.maxValue / 2)
+                }
+                else -> {
+                    delay(80)
+                    statusChipScroll.animateScrollTo(statusChipScroll.maxValue)
+                }
             }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(statusChipScroll), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(profile == "incoming", { profile = "incoming" }, modifier = Modifier.bringIntoViewRequester(incomingChipRequester), label = { Text("تماس ورودی قبل از برقراری مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "outgoing", { profile = "outgoing" }, modifier = Modifier.bringIntoViewRequester(outgoingChipRequester), label = { Text("تماس خروجی قبل از برقراری مکالمه", fontSize = 11.sp) })
-            FilterChip(profile == "active", { profile = "active" }, modifier = Modifier.bringIntoViewRequester(activeChipRequester), label = { Text("تماس ورودی و خروجی پس از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "incoming", { profile = "incoming" }, label = { Text("تماس ورودی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "outgoing", { profile = "outgoing" }, label = { Text("تماس خروجی قبل از برقراری مکالمه", fontSize = 11.sp) })
+            FilterChip(profile == "active", { profile = "active" }, label = { Text("تماس ورودی و خروجی پس از برقراری مکالمه", fontSize = 11.sp) })
         }
         Text("مخاطب پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
         if (contacts.isNotEmpty()) {
