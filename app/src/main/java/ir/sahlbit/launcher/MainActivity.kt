@@ -1232,7 +1232,7 @@ private fun SahlBitApp(
                                                 val iconSize = if (showName) 88.dp else 104.dp
                                                 val entryPhotoUri = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
                                                 val contactBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.id, entryPhotoUri) {
-                                                    value = if (entry.kind != "contact" || entryPhotoUri.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(entryPhotoUri), 384)?.asImageBitmap() }.getOrNull() }
+                                                    value = if (entry.kind != "contact" || entryPhotoUri.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeCachedScaledBitmap(context, Uri.parse(entryPhotoUri), 384, permissionRevision)?.asImageBitmap() }.getOrNull() }
                                                 }
                                                 val appBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.packageName) {
                                                     value = if (entry.kind != "app") null else entry.packageName?.let { pkg ->
@@ -2298,7 +2298,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         CompactSlider(buttonSpacing.toFloat(), { buttonSpacing = it.toInt().coerceIn(8, 100); saveInt("button_spacing", buttonSpacing) }, 8f..100f)
         Divider()
         Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-        val previewImage by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, previewPhotoUri, resumeRevision) { value = previewPhotoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(raw), 384)?.asImageBitmap() }.getOrNull() } } }
+        val previewImage by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, previewPhotoUri, resumeRevision) { value = previewPhotoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { decodeCachedScaledBitmap(context, Uri.parse(raw), 384, resumeRevision)?.asImageBitmap() }.getOrNull() } } }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val previewImageValue = previewImage
@@ -2820,7 +2820,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                 colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(20.dp)) {
                                 Column(Modifier.fillMaxSize().padding(vertical = 3.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
-                                    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, photo, permissionRevision) { value = if (photo.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(photo), 384)?.asImageBitmap() }.getOrNull() } }
+                                    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, photo, permissionRevision) { value = if (photo.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeCachedScaledBitmap(context, Uri.parse(photo), 384, permissionRevision)?.asImageBitmap() }.getOrNull() } }
                                     val showEntryName = (entry.kind == "app" && showAppNames) || (entry.kind == "contact" && showContactNames && entry.title.isNotBlank())
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
                                     val entryImageSize = minOf(if (showEntryName) 88.dp else 104.dp, (responsiveCardHeight - if (showEntryName) 30.dp else 12.dp).coerceAtLeast(18.dp))
