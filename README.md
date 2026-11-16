@@ -37,7 +37,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - Create SahlBit-only contacts with multiple numbers and a separate photo for each number.
 - Show a page's recent call log instead of its cards, with call-state indicators, contact photos, and direct dial actions.
 - Add installed launchable apps to selected pages; the app list loads metadata first and decodes icons lazily for visible rows.
-- Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent call history is loaded once when any page needs it.
+- Each home page independently renders its configured cards, recent calls, dialer, or empty content; recent-call history and Android contact snapshots are loaded only while the recent-calls page is active, then reused from cache when navigating back.
 - Contact photos are decoded near their display resolution to avoid allocating full-size camera images for small avatars.
 - Recent-call records and Android contact details are cached across internal screen navigation and refreshed when the activity resumes; the Call Log provider query is bounded to the latest 30 records to avoid scanning the full history.
 - Scaled recent-call photos use a bounded in-memory LRU cache keyed by the photo URI and resume revision, avoiding repeated decoding for multiple calls from the same contact while still refreshing after returning to SahlBit.
@@ -126,7 +126,9 @@ The debug APK is signed with a runner-generated Android debug key. Its certifica
 - Correct the project website domain to `pashaef.ir` throughout the source and documentation.
 - Preserve Android Contacts photo-source URIs when launcher entries are reloaded, so live contact photos remain visible after restarting SahlBit.
 - Keep long-press number controls bound to the latest value during repeated increments/decrements.
-- Size home cards from the available screen height, keep equal visual top/left margins for the settings icon, and enlarge the icon slightly.
+- Size home cards from the available screen height using each page's own visible header elements, keep equal visual top/left margins for the settings icon, and enlarge the icon slightly.
+- Reuse bounded application-icon cache entries for primary app shortcuts and slow the dialer's repeated backspace action; enlarge the dialer number display and improve button spacing.
+- Apply consistent 20 dp rounded corners to text inputs and remaining layout cards; preserve Android screen-timeout values shorter than 15 seconds instead of silently clamping them.
 - Guard the Android 7 rejected-call log type so the recent-calls screen remains compatible with Android 5.
 - Scroll the selected call-state chip fully into view.
 - Prevent any setup/PIN-creation screen from being rendered when an administrator PIN already exists.
