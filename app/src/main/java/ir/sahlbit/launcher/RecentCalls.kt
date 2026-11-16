@@ -114,7 +114,7 @@ private fun toPersianRecentDigits(value: String): String = value.map { ch ->
 }.joinToString("")
 
 @Composable
-fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customContacts: List<CustomContact>, prefs: android.content.SharedPreferences, androidContacts: Map<String, AndroidCallContact> = emptyMap(), onCall: (String) -> Unit) {
+fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customContacts: List<CustomContact>, prefs: android.content.SharedPreferences, androidContacts: Map<String, AndroidCallContact> = emptyMap(), photoRevision: Int = 0, onCall: (String) -> Unit) {
     val context = LocalContext.current
     val normalized = remember(call.number) { normalizeRecentNumber(call.number) }
     val matchingEntry = remember(call.number, entries) { entries.firstOrNull { it.kind == "contact" && normalizeRecentNumber(it.phoneNumber.orEmpty()) == normalized } }
@@ -148,9 +148,9 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
         else -> customPhoto
     }
     val showPhoto = prefs.getBoolean("recent_show_photos", true)
-    val photoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, resolvedPhoto, showPhoto) {
+    val photoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, resolvedPhoto, showPhoto, photoRevision) {
         value = if (showPhoto && !resolvedPhoto.isNullOrBlank()) withContext(Dispatchers.IO) {
-            runCatching { decodeScaledBitmap(context, Uri.parse(resolvedPhoto), 384)?.asImageBitmap() }.getOrNull()
+            runCatching { decodeCachedScaledBitmap(context, Uri.parse(resolvedPhoto), 384, photoRevision)?.asImageBitmap() }.getOrNull()
         } else null
     }
     val showName = prefs.getBoolean("recent_show_names", true) && resolvedName.isNotBlank()
