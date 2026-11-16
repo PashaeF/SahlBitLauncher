@@ -2871,7 +2871,7 @@ private fun remapPageLayoutPreferences(
         prefs.edit().putString(key, updated.toString()).apply()
     }
     val defaultPage = prefs.getInt("default_home_page", 0)
-    val mappedDefaultPage = mapping[defaultPage] ?: defaultPageFallback?.let(mapping::get)
+    val mappedDefaultPage = mapping[defaultPage] ?: defaultPageFallback?.let { fallback -> mapping[fallback] }
     mappedDefaultPage?.let { mapped -> prefs.edit().putInt("default_home_page", mapped).apply() }
 }
 
