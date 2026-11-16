@@ -2309,7 +2309,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             title = { Text("ابتدا برنامه صفحه اصلی را تغییر دهید") },
             text = { Text("سهل‌بیت هنوز برنامه صفحه اصلی (لانچر) پیش‌فرض تلفن همراه شماست. اندروید تا زمانی که برنامهٔ دیگری را به‌عنوان صفحه اصلی انتخاب نکنید، ممکن است اجازهٔ حذف سهل‌بیت را ندهد. با انتخاب برنامهٔ دیگر، اطلاعات سهل‌بیت حذف نمی‌شود و می‌توانید دوباره به همین صفحه برگردید.") },
             confirmButton = {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
                         showLauncherRequired = false
                         runCatching { context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
@@ -2325,7 +2325,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             title = { Text("تأیید حذف برنامه سهل‌بیت") },
             text = { Text("با ادامه، اندروید صفحهٔ تأیید حذف را نمایش می‌دهد. پس از تأیید آن صفحه، برنامه سهل‌بیت، تنظیمات، پین مدیر، مخاطبان اختصاصی و داده‌های ذخیره‌شدهٔ آن از تلفن همراه حذف می‌شوند. اگر اندروید اجازهٔ حذف مستقیم ندهد، می‌توانید از صفحهٔ اطلاعات برنامه در تنظیمات اقدام کنید.") },
             confirmButton = {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
                         showDeleteConfirm = false
                         runCatching { uninstallRequest.launch(Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:" + context.packageName)).putExtra(Intent.EXTRA_RETURN_RESULT, true)) }
@@ -2342,7 +2342,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             title = { Text("باز کردن اطلاعات برنامه در تنظیمات اندروید") },
             text = { Text("باز کردن درخواست حذف مستقیم ممکن نشد. از صفحهٔ اطلاعات برنامه در تنظیمات اندروید، گزینهٔ حذف را انتخاب کنید.") },
             confirmButton = {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(onClick = { showFallback = false; openAppDetails() }) { Text("باز کردن اطلاعات برنامه در تنظیمات اندروید") }
                     TextButton(onClick = { showFallback = false }) { Text("بستن") }
                 }
