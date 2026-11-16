@@ -2640,6 +2640,22 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = hasRecentCallsPage, key2 = permissionRevision) {
         value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
+    val needsAndroidRecentContacts = launcherPrefs.getBoolean("recent_show_android_unknown", false) ||
+        customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
+    val androidRecentContacts by produceState(
+        initialValue = emptyMap<String, AndroidCallContact>(),
+        key1 = hasRecentCallsPage,
+        key2 = permissionRevision,
+        key3 = needsAndroidRecentContacts
+    ) {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+        value = if (hasRecentCallsPage && granted && needsAndroidRecentContacts) {
+            withContext(Dispatchers.IO) { readAndroidCallContacts(context) }
+        } else emptyMap()
+    }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(if (showSettingsIconOnCurrentPage) 48.dp else 8.dp)) {
             if (showSettingsIconOnCurrentPage) IconButton(onClick = {
@@ -2735,7 +2751,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                         if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
-                            RecentCallCard(call, entries, customContacts, launcherPrefs) { number ->
+                            RecentCallCard(call, entries, customContacts, launcherPrefs, androidRecentContacts) { number ->
                                 runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
                             }
                         }
