@@ -246,7 +246,7 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
                 else android.widget.Toast.makeText(context, "این اجازه در اندروید ۵ هنگام نصب برنامه درخواست می‌شود.", android.widget.Toast.LENGTH_LONG).show()
             }, modifier = Modifier.fillMaxWidth()) { Text("فعال‌سازی دسترسی سابقه تماس‌ها") }
         } else if (records.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماسی برای نمایش وجود ندارد.", color = Color(0xFF172033), textAlign = TextAlign.Center) }
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("تماسی برای نمایش وجود ندارد.", color = Color(0xFF172033), textAlign = TextAlign.Center) }
         } else {
             if (prefs.getBoolean("recent_show_saved_count", false)) Text("مخاطبان ذخیره‌شده: ${customContacts.size.toString().map { if (it in '0'..'9') ('۰'.code + it.code - '0'.code).toChar() else it }}", color = Color(0xFF475569), fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
             LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(top = 8.dp)) {
