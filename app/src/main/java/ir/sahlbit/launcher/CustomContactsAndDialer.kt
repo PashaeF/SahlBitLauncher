@@ -445,6 +445,7 @@ fun CustomContactsPage(
 @Composable
 fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
     fun cropOptions() = CropImageOptions().apply {
         fixAspectRatio = true
@@ -454,8 +455,13 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
         cropShape = CropImageView.CropShape.RECTANGLE
     }
     val cropLauncher = rememberLauncherForActivityResult(CropImageContract()) { result ->
-        if (result.isSuccessful && result.uriContent != null) {
-            onPhotoSelected(saveSquarePhotoFromUri(context, result.uriContent!!))
+        val croppedUri = result.uriContent
+        if (result.isSuccessful && croppedUri != null) {
+            coroutineScope.launch {
+                val saved = withContext(Dispatchers.IO) { saveSquarePhotoFromUri(context, croppedUri) }
+                onPhotoSelected(saved)
+                if (saved == null) android.widget.Toast.makeText(context, "ذخیرهٔ تصویر برش‌خورده ناموفق بود.", android.widget.Toast.LENGTH_LONG).show()
+            }
         } else if (result.error != null) {
             android.widget.Toast.makeText(context, "برش تصویر انجام نشد؛ لطفاً دوباره تلاش کنید.", android.widget.Toast.LENGTH_LONG).show()
         }
@@ -481,13 +487,17 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     val contactPhoto = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
-            val source = runCatching {
-                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
+            coroutineScope.launch {
+                val source = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
+                            if (cursor.moveToFirst()) cursor.getString(0) else null
+                        }
+                    }.getOrNull()
                 }
-            }.getOrNull()
-            if (!source.isNullOrBlank()) onPhotoSelected(source)
-            else android.widget.Toast.makeText(context, "برای این مخاطب تصویری ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
+                if (!source.isNullOrBlank()) onPhotoSelected(source)
+                else android.widget.Toast.makeText(context, "برای این مخاطب تصویری ثبت نشده است.", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
     }
     OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(if (photoUri == null) "انتخاب تصویر مخاطب" else "تغییر تصویر مخاطب") }
