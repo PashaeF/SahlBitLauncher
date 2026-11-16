@@ -462,13 +462,14 @@ private fun SahlBitApp(
         aligns.put(selectedPage.toString(), org.json.JSONArray(List(rowCardCounts.size) { "center" }))
         prefs.edit().putString("row_layouts", root.toString()).putString("row_alignments", aligns.toString()).apply()
     }
-    var screenTimeoutSeconds by remember { mutableIntStateOf(prefs.getInt("screen_timeout_seconds", 60).coerceIn(15, 1800)) }
+    val context = LocalContext.current
+    fun readSystemScreenTimeoutSeconds(): Int = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 60000) / 1000).coerceIn(15, 1800) }.getOrDefault(60)
+    var screenTimeoutSeconds by remember { mutableIntStateOf(readSystemScreenTimeoutSeconds()) }
     var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toPersianDigits()) }
     var timeoutSecondsText by remember { mutableStateOf((screenTimeoutSeconds % 60).toPersianDigits()) }
     var photoSourceDialogEntry by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCall by remember { mutableStateOf<LauncherEntry?>(null) }
     var pendingCallNumber by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
     val callPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val number = pendingCallNumber
         pendingCallNumber = null
@@ -1231,7 +1232,7 @@ private fun SahlBitApp(
             }
 
         }
-        "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "ظاهر صفحهٔ اصلی، پس‌زمینه و نمایش کارت‌ها را تنظیم کنید.", { navigateBack("dashboard") }) {
+        "appearance" -> SettingsPage("ظاهرِ صفحه اصلی", "", { navigateBack("dashboard") }) {
             DashboardCard("سفارشی‌سازی ساعت", "اندازه، زبان اعداد و ثانیه‌شمار", "clock") { navigateTo("clock") }
             DashboardCard("سفارشی‌سازی کادر تأیید تماس", "رنگ‌ها، عنوان‌ها و اندازهٔ دکمه‌های تأیید تماس", "callconfirm") { navigateTo("callconfirm") }
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
@@ -1252,10 +1253,18 @@ private fun SahlBitApp(
             NumberSetting("تعداد ضربه برای ورود مدیر", settingsTapThreshold, 3, 15) { value -> settingsTapThreshold = value; prefs.edit().putInt("settings_taps_threshold", value).apply() }
             var showAppNames by remember { mutableStateOf(prefs.getBoolean("show_app_names", false)) }
             var showContactNames by remember { mutableStateOf(prefs.getBoolean("show_contact_names", false)) }
-            var numericBattery by remember { mutableStateOf(prefs.getBoolean("numeric_battery", false)) }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("نمایش درصد عددی باتری به‌جای نشانگر گرافیکی", modifier = Modifier.weight(1f), color = Ink)
-                Switch(numericBattery, { numericBattery = it; prefs.edit().putBoolean("numeric_battery", it).apply() })
+            var batteryDisplayMode by remember { mutableStateOf(prefs.getString("battery_display_mode", if (prefs.getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic") }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("نحوه نمایش میزان شارژ باتری", color = Ink, fontWeight = FontWeight.Bold)
+                    Text("یکی از سه روش نمایش میزان شارژ را انتخاب کنید.", color = Color(0xFF64748B), fontSize = 12.sp)
+                    listOf("numeric" to "نمایش میزان شارژ به صورت عددی", "graphic" to "نمایش میزان شارژ به صورت گرافیکی و تصویری", "both" to "هر دو نوع نمایش میزان شارژ").forEach { (mode, label) ->
+                        Row(Modifier.fillMaxWidth().clickable { batteryDisplayMode = mode; prefs.edit().putString("battery_display_mode", mode).putBoolean("numeric_battery", mode == "numeric" || mode == "both").apply() }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = batteryDisplayMode == mode, onClick = { batteryDisplayMode = mode; prefs.edit().putString("battery_display_mode", mode).putBoolean("numeric_battery", mode == "numeric" || mode == "both").apply() })
+                            Text(label, color = Ink, modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("نمایش نام برنامه‌ها", modifier = Modifier.weight(1f), color = Ink)
@@ -1266,33 +1275,89 @@ private fun SahlBitApp(
                 Switch(showContactNames, { showContactNames = it; prefs.edit().putBoolean("show_contact_names", it).apply() })
             }
             Divider()
-            var windowBrightness by remember { mutableFloatStateOf(prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)) }
-            LaunchedEffect(windowBrightness) {
-                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = windowBrightness; w.attributes = params }
+            fun readSystemBrightness(): Float = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128).coerceIn(0, 255) / 255f).coerceIn(0.05f, 1f) }.getOrDefault(0.5f)
+            val initialWindowBrightness = remember {
+                if (prefs.getBoolean("window_brightness_initialized", false)) prefs.getFloat("window_brightness", readSystemBrightness()).coerceIn(0.05f, 1f)
+                else readSystemBrightness().also { prefs.edit().putFloat("window_brightness", it).putBoolean("window_brightness_initialized", true).apply() }
+            }
+            var windowBrightness by remember { mutableFloatStateOf(initialWindowBrightness) }
+            var brightnessControlMode by remember { mutableStateOf(prefs.getString("brightness_control_mode", "app_only") ?: "app_only") }
+            val canWriteSystemSettings = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
+            LaunchedEffect(windowBrightness, brightnessControlMode) {
+                (context as? ComponentActivity)?.window?.let { w ->
+                    val params = w.attributes
+                    if (brightnessControlMode == "app_only") {
+                        params.screenBrightness = windowBrightness.coerceIn(0.05f, 1f)
+                        w.attributes = params
+                        prefs.edit().putFloat("window_brightness", windowBrightness).apply()
+                    } else {
+                        params.screenBrightness = -1f
+                        w.attributes = params
+                        if (canWriteSystemSettings) runCatching { Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, (windowBrightness * 255).toInt().coerceIn(13, 255)) }
+                    }
+                }
+            }
+            LaunchedEffect(resumeRevision, brightnessControlMode) {
+                if (resumeRevision > 0 && brightnessControlMode == "system") {
+                    windowBrightness = withContext(Dispatchers.IO) { readSystemBrightness() }
+                }
             }
             Text("روشنایی پنجرهٔ سهل‌بیت", fontWeight = FontWeight.Bold, color = Ink)
             Text("${(windowBrightness * 100).toInt().toPersianDigits()}٪", color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Text("این کنترل فقط روشنایی داخل سهل‌بیت را تغییر می‌دهد و به تنظیم روشنایی کل تلفن همراه دست نمی‌زند.", color = Ink, fontSize = 12.sp)
-            CompactSlider(value = windowBrightness, onValueChange = { value ->
-                windowBrightness = value
-                prefs.edit().putFloat("window_brightness", value).apply()
-                (context as? ComponentActivity)?.window?.let { w ->
-                    val params = w.attributes
-                    params.screenBrightness = value.coerceIn(0.05f, 1f)
-                    w.attributes = params
+            Text("روش کنترل روشنایی را انتخاب کنید. پیشنهاد سهل‌بیت، کنترل فقط از همین بخش است تا لمس اتفاقی نوار روشنایی پنل سریع اندروید، روشنایی سهل‌بیت را تغییر ندهد.", color = Ink, fontSize = 12.sp, lineHeight = 20.sp)
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(Modifier.fillMaxWidth().clickable { brightnessControlMode = "app_only"; prefs.edit().putString("brightness_control_mode", "app_only").apply(); (context as? ComponentActivity)?.window?.let { w -> val p = w.attributes; p.screenBrightness = windowBrightness; w.attributes = p } }, verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = brightnessControlMode == "app_only", onClick = { brightnessControlMode = "app_only"; prefs.edit().putString("brightness_control_mode", "app_only").apply() })
+                        Column(Modifier.weight(1f)) {
+                            Text("تنظیم روشنایی فقط از بخش سهل‌بیت (پیشنهادی)", color = Ink, fontWeight = FontWeight.SemiBold)
+                            Text("پنل سریع اندروید نمی‌تواند روشنایی پنجره سهل‌بیت را تغییر دهد.", color = Color(0xFF64748B), fontSize = 12.sp)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().clickable {
+                        brightnessControlMode = "system"
+                        prefs.edit().putString("brightness_control_mode", "system").apply()
+                        (context as? ComponentActivity)?.window?.let { w -> val p = w.attributes; p.screenBrightness = -1f; w.attributes = p }
+                        windowBrightness = readSystemBrightness()
+                    }, verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = brightnessControlMode == "system", onClick = {
+                            brightnessControlMode = "system"; prefs.edit().putString("brightness_control_mode", "system").apply()
+                            (context as? ComponentActivity)?.window?.let { w -> val p = w.attributes; p.screenBrightness = -1f; w.attributes = p }
+                            windowBrightness = readSystemBrightness()
+                        })
+                        Column(Modifier.weight(1f)) {
+                            Text("تنظیم روشنایی از سهل‌بیت و پنل سریع اندروید", color = Ink, fontWeight = FontWeight.SemiBold)
+                            Text("این گزینه روشنایی کل دستگاه را نیز تغییر می‌دهد و به دسترسی تغییر تنظیمات سیستم نیاز دارد.", color = Color(0xFF64748B), fontSize = 12.sp)
+                        }
+                    }
                 }
-            }, valueRange = 0.05f..1f)
-            OutlinedButton(onClick = {
-                windowBrightness = 0.40f
-                prefs.edit().putFloat("window_brightness", 0.40f).apply()
-                (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = 0.40f; w.attributes = params }
-            }, modifier = Modifier.fillMaxWidth()) { Text("بازنشانی روشنایی به ۴۰ درصد") }
+            }
+            CompactSlider(value = windowBrightness, onValueChange = { value ->
+                windowBrightness = value.coerceIn(0.05f, 1f)
+                if (brightnessControlMode == "app_only") {
+                    prefs.edit().putFloat("window_brightness", windowBrightness).apply()
+                    (context as? ComponentActivity)?.window?.let { w -> val params = w.attributes; params.screenBrightness = windowBrightness; w.attributes = params }
+                } else if (canWriteSystemSettings) {
+                    runCatching { Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS, (windowBrightness * 255).toInt().coerceIn(13, 255)) }
+                } else {
+                    android.widget.Toast.makeText(context, "برای تغییر روشنایی کل دستگاه، دسترسی تغییر تنظیمات سیستم را فعال کنید.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }, valueRange = 0.05f..1f, enabled = brightnessControlMode == "app_only" || canWriteSystemSettings)
             Divider()
-            Text("خاموش‌شدن خودکار نمایشگر", fontWeight = FontWeight.Bold, color = Ink)
-            Text("زمان را به‌صورت عددی وارد کنید. پس از تغییر عدد، تنظیم در صورت داشتن اجازه به‌طور خودکار ذخیره و اعمال می‌شود.", color = Ink)
-            LaunchedEffect(screenTimeoutSeconds, resumeRevision) {
+            Text("خاموش شدن خودکار صفحه نمایش", fontWeight = FontWeight.Bold, color = Ink)
+            Text("زمان فعلی تنظیم‌شده در اندروید نمایش داده می‌شود. پس از تغییر عدد، تنظیم در صورت داشتن اجازه به‌طور خودکار ذخیره و اعمال می‌شود.", color = Ink)
+            LaunchedEffect(screenTimeoutSeconds) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)) {
                     runCatching { Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, screenTimeoutSeconds * 1000) }
+                }
+            }
+            LaunchedEffect(resumeRevision) {
+                if (resumeRevision > 0) {
+                    val actualTimeout = withContext(Dispatchers.IO) { readSystemScreenTimeoutSeconds() }
+                    screenTimeoutSeconds = actualTimeout
+                    timeoutMinutesText = (actualTimeout / 60).toPersianDigits()
+                    timeoutSecondsText = (actualTimeout % 60).toPersianDigits()
+                    prefs.edit().putInt("screen_timeout_seconds", actualTimeout).apply()
                 }
             }
             val timeoutScope = rememberCoroutineScope()
@@ -2375,9 +2440,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         if (showBatteryOnCurrentPage) {
             Spacer(Modifier.height(2.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                val numericBattery = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)
-                if (numericBattery) Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
-                else {
+                val batteryMode = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getString("battery_display_mode", if (context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic"
+                if (batteryMode == "numeric" || batteryMode == "both") Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
+                if (batteryMode == "graphic" || batteryMode == "both") {
                     Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
                     Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
                 }
