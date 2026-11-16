@@ -507,7 +507,7 @@ private fun SahlBitApp(
     }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    fun readSystemScreenTimeoutSeconds(): Int = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 60000) / 1000).coerceIn(15, 1800) }.getOrDefault(60)
+    fun readSystemScreenTimeoutSeconds(): Int = runCatching { (Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 60000) / 1000).coerceIn(1, 1800) }.getOrDefault(60)
     var screenTimeoutSeconds by remember { mutableIntStateOf(readSystemScreenTimeoutSeconds()) }
     var timeoutMinutesText by remember { mutableStateOf((screenTimeoutSeconds / 60).toPersianDigits()) }
     var timeoutSecondsText by remember { mutableStateOf((screenTimeoutSeconds % 60).toPersianDigits()) }
@@ -1521,13 +1521,13 @@ private fun SahlBitApp(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(value = timeoutMinutesText, onValueChange = { value ->
                     timeoutMinutesText = value.toPersianDigitsText().filter(Char::isDigit).take(2)
-                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toEnglishDigits().toIntOrNull() ?: 0)).coerceIn(15, 1800)
+                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toEnglishDigits().toIntOrNull() ?: 0)).coerceIn(1, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
                 }, modifier = Modifier.weight(1f).bringIntoViewRequester(minutesBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); minutesBringIntoView.bringIntoView() } }, label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) , shape = RoundedCornerShape(20.dp))
                 OutlinedTextField(value = timeoutSecondsText, onValueChange = { value ->
                     val seconds = value.toEnglishDigits().filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
                     timeoutSecondsText = seconds.toPersianDigits()
-                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
+                    screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + seconds).coerceIn(1, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
                 }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) , shape = RoundedCornerShape(20.dp))
             }
