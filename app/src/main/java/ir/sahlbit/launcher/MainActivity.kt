@@ -912,7 +912,7 @@ private fun SahlBitApp(
             else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(number)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
             else { pendingCallNumber = number; callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }
         })
-        "recentcalls" -> RecentCallsPage(prefs = prefs, entries = entries, customContacts = customContacts, onBack = { navigateBack("dashboard") })
+        "recentcalls" -> RecentCallsPage(prefs = prefs, entries = entries, customContacts = customContacts, resumeRevision = resumeRevision, onBack = { navigateBack("dashboard") })
         "recentcustom" -> RecentCallsCustomizationPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "allapps" -> AllAppsScreen(onBack = { navigateBack("dashboard") }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { navigateBack("dashboard") }) {
@@ -2651,7 +2651,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         }.getOrDefault(false)
     }
     val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = hasRecentCallsPage, key2 = permissionRevision) {
-        value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
+        value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, permissionRevision) } else emptyList()
     }
     val needsAndroidRecentContacts = launcherPrefs.getBoolean("recent_show_android_unknown", false) ||
         customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
@@ -2666,7 +2666,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             android.Manifest.permission.READ_CONTACTS
         ) == PackageManager.PERMISSION_GRANTED
         value = if (hasRecentCallsPage && granted && needsAndroidRecentContacts) {
-            withContext(Dispatchers.IO) { readAndroidCallContacts(context) }
+            withContext(Dispatchers.IO) { readAndroidCallContactsCached(context, permissionRevision) }
         } else emptyMap()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
