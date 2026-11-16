@@ -2615,8 +2615,21 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
         counts.optInt(pager.currentPage.toString(), storedRows?.length() ?: launcherPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
     }.getOrDefault(2)
     val currentPageRowGap = ((currentPageRowCount - 1).coerceAtLeast(0) * 3).dp
-    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = pager.currentPage, key2 = showRecentCallsOnCurrentPage, key3 = permissionRevision) {
-        value = if (showRecentCallsOnCurrentPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
+    val pageContentModesSnapshot = launcherPrefs.getString("page_content_mode", "{}") ?: "{}"
+    val legacyRecentFlagsSnapshot = launcherPrefs.getString("page_recent_calls", "{}") ?: "{}"
+    val hasRecentCallsPage = remember(pageCount, pageContentModesSnapshot, legacyRecentFlagsSnapshot) {
+        runCatching {
+            val modes = org.json.JSONObject(pageContentModesSnapshot)
+            val legacy = org.json.JSONObject(legacyRecentFlagsSnapshot)
+            (0 until pageCount).any { page ->
+                val stored = modes.optString(page.toString(), "")
+                if (stored in setOf("entries", "recent", "dialer", "none")) stored == "recent"
+                else legacy.optBoolean(page.toString(), false)
+            }
+        }.getOrDefault(false)
+    }
+    val recentCallRecords by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = hasRecentCallsPage, key2 = permissionRevision) {
+        value = if (hasRecentCallsPage && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) withContext(Dispatchers.IO) { readRecentCallRecords(context) } else emptyList()
     }
     Column(Modifier.fillMaxSize().background(bg).padding(horizontal = 12.dp, vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth().height(if (showSettingsIconOnCurrentPage) 48.dp else 8.dp)) {
@@ -2684,6 +2697,20 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                     HorizontalPager(state = pager, modifier = Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.Top) { index ->
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 val layoutPrefs = remember { context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE) }
+                val pageModesForPager = layoutPrefs.getString("page_content_mode", "{}") ?: "{}"
+                val legacyRecentForPager = layoutPrefs.getString("page_recent_calls", "{}") ?: "{}"
+                val pageContentModeForIndex = remember(index, pageModesForPager, legacyRecentForPager) {
+                    runCatching {
+                        val stored = org.json.JSONObject(pageModesForPager).optString(index.toString(), "")
+                        if (stored in setOf("entries", "recent", "dialer", "none")) stored
+                        else if (org.json.JSONObject(legacyRecentForPager).optBoolean(index.toString(), false)) "recent" else "entries"
+                    }.getOrDefault("entries")
+                }
+                val pageClockEnabled = runCatching { org.json.JSONObject(layoutPrefs.getString("page_clock_enabled", "{}") ?: "{}").optBoolean(index.toString(), true) }.getOrDefault(true)
+                val pageBatteryEnabled = runCatching { org.json.JSONObject(layoutPrefs.getString("page_battery_enabled", "{}") ?: "{}").optBoolean(index.toString(), true) }.getOrDefault(true)
+                val pageSettingsIconEnabled = runCatching { org.json.JSONObject(layoutPrefs.getString("page_settings_icon_enabled", "{}") ?: "{}").optBoolean(index.toString(), true) }.getOrDefault(true)
+                val pageWeekdayMode = runCatching { org.json.JSONObject(layoutPrefs.getString("page_weekday_mode", "{}") ?: "{}").optString(index.toString(), "both") }.getOrDefault("both")
+                val pageWeekdayEnabled = pageWeekdayMode != "off"
                 val rowRoot = remember(layoutPrefs.getString("row_layouts", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_layouts", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val rowCountRoot = remember(layoutPrefs.getString("row_counts_per_page", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_counts_per_page", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
                 val alignRoot = remember(layoutPrefs.getString("row_alignments", "{}")) { runCatching { org.json.JSONObject(layoutPrefs.getString("row_alignments", "{}") ?: "{}") }.getOrDefault(org.json.JSONObject()) }
@@ -2691,13 +2718,13 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 val fallbackRows = rowCountRoot.optInt(index.toString(), storedRows?.length() ?: layoutPrefs.getInt("grid_rows", 2)).coerceIn(1, 6)
                 val pageRowCounts = (0 until fallbackRows).map { row -> (storedRows?.optInt(row, gridColumns) ?: gridColumns).coerceIn(1, 6) }
                 val uniformCardsPerRow = pageRowCounts.maxOrNull()?.coerceIn(1, 6) ?: 1
-                val headerHeight = (if (showClockOnCurrentPage) effectiveClockSize.dp else 0.dp) + (if (showWeekdayText || showWeekdayMarks) 42.dp else 0.dp) + (if (showBatteryOnCurrentPage) 64.dp else 0.dp) + (if (showSettingsIconOnCurrentPage) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
+                val headerHeight = (if (pageClockEnabled) effectiveClockSize.dp else 0.dp) + (if (pageWeekdayEnabled) 42.dp else 0.dp) + (if (pageBatteryEnabled) 64.dp else 0.dp) + (if (pageSettingsIconEnabled) 48.dp else 8.dp) + ((renderHomeElementOrder.size - 1).coerceAtLeast(0) * 8).dp
                 val rowGap = ((pageRowCounts.size - 1).coerceAtLeast(0) * 3).dp
                 val responsiveCardHeight = ((screenHeight - headerHeight - 36.dp - rowGap) / pageRowCounts.size.coerceAtLeast(1)).coerceAtLeast(24.dp)
                 val savedAlignments = alignRoot.opt(index.toString())
                 val pageRowAlignments = List(pageRowCounts.size) { "center" }
                 val pageEntries = entries.filter { it.page == index }
-                if (showRecentCallsOnCurrentPage) {
+                if (pageContentModeForIndex == "recent") {
                     if (recentCallRecords.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("تماس اخیری برای نمایش وجود ندارد یا اجازهٔ مشاهدهٔ سابقهٔ تماس فعال نیست.", color = fg, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                         if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
@@ -2707,9 +2734,9 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                             }
                         }
                     }
-                } else if (showDialerOnCurrentPage) {
+                } else if (pageContentModeForIndex == "dialer") {
                     DialerPage(onBack = {}, onCall = onDialerCall, showHeader = false)
-                } else if (showNoContentOnCurrentPage) {
+                } else if (pageContentModeForIndex == "none") {
                     Spacer(Modifier.fillMaxSize())
                 } else if (pageEntries.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("هنوز موردی به این صفحه اضافه نشده است.", color = fg, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
