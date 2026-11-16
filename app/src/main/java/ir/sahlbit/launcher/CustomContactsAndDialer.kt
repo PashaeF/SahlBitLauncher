@@ -540,9 +540,9 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
             OutlinedTextField(
                 value = number,
                 onValueChange = { number = it.toPersianDigitsText() },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
                 shape = RoundedCornerShape(20.dp),
-                textStyle = TextStyle(fontSize = 26.sp, textAlign = TextAlign.Center),
+                textStyle = TextStyle(fontSize = 30.sp, textAlign = TextAlign.Center),
                 label = { Text("شماره تماس") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
@@ -578,13 +578,13 @@ fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: Stri
                     .clickable(interactionSource = backspaceInteraction, indication = null) {},
                 contentAlignment = Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("⌫", color = CustomBlue, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                     Text("پاک کردن", color = CustomInk, fontSize = 16.sp)
                 }
             }
             Button(onClick = { if (number.isNotBlank()) onCall(number.toEnglishDigitsText()) }, modifier = Modifier.weight(1f).height(60.dp), shape = RoundedCornerShape(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
                     Text("تماس", fontSize = 16.sp)
                 }
