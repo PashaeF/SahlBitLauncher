@@ -2764,7 +2764,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                     else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(0.dp), contentPadding = PaddingValues(vertical = 6.dp)) {
                         if (recentShowSavedCount) item { Text("مخاطبان ذخیره‌شده: ${customContacts.size.toPersianDigits()}", color = fg, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
                         items(recentCallRecords, key = { it.id }) { call ->
-                            RecentCallCard(call, entries, customContacts, launcherPrefs, androidRecentContacts) { number ->
+                            RecentCallCard(call, entries, customContacts, launcherPrefs, androidRecentContacts, photoRevision = permissionRevision) { number ->
                                 runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(number)))) }
                             }
                         }
