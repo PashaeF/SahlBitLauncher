@@ -1231,8 +1231,8 @@ private fun SahlBitApp(
                                                 val showName = (entry.kind == "contact" && previewShowContacts) || (entry.kind == "app" && previewShowApps)
                                                 val iconSize = if (showName) 88.dp else 104.dp
                                                 val entryPhotoUri = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
-                                                val contactBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.id, entryPhotoUri) {
-                                                    value = if (entry.kind != "contact" || entryPhotoUri.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeCachedScaledBitmap(context, Uri.parse(entryPhotoUri), 384, permissionRevision)?.asImageBitmap() }.getOrNull() }
+                                                val contactBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.id, entryPhotoUri, resumeRevision) {
+                                                    value = if (entry.kind != "contact" || entryPhotoUri.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeCachedScaledBitmap(context, Uri.parse(entryPhotoUri), 384, resumeRevision)?.asImageBitmap() }.getOrNull() }
                                                 }
                                                 val appBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.packageName) {
                                                     value = if (entry.kind != "app") null else entry.packageName?.let { pkg ->
