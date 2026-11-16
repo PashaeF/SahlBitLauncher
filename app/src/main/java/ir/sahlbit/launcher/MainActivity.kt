@@ -255,7 +255,11 @@ class MainActivity : ComponentActivity() {
         else registerReceiver(callEndedReceiver, callEndedFilter)
         val prefs = getSharedPreferences("sahlbit_local", MODE_PRIVATE)
         window.attributes = window.attributes.apply {
-            screenBrightness = prefs.getFloat("window_brightness", 0.40f).coerceIn(0.05f, 1f)
+            val brightnessMode = prefs.getString("brightness_control_mode", "app_only") ?: "app_only"
+            val hasSavedWindowBrightness = prefs.getBoolean("window_brightness_initialized", false)
+            screenBrightness = if (brightnessMode == "app_only" && hasSavedWindowBrightness) {
+                prefs.getFloat("window_brightness", -1f).coerceIn(0.05f, 1f)
+            } else -1f
         }
         val recoveryPrefs = getSharedPreferences(SahlBitApplication.PREFS_NAME, MODE_PRIVATE)
         val pending = recoveryPrefs.getBoolean(SahlBitApplication.KEY_CRASH_RECOVERY_PENDING, false)

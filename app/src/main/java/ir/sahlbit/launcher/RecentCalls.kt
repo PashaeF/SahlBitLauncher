@@ -99,12 +99,13 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     val customName = matchingCustom?.first?.name.orEmpty()
     val androidName = call.name.ifBlank { androidContact?.name.orEmpty() }
     val showAndroidData = matchingCustom != null || allowAndroid
+    val availableAndroidName = if (showAndroidData) androidName else ""
     val nameSource = prefs.getString("recent_name_source", "custom") ?: "custom"
     val resolvedName = when (nameSource) {
-        "android" -> androidName.ifBlank { customName }
-        "custom_first" -> customName.ifBlank { if (showAndroidData) androidName else "" }
-        "android_first" -> (if (showAndroidData) androidName else "").ifBlank { customName }
-        else -> customName.ifBlank { if (showAndroidData) androidName else "" }
+        "android" -> availableAndroidName.ifBlank { customName }
+        "custom_first" -> customName.ifBlank { availableAndroidName }
+        "android_first" -> availableAndroidName.ifBlank { customName }
+        else -> customName.ifBlank { availableAndroidName }
     }
     val customPhoto = matchingCustom?.second?.takeIf { it.contactUri.isNullOrBlank() }?.photoUri ?: matchingEntry?.takeIf { it.photoSource != "contact" }?.photoUri
     val androidPhoto = matchingCustom?.second?.takeIf { !it.contactUri.isNullOrBlank() }?.photoUri ?: matchingEntry?.takeIf { it.photoSource == "contact" }?.photoSourceUri ?: androidContact?.photoUri
