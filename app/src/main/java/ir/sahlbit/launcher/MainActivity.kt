@@ -382,9 +382,9 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
-    val setupAlreadyCompleted = pinHash != null || prefs.getBoolean("setup_completed", false) || completedWizardVersion >= 2
+    val setupAlreadyCompleted = pinHash != null || prefs.getBoolean("setup_completed", false)
     var wizardStep by rememberSaveable { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
-    var wizardPinSetup by remember { mutableStateOf(pinHash == null && !setupAlreadyCompleted && initialized) }
+    var wizardPinSetup by remember { mutableStateOf(pinHash == null && !setupAlreadyCompleted && (completedWizardVersion >= 2 || initialized)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
     var route by rememberSaveable { mutableStateOf(if (setupAlreadyCompleted) { if (crashRecovery && pinHash != null) "recovery" else "home" } else "wizard") }
     var routeHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -701,9 +701,7 @@ private fun SahlBitApp(
         }
     }
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
-        val setupIsComplete = pinHash != null ||
-            prefs.getBoolean("setup_completed", false) ||
-            prefs.getInt("setup_wizard_version", 0) >= 2
+        val setupIsComplete = pinHash != null || prefs.getBoolean("setup_completed", false)
         if (setupIsComplete && (route == "wizard" || route == "setpin")) {
             prefs.edit().putBoolean("setup_completed", true).remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
             routeHistory = emptyList()
@@ -765,7 +763,7 @@ private fun SahlBitApp(
     val routeStateHolder = rememberSaveableStateHolder()
     routeStateHolder.SaveableStateProvider(route) {
     when (route) {
-        "wizard" -> if (pinHash != null || prefs.getBoolean("setup_completed", false) || prefs.getInt("setup_wizard_version", 0) >= 2) {
+        "wizard" -> if (pinHash != null || prefs.getBoolean("setup_completed", false)) {
             LaunchedEffect(pinHash, route) {
                 routeHistory = emptyList()
                 wizardPinSetup = false
@@ -809,8 +807,7 @@ private fun SahlBitApp(
             onNext = {
                 wizardRequestRevision = -1
                 if (wizardStep >= 7) {
-                    val setupWasAlreadyCompleted = prefs.getBoolean("setup_completed", false) ||
-                        prefs.getInt("setup_wizard_version", 0) >= 2
+                    val setupWasAlreadyCompleted = prefs.getBoolean("setup_completed", false)
                     val hasExistingPin = pinHash != null
                     prefs.edit().putBoolean("setup_completed", hasExistingPin || setupWasAlreadyCompleted)
                         .remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
