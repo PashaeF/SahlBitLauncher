@@ -414,25 +414,6 @@ fun CustomContactsPage(
                 }
             }
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
-            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("دسترسی لازم تنظیمات این صفحه", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("برای خواندن نام و تصویر مخاطبان از دفترچه تلفن اندروید، دسترسی مخاطبان لازم است. اگر این دسترسی فعال نباشد، اطلاعات مخاطبان اندروید در فهرست تماس‌های اخیر نمایش داده نمی‌شود.", color = CustomInk, fontSize = 12.sp, lineHeight = 20.sp)
-                Text(if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", color = if (contactsGranted) Color(0xFF168A45) else Color(0xFFB45309), fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = {
-                    if (contactsGranted) {
-                        contactsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-                        android.widget.Toast.makeText(context, if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", android.widget.Toast.LENGTH_SHORT).show()
-                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
-                    } else {
-                        android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی هنگام نصب برنامه تعیین می‌شود؛ برای تغییر آن باید مجوز نصب را در تنظیمات برنامه بررسی کنید.", android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-                    Text(if (contactsGranted) "بررسی وضعیت دسترسی مخاطبان" else "اعطای دسترسی مخاطبان")
-                }
-            }
-        }
     }
 }
 
@@ -696,5 +677,25 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                 Slider(cardSpacing.toFloat(), { cardSpacing = it.toInt().coerceIn(4, 30); saveInt("recent_card_spacing", cardSpacing) }, valueRange = 4f..30f)
             }
         }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("دسترسی لازم تنظیمات این صفحه", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("برای خواندن نام و تصویر مخاطبان از دفترچه تلفن اندروید، دسترسی مخاطبان لازم است. اگر این دسترسی فعال نباشد، اطلاعات مخاطبان اندروید در فهرست تماس‌های اخیر نمایش داده نمی‌شود.", color = CustomInk, fontSize = 12.sp, lineHeight = 20.sp)
+                Text(if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", color = if (contactsGranted) Color(0xFF168A45) else Color(0xFFB45309), fontWeight = FontWeight.Bold)
+                OutlinedButton(onClick = {
+                    if (contactsGranted) {
+                        contactsGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+                        android.widget.Toast.makeText(context, if (contactsGranted) "دسترسی مخاطبان فعال است." else "دسترسی مخاطبان فعال نیست.", android.widget.Toast.LENGTH_SHORT).show()
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        contactsPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                    } else {
+                        android.widget.Toast.makeText(context, "در اندروید ۵ این دسترسی هنگام نصب برنامه تعیین می‌شود؛ برای تغییر آن باید مجوز نصب را در تنظیمات برنامه بررسی کنید.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                    Text(if (contactsGranted) "بررسی وضعیت دسترسی مخاطبان" else "اعطای دسترسی مخاطبان")
+                }
+            }
+        }
+
     }
 }
