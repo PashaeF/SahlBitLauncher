@@ -778,7 +778,13 @@ private fun SahlBitApp(
                 }
                 pendingCall = null
             },
-            pendingCall = pendingCall, onCancelCall = { pendingCall = null }
+            pendingCall = pendingCall, onCancelCall = { pendingCall = null },
+            onDialerCall = { number ->
+                val dialable = number.toEnglishDigits()
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(dialable)))) }
+                else if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(dialable)))) }.onFailure { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(dialable)))) }
+                else { pendingCallNumber = dialable; callPermissionLauncher.launch(android.Manifest.permission.CALL_PHONE) }
+            }
         )
         "login" -> PinLoginScreen(pinInput, { pinInput = it.filter(Char::isDigit).take(12) }, error,
             onBack = { pinInput = ""; error = ""; route = "home" },
@@ -2163,7 +2169,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
     }
 }
 
-@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, customContacts: List<CustomContact>, permissionRevision: Int, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>) {
+@Composable private fun HomeScreen(battery: Int, charging: Boolean, background: String, customContacts: List<CustomContact>, permissionRevision: Int, onAdminEntry: () -> Unit, pageCount: Int, entries: List<LauncherEntry>, gridColumns: Int, gridRows: Int, rowCardCounts: List<Int>, rowAlignments: List<String>, onEntryClick: (LauncherEntry) -> Unit, onConfirmCall: (LauncherEntry) -> Unit, pendingCall: LauncherEntry?, onCancelCall: () -> Unit, gridAlignment: String, pageNames: List<String>, onDialerCall: (String) -> Unit) {
     var settingsTaps by remember { mutableIntStateOf(0) }
     var settingsHintShown by remember { mutableStateOf(false) }
     LaunchedEffect(settingsTaps) { if (settingsTaps > 0) { delay(1500); settingsTaps = 0; settingsHintShown = false } }

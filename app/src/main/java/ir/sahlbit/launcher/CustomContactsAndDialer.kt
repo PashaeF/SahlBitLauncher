@@ -25,6 +25,10 @@ import com.canhub.cropper.CropImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,6 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -433,29 +442,77 @@ fun PreviewPhotoPicker(photoUri: String?, onPhotoSelected: (String?) -> Unit) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: String = "") {
+fun DialerPage(onBack: () -> Unit, onCall: (String) -> Unit, initialNumber: String = "", showHeader: Boolean = true) {
     var number by remember(initialNumber) { mutableStateOf(initialNumber.toPersianDigitsText()) }
-    val keys = listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#", "+")
-    Column(Modifier.fillMaxSize().background(CustomCream).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    val keys = listOf("۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹", "*", "۰", "#")
+    val backspaceInteraction = remember { MutableInteractionSource() }
+    val backspacePressed by backspaceInteraction.collectIsPressedAsState()
+    val latestBackspace by rememberUpdatedState { if (number.isNotEmpty()) number = number.dropLast(1) }
+    LaunchedEffect(backspacePressed) {
+        if (backspacePressed) {
+            latestBackspace()
+            delay(420)
+            while (backspacePressed) { latestBackspace(); delay(160) }
+        }
+    }
+    Column(Modifier.fillMaxSize().background(if (showHeader) CustomCream else Color.Transparent).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (showHeader) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = CustomBlue) }
             Text("شماره‌گیر اختصاصی", color = CustomBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        OutlinedTextField(number, { number = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            keys.chunked(3).forEach { row ->
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { key ->
-                        OutlinedButton(onClick = { number += key }, modifier = Modifier.weight(1f).fillMaxHeight(), shape = RoundedCornerShape(18.dp)) { Text(key, fontSize = 25.sp, color = CustomInk) }
+        OutlinedTextField(
+            value = number,
+            onValueChange = { number = it.toPersianDigitsText() },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
+            shape = RoundedCornerShape(20.dp),
+            textStyle = TextStyle(fontSize = 26.sp, textAlign = TextAlign.Center),
+            label = { Text("شماره تماس") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+        )
+        Spacer(Modifier.weight(1f))
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Column(Modifier.fillMaxWidth().weight(1.35f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                keys.chunked(3).forEach { row ->
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { key ->
+                            val keyAction: Modifier = if (key == "۰") {
+                                Modifier.combinedClickable(onClick = { number += "۰" }, onLongClick = { number += "+" })
+                            } else Modifier.clickable { number += key }
+                            Box(
+                                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(Color.White)
+                                    .then(keyAction).padding(4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                    Text(key, fontSize = 28.sp, color = CustomInk, fontWeight = FontWeight.SemiBold)
+                                    if (key == "۰") Text("+", fontSize = 12.sp, color = CustomBlue, lineHeight = 14.sp)
+                                }
+                            }
+                        }
                     }
-                    if (row.size < 3) repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { if (number.isNotEmpty()) number = number.dropLast(1) }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Default.Close, null); Text("پاک کردن") }
-            Button(onClick = { if (number.isNotBlank()) onCall(number.toEnglishDigitsText()) }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(16.dp)) { Icon(Icons.Default.Call, null); Text("تماس") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(
+                Modifier.weight(1f).height(60.dp).clip(RoundedCornerShape(20.dp)).background(Color.White)
+                    .clickable(interactionSource = backspaceInteraction, indication = null) {},
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("⌫", color = CustomBlue, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+                    Text("پاک کردن", color = CustomInk, fontSize = 16.sp)
+                }
+            }
+            Button(onClick = { if (number.isNotBlank()) onCall(number.toEnglishDigitsText()) }, modifier = Modifier.weight(1f).height(60.dp), shape = RoundedCornerShape(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.Call, null, modifier = Modifier.scale(scaleX = -1f, scaleY = 1f))
+                    Text("تماس", fontSize = 16.sp)
+                }
+            }
         }
     }
 }
