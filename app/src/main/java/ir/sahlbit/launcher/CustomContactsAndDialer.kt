@@ -333,9 +333,10 @@ fun CustomContactsPage(
         }
     }
     val phonePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val index = photoTarget
+        val targetPhoneId = phones.getOrNull(photoTarget)?.id
         val uri = result.data?.data
-        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null && index in phones.indices) {
+        photoTarget = -1
+        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null && targetPhoneId != null) {
             coroutineScope.launch {
                 val photo = withContext(Dispatchers.IO) {
                     runCatching {
@@ -346,15 +347,12 @@ fun CustomContactsPage(
                         )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                     }.getOrNull()
                 }
-                val currentIndex = phones.indexOfFirst { it.id == phones.getOrNull(index)?.id }
+                val currentIndex = phones.indexOfFirst { it.id == targetPhoneId }
                 if (!photo.isNullOrBlank() && currentIndex >= 0) {
                     phones = phones.toMutableList().also { it[currentIndex] = it[currentIndex].copy(photoUri = photo, contactUri = uri.toString()) }
                     message = "تصویر مخاطب اندروید برای این شماره انتخاب شد."
                 } else message = "برای مخاطب انتخاب‌شده تصویری ثبت نشده است."
-                photoTarget = -1
             }
-        } else {
-            photoTarget = -1
         }
     }
     val phonePhotoPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
