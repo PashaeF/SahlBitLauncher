@@ -5,6 +5,7 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
     </queries>
+    <uses-permission android:name="android.permission.CALL_PHONE" android:maxSdkVersion="22" />
     <uses-permission-sdk-23 android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.READ_CONTACTS" android:maxSdkVersion="22" />
     <uses-permission-sdk-23 android:name="android.permission.READ_CONTACTS" />
