@@ -52,6 +52,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.Slider as MaterialSlider
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -335,12 +337,18 @@ private fun SahlBitApp(
     var initialized by remember { mutableStateOf(prefs.getBoolean("initialized", false)) }
     var pinHash by remember { mutableStateOf(prefs.getString("admin_pin_hash", null)) }
     val completedWizardVersion = prefs.getInt("setup_wizard_version", 0)
-    var wizardStep by remember { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
+    var wizardStep by rememberSaveable { mutableIntStateOf(prefs.getInt("setup_wizard_step", if (completedWizardVersion >= 1 || initialized) 7 else 0).coerceIn(0, 7)) }
     var wizardPinSetup by remember { mutableStateOf(pinHash == null && (completedWizardVersion >= 2 || initialized)) }
     var wizardRequestRevision by remember { mutableIntStateOf(-1) }
-    var route by remember { mutableStateOf(if (pinHash != null) { if (crashRecovery) "recovery" else "home" } else "wizard") }
-    var routeHistory by remember { mutableStateOf(emptyList<String>()) }
-    fun navigateTo(destination: String) { if (route != destination) { routeHistory = routeHistory + route; route = destination } }
+    var route by rememberSaveable { mutableStateOf(if (pinHash != null || prefs.getBoolean("setup_completed", false)) { if (crashRecovery && pinHash != null) "recovery" else "home" } else "wizard") }
+    var routeHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    fun navigateTo(destination: String) {
+        if (route != destination) {
+            routeHistory = routeHistory + route
+            route = destination
+            if (destination !in setOf("home", "wizard", "login", "recovery", "mathrecovery", "setpin")) prefs.edit().putString("last_management_route", destination).apply()
+        }
+    }
     fun navigateBack(fallback: String = "dashboard") { val previous = routeHistory.lastOrNull(); if (previous != null) { routeHistory = routeHistory.dropLast(1); route = previous } else route = fallback }
     val dashboardListState = rememberLazyListState()
     var pinInput by remember { mutableStateOf("") }
@@ -602,11 +610,15 @@ private fun SahlBitApp(
     }
     LaunchedEffect(resumeRevision, route, pinHash, wizardRequestRevision) {
         if (pinHash != null && (route == "wizard" || route == "setpin")) {
-            prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
+            prefs.edit().putBoolean("setup_completed", true).remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
             routeHistory = emptyList()
-            route = "dashboard"
-            adminAuthenticated = true
+            val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
+            val validManagementRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
+            route = if (adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
             pinInput = ""
+        } else if (route == "wizard" && prefs.getBoolean("setup_completed", false)) {
+            route = "home"
+            routeHistory = emptyList()
         } else if (route == "wizard" && wizardRequestRevision >= 0 && resumeRevision > wizardRequestRevision) {
             isWizardPermissionGranted(context, wizardStep)
             wizardRequestRevision = -1
@@ -652,6 +664,8 @@ private fun SahlBitApp(
         if (route in protectedRoutes && !adminAuthenticated) route = "login"
     }
 
+    val routeStateHolder = rememberSaveableStateHolder()
+    routeStateHolder.SaveableStateProvider(route) {
     when (route) {
         "wizard" -> if (pinHash != null) {
             Box(Modifier.fillMaxSize().background(Cream))
@@ -662,7 +676,7 @@ private fun SahlBitApp(
                 else {
                     val salt = createSalt()
                     val hash = hashPin(newPin, salt)
-                    prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash).putBoolean("initialized", true).putInt("setup_wizard_version", 2).remove("setup_wizard_step").commit()
+                    prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash).putBoolean("initialized", true).putBoolean("setup_completed", true).putString("last_management_route", "dashboard").putInt("setup_wizard_version", 2).remove("setup_wizard_step").commit()
                     pinHash = hash
                     initialized = true
                     wizardPinSetup = false
@@ -691,11 +705,12 @@ private fun SahlBitApp(
             onNext = {
                 wizardRequestRevision = -1
                 if (wizardStep >= 7) {
-                    prefs.edit().remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
+                    prefs.edit().putBoolean("setup_completed", pinHash != null).remove("setup_wizard_step").putInt("setup_wizard_version", 2).commit()
                     if (pinHash != null) {
                         routeHistory = emptyList()
-                        route = "dashboard"
-                        adminAuthenticated = true
+                        val lastRoute = prefs.getString("last_management_route", "dashboard") ?: "dashboard"
+                        val validManagementRoutes = setOf("dashboard", "pages", "contacts", "allapps", "appearance", "clock", "audio", "security", "permissions", "about", "pinchange", "pinverify", "callcustom", "callconfirm", "updates", "androidsettings", "uninstall", "dialer", "customcontacts", "recentcalls", "recentcustom")
+                        route = if (adminAuthenticated && lastRoute in validManagementRoutes) lastRoute else "home"
                     } else {
                         wizardPinSetup = true
                     }
@@ -719,7 +734,8 @@ private fun SahlBitApp(
                 val hash = hashPin(newPin, salt)
                 prefs.edit().putString("admin_pin_salt", salt).putString("admin_pin_hash", hash)
                     .remove("recovery_salt").remove("recovery_hash")
-                    .putBoolean("initialized", true).putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply()
+                    .putBoolean("initialized", true).putBoolean("setup_completed", true).putString("last_management_route", "dashboard").putInt("setup_wizard_version", 2).remove("setup_wizard_step")
+                    .putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply()
                 pinHash = hash; initialized = true; route = "dashboard"; adminAuthenticated = true
                 newPin = ""; confirmPin = ""; error = ""
             }
@@ -1329,6 +1345,8 @@ private fun SahlBitApp(
                 LauncherEntryStore.save(prefs, entries); editingContactId = null
             }) { Text("ذخیره") } }, dismissButton = { TextButton(onClick = { editingContactId = null }) { Text("انصراف") } })
         }
+    }
+
 }
 
 @Composable
@@ -1487,7 +1505,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
         "به سهل‌بیت خوش آمدید. سهل‌بیت صفحهٔ اصلی ساده‌ای برای دسترسی آسان به مخاطبان و برنامه‌های مهم فراهم می‌کند. در این راه‌اندازی هر بار یک نقش یا دسترسی را می‌بینید. می‌توانید هر مرحله را رد کنید و بعداً از بخش مجوزها آن را انجام دهید.",
         "با انتخاب سهل‌بیت به‌عنوان برنامه صفحه اصلی (لانچر) پیش‌فرض، پس از فشردن دکمهٔ خانه صفحهٔ اصلی سهل‌بیت باز می‌شود. این انتخاب قابل بازگشت است و هر زمان می‌توانید برنامه صفحه اصلی (لانچر) پیش‌فرض دیگری را در تنظیمات اندروید انتخاب کنید.",
         "این اجازه برای تغییر زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. اندروید صفحه‌ای جداگانه باز می‌کند؛ نام سهل‌بیت را پیدا کنید و اجازهٔ تغییر تنظیمات سیستم را روشن کنید.",
-        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. با تأیید این نقش، خود اندروید ممکن است دسترسی‌های نقش‌محور مرتبط با تلفن و مخاطبان را به برنامه بدهد؛ مستندات اندروید این نقش را با دسترسی به تلفن، مخاطبان، پیامک، میکروفون و دوربین مرتبط می‌دانند. سهل‌بیت در نسخه فعلی مجوز پیامک، میکروفون یا دوربین را در فهرست مجوزهای برنامه اعلام نکرده و از آن‌ها استفاده نمی‌کند. فعال‌شدن دسترسی‌های نقش‌محور به انتخاب تلفن پیش‌فرض مربوط است و به دسترسی «تغییر تنظیمات سیستم» ارتباطی ندارد. سهل‌بیت هیچ مجوزی را با کد یا پنهانی اعطا نمی‌کند؛ این دسترسی‌ها فقط در پی تأیید شما برای نقش تلفن پیش‌فرض ممکن است از سوی اندروید فعال شوند. اگر با این نقش موافق نیستید، این مرحله را رد کنید؛ در این صورت رابط تماس اختصاصی سهل‌بیت هنگام تماس فعال نخواهد شد. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند.",
+        "برای نمایش رابط تماس اختصاصی سهل‌بیت هنگام تماس ورودی و خروجی لازم است سهل‌بیت برنامهٔ تلفن پیش‌فرض باشد. با تأیید این نقش، خود اندروید ممکن است دسترسی‌های نقش‌محور مرتبط با تلفن و مخاطبان را به برنامه بدهد؛ مستندات اندروید این نقش را با دسترسی به تلفن، مخاطبان، پیامک، میکروفون و دوربین مرتبط می‌دانند. سهل‌بیت در نسخه فعلی مجوز پیامک، میکروفون یا دوربین را در فهرست مجوزهای برنامه اعلام نکرده و از آن‌ها استفاده نمی‌کند. فعال‌شدن دسترسی‌های نقش‌محور به انتخاب تلفن پیش‌فرض مربوط است و به دسترسی «تغییر تنظیمات سیستم» ارتباطی ندارد. سهل‌بیت هیچ مجوزی را با کد یا پنهانی اعطا نمی‌کند؛ این دسترسی‌ها فقط در پی تأیید شما برای نقش تلفن پیش‌فرض ممکن است از سوی اندروید فعال شوند. اگر با این نقش موافق نیستید، این مرحله را رد کنید؛ در این صورت رابط تماس اختصاصی سهل‌بیت هنگام تماس فعال نخواهد شد. اندروید ۵ از رابط تماس اختصاصی پشتیبانی نمی‌کند. در نسخه‌های جدید اندروید (از اندروید ۷ به بعد)، پس از خاموش‌شدن کامل تلفن یا راه‌اندازی مجدد، دستگاه ممکن است تا نخستین بازکردن قفل صفحه در حالت «راه‌اندازی مستقیم» بماند. در این حالت، برنامه‌های معمولی و داده‌های ذخیره‌شده در فضای رمزگذاری‌شده با اطلاعات کاربر هنوز در دسترس نیستند؛ بنابراین برای آنکه رابط تماس اختصاصی سهل‌بیت پس از روشن‌شدن یا راه‌اندازی مجدد در دسترس قرار بگیرد، لازم است قفل تلفن یک‌بار باز شود. اگر سادگی استفاده برای سالمند یا کودک اولویت دارد، مدیر می‌تواند با آگاهی از کاهش امنیت دستگاه، قفل صفحه را حذف کند و برای محافظت از تنظیمات خود سهل‌بیت از پین مدیر استفاده کند. توجه کنید پین مدیر فقط تنظیمات سهل‌بیت را محافظت می‌کند و جایگزین قفل امنیتی اندروید یا محافظت از اطلاعات شخصی تلفن نیست.",
         "این اجازه برای خواندن نام، شماره و تصویر مخاطبان از دفترچه تلفن لازم است. در اندروید ۶ و جدیدتر، فقط پس از انتخاب دکمهٔ اعطای دسترسی از شما پرسیده می‌شود؛ در اندروید ۵ این اجازه هنگام نصب برنامه درخواست می‌شود. اگر آن را نپذیرید، انتخابگر سیستم همچنان امکان انتخاب محدود یک شماره را فراهم می‌کند. سهل‌بیت مخاطبان را حذف یا ویرایش نمی‌کند.",
         "این اجازه برای تماس مستقیم با مخاطبی که مدیر روی صفحهٔ اصلی انتخاب کرده است استفاده می‌شود. اگر اجازه داده نشود، سهل‌بیت می‌تواند شماره‌گیر سیستم را باز کند و تماس از آنجا انجام شود.",
         "این دسترسی ویژه به سهل‌بیت اجازه می‌دهد مدت استفاده از برنامه‌ها را بخواند تا برنامه‌های پراستفاده را زودتر نشان دهد. محتوای پیام‌ها، عکس‌ها و فایل‌ها خوانده نمی‌شود و این دسترسی اختیاری است.",
@@ -1829,17 +1847,17 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
+            item { DashboardCard("ظاهرِ صفحه اصلی", "پس‌زمینه، کارت‌ها و تنظیمات ظاهری", "appearance", onAppearance) }
             item { DashboardCard("مدیریت صفحه‌ها و چیدمان", "تعداد صفحه‌ها و چیدمان کارت‌ها", "pages", onPages) }
             item { DashboardCard("مخاطبان و برنامه‌های صفحه اصلی", "انتخاب مخاطبان و برنامه‌های صفحهٔ اصلی", "contacts", onContacts) }
             item { DashboardCard("مخاطبین اختصاصی", "ساخت مخاطب و ثبت چند شماره با تصویر جداگانه", "customcontacts", onCustomContacts) }
-            item { DashboardCard("ظاهرِ صفحه اصلی", "پس‌زمینه، کارت‌ها و تنظیمات ظاهری", "appearance", onAppearance) }
-            item { DashboardCard("سفارشی‌سازی صفحه تماس", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
+            item { DashboardCard("سفارشی‌سازی صفحه تماس ورودی و خروجی", "تنظیم ظاهر تماس‌های ورودی و خروجی", "callcustom", onCallCustomization) }
             item { DashboardCard("شماره‌گیر اختصاصی", "شماره‌گیری با صفحه‌کلید سهل‌بیت", "dialer", onDialer) }
             item { DashboardCard("سفارشی‌سازی صفحه تماس‌های اخیر", "تنظیم تصویر، نام و اندازهٔ اطلاعات تماس‌ها", "recentcustom", onRecentCallsCustomization) }
             item { DashboardCard("امنیت و پین مدیر", "تغییر پین و بازیابی دسترسی مدیر", "security", onSecurity) }
             item { DashboardCard("دسترسی‌ها و نقش‌های برنامه", "مدیریت دسترسی‌ها و نقش‌های اندروید", "permissions", onPermissions) }
-            item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
             item { DashboardCard("برنامه‌های تلفن همراه", "مشاهده، جزئیات و اجرای برنامه‌ها", "apps", onAllApps) }
+            item { DashboardCard("بررسی به‌روزرسانی برنامه", "دریافت نسخهٔ جدید از منابع رسمی", "updates", onUpdates) }
             item { DashboardCard("گزینه‌های تنظیمات اندروید", "دسترسی به بخش‌های مختلف تنظیمات تلفن همراه", "settings", onAndroidSettings) }
             item { DashboardCard("درباره سهل‌بیت", "نسخه، توسعه‌دهنده و راه‌های ارتباطی", "about", onAbout) }
             item { DashboardCard("حذف برنامه سهل‌بیت", "پاک کردن حافظهٔ پنهان برنامه یا حذف سهل‌بیت", "uninstall", onUninstall) }
