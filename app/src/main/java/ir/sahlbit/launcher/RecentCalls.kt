@@ -292,7 +292,10 @@ fun RecentCallsPage(prefs: android.content.SharedPreferences, entries: List<Laun
     val records by produceState(initialValue = emptyList<RecentCallRecord>(), key1 = permissionGranted, key2 = resumeRevision) {
         value = if (permissionGranted) withContext(Dispatchers.IO) { readRecentCallRecordsCached(context, resumeRevision) } else emptyList()
     }
+    val androidPhotoSource = prefs.getString("recent_photo_source", "custom") ?: "custom"
+    val androidNameSource = prefs.getString("recent_name_source", "custom") ?: "custom"
     val needsAndroidContacts = prefs.getBoolean("recent_show_android_unknown", false) ||
+        androidPhotoSource != "custom" || androidNameSource != "custom" ||
         customContacts.any { contact -> contact.phones.any { !it.contactUri.isNullOrBlank() } }
     val androidContacts by produceState(initialValue = emptyMap<String, AndroidCallContact>(), key1 = contactsGranted, key2 = needsAndroidContacts, key3 = resumeRevision) {
         value = if (contactsGranted && needsAndroidContacts) withContext(Dispatchers.IO) { readAndroidCallContactsCached(context, resumeRevision) } else emptyMap()
