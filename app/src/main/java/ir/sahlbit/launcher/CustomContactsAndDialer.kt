@@ -332,7 +332,8 @@ fun CustomContactsPage(
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
-                    if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
+                    val phoneBitmapValue = phoneBitmap
+                    if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(14.dp)), contentScale = ContentScale.Crop)
                     OutlinedTextField(phone.number.toPersianDigitsText(), { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(number = value.toPersianDigitsText()) } }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), singleLine = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(onClick = { photoTarget = index; gallery.launch("image/*") }, modifier = Modifier.weight(1f)) { Text(if (phone.photoUri == null) "گالری" else "تغییر تصویر") }
@@ -366,7 +367,8 @@ fun CustomContactsPage(
                     contact.phones.forEach { phone ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
-                            if (phoneBitmap != null) Image(phoneBitmap, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                            val phoneBitmapValue = phoneBitmap
+                    if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
                             Text(phone.number.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
                         }
                     }

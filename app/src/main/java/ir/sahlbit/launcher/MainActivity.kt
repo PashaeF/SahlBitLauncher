@@ -1186,9 +1186,11 @@ private fun SahlBitApp(
                                                         bitmap.asImageBitmap()
                                                     }.getOrNull() } }
                                                 }
+                                                val contactBitmapValue = contactBitmap
+                                                val appBitmapValue = appBitmap
                                                 when {
-                                                    entry.kind == "contact" && contactBitmap != null -> Image(contactBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                                                    entry.kind == "app" && appBitmap != null -> Image(appBitmap, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                                    entry.kind == "contact" && contactBitmapValue != null -> Image(contactBitmapValue, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                                    entry.kind == "app" && appBitmapValue != null -> Image(appBitmapValue, contentDescription = entry.title, modifier = Modifier.size(iconSize).clip(RoundedCornerShape(previewAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                                                     entry.kind == "app" -> Icon(Icons.Default.Home, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewAppRadius.dp)))
                                                     else -> Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(previewContactRadius.dp)))
                                                 }
@@ -2024,7 +2026,8 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
             Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(when (profile) { "incoming" -> "تماس ورودی"; "outgoing" -> "در حال شماره‌گیری"; else -> "تماس برقرار است" }, color = previewForeground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Box(Modifier.size(previewAvatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
-                    if (previewBitmap != null) Image(previewBitmap, contentDescription = previewName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                    val previewBitmapValue = previewBitmap
+                    if (previewBitmapValue != null) Image(previewBitmapValue, contentDescription = previewName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                     else Icon(Icons.Default.Person, null, tint = previewForeground, modifier = Modifier.size(minOf(avatarSize / 2, 110).dp))
                 }
                 Text(previewName.ifBlank { "مخاطب نمونه" }, color = previewForeground, fontSize = nameSize.sp, fontWeight = FontWeight.Bold)
@@ -2136,7 +2139,8 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         val previewImage by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, previewPhotoUri, resumeRevision) { value = previewPhotoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (previewImage != null) Image(previewImage, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                val previewImageValue = previewImage
+                if (previewImageValue != null) Image(previewImageValue, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                 else Icon(Icons.Default.Person, null, tint = Teal, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)))
                 Text(sampleContactName, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
                 Text(sampleContactNumber.toPersianDigitsText(), color = Color(0xFF64748B), fontSize = 13.sp)
@@ -2598,7 +2602,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                     val contactWithoutName = entry.kind == "contact" && !showEntryName
                                     val entryImageSize = minOf(if (showEntryName) 88.dp else 104.dp, (responsiveCardHeight - if (showEntryName) 30.dp else 12.dp).coerceAtLeast(18.dp))
                                     Box(Modifier.size(entryImageSize), contentAlignment = Alignment.Center) {
-                                        if (bitmap != null) Image(bitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
+                                        val contactBitmapValue = bitmap
+                                        if (contactBitmapValue != null) Image(contactBitmapValue, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeContactRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
                                         else if (entry.kind == "app") {
                                             val iconBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.packageName) {
                                                 value = entry.packageName?.let { pkg -> withContext(Dispatchers.IO) { runCatching {
@@ -2607,7 +2612,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                                     val canvas = android.graphics.Canvas(bmp); drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas); bmp.asImageBitmap()
                                                 }.getOrNull() } }
                                             }
-                                            if (iconBitmap != null) Image(iconBitmap, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                                            val iconBitmapValue = iconBitmap
+                                            if (iconBitmapValue != null) Image(iconBitmapValue, contentDescription = entry.title, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(homeAppRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
                                             else Icon(Icons.Default.Search, null, tint = Teal, modifier = Modifier.size(minOf(72.dp, entryImageSize)).scale(scaleX = -1f, scaleY = 1f))
                                         } else Icon(Icons.Default.Person, null, tint = if (background == "forest") Color.White else Teal, modifier = Modifier.size(minOf(if (contactWithoutName) 90.dp else 72.dp, entryImageSize)).clip(RoundedCornerShape(homeContactRadius.dp)))
                                     }
@@ -2639,7 +2645,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             AlertDialog(onDismissRequest = onCancelCall, title = {
                 val pendingPhotoUri = if (pendingCall.photoSource == "contact") pendingCall.photoSourceUri else pendingCall.photoUri
                 val avatar by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, pendingPhotoUri) { value = pendingPhotoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
-                if (avatar != null) Image(avatar, contentDescription = pendingCall.title, modifier = Modifier.size(confirmAvatarSize.dp).clip(RoundedCornerShape(confirmAvatarRadius.dp)))
+                val avatarValue = avatar
+                if (avatarValue != null) Image(avatarValue, contentDescription = pendingCall.title, modifier = Modifier.size(confirmAvatarSize.dp).clip(RoundedCornerShape(confirmAvatarRadius.dp)))
                 else Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(confirmAvatarSize.dp), tint = Teal)
             }, text = { Text("${pendingCall.title}\n${pendingCall.phoneNumber.orEmpty().toPersianDigitsText()}\nآیا می‌خواهید تماس برقرار شود؟", color = Ink, lineHeight = 24.sp) }, confirmButton = {
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
