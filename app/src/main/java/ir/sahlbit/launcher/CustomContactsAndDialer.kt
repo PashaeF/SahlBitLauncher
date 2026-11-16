@@ -336,17 +336,26 @@ fun CustomContactsPage(
         val index = photoTarget
         val uri = result.data?.data
         if (result.resultCode == android.app.Activity.RESULT_OK && uri != null && index in phones.indices) {
-            val photo = runCatching {
-                context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI), null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) cursor.getString(0) else null
+            coroutineScope.launch {
+                val photo = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.query(
+                            uri,
+                            arrayOf(ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                            null, null, null
+                        )?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    }.getOrNull()
                 }
-            }.getOrNull()
-            if (!photo.isNullOrBlank()) {
-                phones = phones.toMutableList().also { it[index] = it[index].copy(photoUri = photo, contactUri = uri.toString()) }
-                message = "تصویر مخاطب اندروید برای این شماره انتخاب شد."
-            } else message = "برای مخاطب انتخاب‌شده تصویری ثبت نشده است."
+                val currentIndex = phones.indexOfFirst { it.id == phones.getOrNull(index)?.id }
+                if (!photo.isNullOrBlank() && currentIndex >= 0) {
+                    phones = phones.toMutableList().also { it[currentIndex] = it[currentIndex].copy(photoUri = photo, contactUri = uri.toString()) }
+                    message = "تصویر مخاطب اندروید برای این شماره انتخاب شد."
+                } else message = "برای مخاطب انتخاب‌شده تصویری ثبت نشده است."
+                photoTarget = -1
+            }
+        } else {
+            photoTarget = -1
         }
-        photoTarget = -1
     }
     val phonePhotoPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) phonePhotoPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI))
