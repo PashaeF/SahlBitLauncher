@@ -2478,10 +2478,11 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 else -> Icon(categoryIcon, contentDescription = null, tint = Forest, modifier = Modifier.size(28.dp).then(if (icon == "apps" || icon == "callcustom" || icon == "updates") Modifier.scale(scaleX = -1f, scaleY = 1f) else Modifier))
             }
             Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 23.sp)
                 Text(subtitle, color = Color(0xFF64736B), fontSize = 13.sp, lineHeight = 20.sp, maxLines = 3)
             }
+            Spacer(Modifier.width(8.dp))
             Icon(Icons.Default.ArrowBack, null, tint = Teal)
         }
     }
