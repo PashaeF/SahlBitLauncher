@@ -1542,7 +1542,7 @@ private fun SahlBitApp(
             PermissionCard("دسترسی آمار مصرف برنامه‌ها", "اندروید این دسترسی ویژه را برای مرتب‌سازی برنامه‌ها بر اساس مدت استفاده لازم دارد. سهل‌بیت فقط زمان استفادهٔ برنامه‌ها را می‌خواند و به محتوای پیام‌ها، عکس‌ها یا فایل‌های آن‌ها دسترسی پیدا نمی‌کند.", "فعال‌سازی دسترسی آمار استفاده", usageGranted, { openUsageAccessSettings(context) })
             PermissionCard("اجازهٔ نصب به‌روزرسانی‌ها", "این دسترسی ویژه فقط برای آن است که سهل‌بیت فایل APK نسخه‌ای را که مدیر از منبع رسمی انتخاب کرده است به نصب‌کنندهٔ اندروید تحویل دهد. بدون آن، دانلود و بررسی نسخه ممکن است اما نصب از داخل برنامه انجام نمی‌شود. تأیید نهایی نصب همیشه با مدیر است.", "اجازهٔ نصب برنامه‌های ناشناس", installGranted, { if (installGranted) android.widget.Toast.makeText(context, "اجازهٔ نصب برنامه‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= 26) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + context.packageName))) } })
             PermissionCard("دسترسی تغییر تنظیمات سیستم", "این دسترسی برای اعمال زمان خاموش‌شدن نمایشگر و ذخیرهٔ زنگ تماس، اعلان و هشدار لازم است. این مجوز با مجوزهای عادی برنامه فرق دارد و باید در صفحهٔ ویژهٔ اندروید فعال شود.", "اعطای اجازهٔ تغییر تنظیمات سیستم", writeGranted, { if (writeGranted) android.widget.Toast.makeText(context, "دسترسی تغییر تنظیمات سیستم قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) runCatching { context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + context.packageName))) } })
-            PermissionCard("دسترسی به سابقهٔ تماس‌ها", "این دسترسی مستقل READ_CALL_LOG است و از دسترسی مخاطبان (READ_CONTACTS) به‌تنهایی به دست نمی‌آید. اندروید آن را جداگانه کنترل می‌کند؛ در نسخه‌های جدید این مجوز «محدودشدهٔ سخت» است و نصب‌کنندهٔ برنامه باید آن را در فهرست مجاز قرار داده باشد تا قابل اعطا باشد. انتخاب نقش تلفن پیش‌فرض نیز به‌تنهایی جای بررسی وضعیت همین مجوز را نمی‌گیرد. این دسترسی فقط برای نمایش فهرست تماس‌های اخیر در صفحه‌ای است که خودتان انتخاب می‌کنید و تا زمانی که قابلیت را فعال نکنید، سابقهٔ تماس‌ها خوانده نمی‌شود.", "اعطای دسترسی به سابقهٔ تماس‌ها", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) else android.widget.Toast.makeText(context, "دسترسی به سابقهٔ تماس‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() })
+            PermissionCard("دسترسی به سابقهٔ تماس‌ها", "READ_CALL_LOG مجوزی مستقل از READ_CONTACTS است و صرفِ اعطای دسترسی مخاطبان آن را فعال نمی‌کند. در اندرویدهای جدید، نقش «تلفن پیش‌فرض» در مجموعه مجوزهای تلفنی خود می‌تواند READ_CALL_LOG را نیز در اختیار برنامه قرار دهد؛ بنابراین اگر سهل‌بیت را با تأیید خودتان تلفن پیش‌فرض کرده باشید، ممکن است این دسترسی همراه نقش فعال شده باشد. با این حال سهل‌بیت همیشه وضعیت واقعی همین مجوز را جداگانه بررسی می‌کند. READ_CALL_LOG در نسخه‌های جدید مجوزی محدودشده است و نصب‌کننده نیز باید امکان اعطای آن را فراهم کرده باشد. این دسترسی فقط برای نمایش فهرست تماس‌های اخیر در صفحه‌ای است که خودتان انتخاب می‌کنید و تا زمانی که قابلیت را فعال نکنید، سابقهٔ تماس‌ها خوانده نمی‌شود.", "اعطای دسترسی به سابقهٔ تماس‌ها", Build.VERSION.SDK_INT < Build.VERSION_CODES.M || androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED, { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) recentCallsPermissionLauncher.launch(android.Manifest.permission.READ_CALL_LOG) else android.widget.Toast.makeText(context, "دسترسی به سابقهٔ تماس‌ها قبلاً فعال شده است.", android.widget.Toast.LENGTH_SHORT).show() })
         }
         "androidsettings" -> AndroidSettingsPage(onBack = { navigateBack("dashboard") }, onUninstall = { navigateTo("uninstall") })
         "uninstall" -> UninstallPage(onBack = { navigateBack("dashboard") }, onCallDeveloper = { dialerNumber = "09145880814"; navigateTo("dialer") })
@@ -2180,6 +2180,15 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
                 }
             }
         }
+        var previewContactsGranted by remember { mutableStateOf(androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) }
+        val previewContactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            previewContactsGranted = granted
+            if (granted) androidPreviewContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
+            else android.widget.Toast.makeText(context, "برای خواندن نام، شماره و تصویر مخاطب انتخاب‌شده، دسترسی مخاطبان لازم است.", android.widget.Toast.LENGTH_LONG).show()
+        }
+        LaunchedEffect(resumeRevision) {
+            previewContactsGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        }
         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("انتخاب مخاطب برای پیش‌نمایش", color = Ink, fontWeight = FontWeight.Bold)
@@ -2197,7 +2206,13 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
                 } else {
                     Text("هنوز مخاطبی به صفحه اصلی سهل‌بیت اضافه نشده است. می‌توانید برای پیش‌نمایش، مخاطبی را از برنامه مخاطبین اندروید انتخاب کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
                 }
-                OutlinedButton(onClick = { androidPreviewContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI)) }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+                OutlinedButton(onClick = {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || previewContactsGranted) {
+                        androidPreviewContactPicker.launch(Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI))
+                    } else {
+                        previewContactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+                    }
+                }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                     Icon(Icons.Default.Person, null)
                     Spacer(Modifier.width(8.dp))
                     Text("انتخاب مخاطب از برنامه مخاطبین اندروید")
