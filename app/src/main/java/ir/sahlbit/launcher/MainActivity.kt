@@ -1003,7 +1003,7 @@ private fun SahlBitApp(
                                 else -> e
                             }
                         }
-                        remapPageLayoutPreferences(prefs, (0 until pageCount).filter { it != selectedPage }.associate { old -> old to if (old > selectedPage) old - 1 else old })
+                        remapPageLayoutPreferences(prefs, (0 until pageCount).filter { it != selectedPage }.associate { old -> old to if (old > selectedPage) old - 1 else old }, defaultPageFallback = if (selectedPage > 0) selectedPage - 1 else selectedPage + 1)
                         pageNames = pageNames.filterIndexed { index, _ -> index != selectedPage }
                         pageCount -= 1; selectedPage = selectedPage.coerceAtMost(pageCount - 1)
                         LauncherEntryStore.save(prefs, entries); prefs.edit().putInt("page_count", pageCount).putString("page_names", org.json.JSONArray(pageNames).toString()).apply()
@@ -2855,7 +2855,8 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
 private fun remapPageLayoutPreferences(
     prefs: android.content.SharedPreferences,
     mapping: Map<Int, Int>,
-    duplicate: Pair<Int, Int>? = null
+    duplicate: Pair<Int, Int>? = null,
+    defaultPageFallback: Int? = null
 ) {
     listOf("row_counts_per_page", "row_layouts", "row_alignments", "page_recent_calls", "page_clock_enabled", "page_battery_enabled", "page_content_mode", "page_weekday_mode", "page_settings_icon_enabled", "page_element_order").forEach { key ->
         val old = runCatching { org.json.JSONObject(prefs.getString(key, "{}") ?: "{}") }
@@ -2870,7 +2871,8 @@ private fun remapPageLayoutPreferences(
         prefs.edit().putString(key, updated.toString()).apply()
     }
     val defaultPage = prefs.getInt("default_home_page", 0)
-    mapping[defaultPage]?.let { mapped -> prefs.edit().putInt("default_home_page", mapped).apply() }
+    val mappedDefaultPage = mapping[defaultPage] ?: defaultPageFallback?.let(mapping::get)
+    mappedDefaultPage?.let { mapped -> prefs.edit().putInt("default_home_page", mapped).apply() }
 }
 
 private fun createSalt(): String = ByteArray(16).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
