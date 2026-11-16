@@ -49,7 +49,10 @@ data class AndroidCallContact(val name: String, val photoUri: String?)
 
 fun readRecentCallRecords(context: Context, limit: Int = 30): List<RecentCallRecord> = runCatching {
     val projection = arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION)
-    context.contentResolver.query(CallLog.Calls.CONTENT_URI, projection, null, null, "${CallLog.Calls.DATE} DESC")?.use { cursor ->
+    val limitedUri = CallLog.Calls.CONTENT_URI.buildUpon()
+        .appendQueryParameter(CallLog.Calls.LIMIT_PARAM_KEY, limit.coerceIn(1, 100).toString())
+        .build()
+    context.contentResolver.query(limitedUri, projection, null, null, "${CallLog.Calls.DATE} DESC")?.use { cursor ->
         val idIndex = cursor.getColumnIndexOrThrow(CallLog.Calls._ID)
         val numberIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.NUMBER)
         val nameIndex = cursor.getColumnIndexOrThrow(CallLog.Calls.CACHED_NAME)
