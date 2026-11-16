@@ -258,58 +258,71 @@ fun CustomContactsPage(
 
     val androidContactPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val uri = result.data?.data ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.query(
-                uri,
-                arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.CONTACT_ID),
-                null, null, null
-            )?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    name = cursor.getString(0).orEmpty()
-                    val contactId = cursor.getLong(1)
-                    val importedPhones = runCatching {
-                        context.contentResolver.query(
-                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                            arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
-                            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-                            arrayOf(contactId.toString()), null
-                        )?.use { phoneCursor ->
-                            buildList {
-                                while (phoneCursor.moveToNext()) {
-                                    val rowId = phoneCursor.getLong(0)
-                                    val number = phoneCursor.getString(1).orEmpty().trim()
-                                    val photo = phoneCursor.getString(2)
-                                    if (number.isNotBlank()) {
-                                        val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString()
-                                        add(CustomContactPhone(number = number, photoUri = photo, contactUri = phoneUri))
-                                    }
-                                }
-                            }.distinctBy { it.number.filter(Char::isDigit) }
-                        }
-                    }.getOrNull().orEmpty()
-                    if (importedPhones.isNotEmpty()) {
-                        phones = importedPhones
-                        message = "مخاطب و همهٔ شماره‌های ثبت‌شده وارد شدند. تصاویر مخاطبین اندروید به‌صورت زنده خوانده می‌شوند و در حافظهٔ سهل‌بیت کپی نمی‌شوند."
-                    } else {
-                        val selectedPhone = context.contentResolver.query(
-                            uri,
-                            arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
-                            null, null, null
-                        )?.use { selectedCursor ->
-                            if (selectedCursor.moveToFirst()) {
-                                val number = selectedCursor.getString(0).orEmpty().trim()
-                                val photo = selectedCursor.getString(1)
-                                if (number.isNotBlank()) CustomContactPhone(number = number, photoUri = photo, contactUri = uri.toString()) else null
-                            } else null
-                        }
-                        if (selectedPhone != null) {
-                            phones = listOf(selectedPhone)
-                            message = "این مخاطب با یک شماره وارد شد. برای واردکردن همهٔ شماره‌ها، اجازهٔ دسترسی به مخاطبان را فعال کنید."
-                        } else message = "برای این مخاطب شمارهٔ تلفنی ثبت نشده است."
+        coroutineScope.launch {
+            val imported = withContext(Dispatchers.IO) {
+                runCatching {
+                    val selected = context.contentResolver.query(
+                        uri,
+                        arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.CONTACT_ID),
+                        null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) cursor.getString(0).orEmpty() to cursor.getLong(1) else null
                     }
-                }
+                    if (selected == null) {
+                        null
+                    } else {
+                        val contactId = selected.second
+                        val importedPhones = runCatching {
+                            context.contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone._ID, ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+                                arrayOf(contactId.toString()), null
+                            )?.use { phoneCursor ->
+                                buildList {
+                                    while (phoneCursor.moveToNext()) {
+                                        val rowId = phoneCursor.getLong(0)
+                                        val number = phoneCursor.getString(1).orEmpty().trim()
+                                        val photo = phoneCursor.getString(2)
+                                        if (number.isNotBlank()) {
+                                            val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI.buildUpon().appendPath(rowId.toString()).build().toString()
+                                            add(CustomContactPhone(number = number, photoUri = photo, contactUri = phoneUri))
+                                        }
+                                    }
+                                }.distinctBy { it.number.filter(Char::isDigit) }
+                            }
+                        }.getOrNull().orEmpty()
+                        if (importedPhones.isNotEmpty()) {
+                            Triple(selected.first, importedPhones, "مخاطب و همهٔ شماره‌های ثبت‌شده وارد شدند. تصاویر مخاطبین اندروید به‌صورت زنده خوانده می‌شوند و در حافظهٔ سهل‌بیت کپی نمی‌شوند.")
+                        } else {
+                            val selectedPhone = context.contentResolver.query(
+                                uri,
+                                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.PHOTO_URI),
+                                null, null, null
+                            )?.use { selectedCursor ->
+                                if (selectedCursor.moveToFirst()) {
+                                    val number = selectedCursor.getString(0).orEmpty().trim()
+                                    val photo = selectedCursor.getString(1)
+                                    if (number.isNotBlank()) CustomContactPhone(number = number, photoUri = photo, contactUri = uri.toString()) else null
+                                } else null
+                            }
+                            if (selectedPhone != null) {
+                                Triple(selected.first, listOf(selectedPhone), "این مخاطب با یک شماره وارد شد. برای واردکردن همهٔ شماره‌ها، اجازهٔ دسترسی به مخاطبان را فعال کنید.")
+                            } else {
+                                Triple(selected.first, emptyList(), "برای این مخاطب شمارهٔ تلفنی ثبت نشده است.")
+                            }
+                        }
+                    }
+                }.getOrNull()
             }
-        }.onFailure { message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود." }
+            if (imported != null) {
+                name = imported.first
+                if (imported.second.isNotEmpty()) phones = imported.second
+                message = imported.third
+            } else {
+                message = "خواندن مخاطب از برنامهٔ مخاطبین اندروید ناموفق بود."
+            }
+        }
     }
 
     val contactsPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
