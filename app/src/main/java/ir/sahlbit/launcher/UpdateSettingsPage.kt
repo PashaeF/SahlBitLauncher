@@ -140,14 +140,14 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowForward, "بازگشت", tint = Color(0xFF2563EB)) }
             Text("بررسی به‌روزرسانی برنامه", color = Color(0xFF2563EB), fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(22.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF173B32)), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("سهل‌بیت ${BuildConfig.VERSION_NAME.toPersianVersionDigits()}", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("نسخهٔ نصب‌شدهٔ برنامه روی این دستگاه", color = Color(0xFFE4F2E9), fontSize = 14.sp)
             }
         }
         val installPermissionGranted = Build.VERSION.SDK_INT < 26 || context.packageManager.canRequestPackageInstalls()
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("اجازهٔ نصب به‌روزرسانی‌ها", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("برای نصب نسخهٔ جدید از داخل سهل‌بیت، اندروید باید اجازهٔ نصب برنامه از این منبع را بدهد. فعال‌سازی این اجازه اختیاری است و تأیید نهایی هر نصب همچنان با شماست.", color = Color(0xFF52645B), fontSize = 13.sp, lineHeight = 21.sp)
@@ -172,7 +172,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("بررسی آخرین انتشار در GitHub")
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("وضعیت", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(status, color = statusColor, fontSize = 14.sp, lineHeight = 23.sp)
@@ -187,7 +187,7 @@ fun UpdateSettingsPage(onBack: () -> Unit) {
             }
         }
         update?.let { found ->
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("اطلاعات نسخهٔ منتشرشده", color = Color(0xFF172033), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Text("نسخه: ${found.versionName.toPersianVersionDigits()}  |  کد نسخه: ${found.versionCode.toString().toPersianVersionDigits()}", color = Color(0xFF2563EB), fontWeight = FontWeight.SemiBold)

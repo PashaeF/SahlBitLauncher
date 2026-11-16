@@ -1160,7 +1160,7 @@ private fun SahlBitApp(
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             if (rowItems.isEmpty()) {
                                 repeat(count) {
-                                    Box(Modifier.weight(1f).padding(horizontal = 3.dp).height(154.dp).clip(RoundedCornerShape(16.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .25f), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
+                                    Box(Modifier.weight(1f).padding(horizontal = 3.dp).height(154.dp).clip(RoundedCornerShape(20.dp)).background(Color.White).border(1.dp, Teal.copy(alpha = .25f), RoundedCornerShape(20.dp)), contentAlignment = Alignment.Center) {
                                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                             Icon(Icons.Default.Home, null, tint = Teal, modifier = Modifier.size(38.dp))
                                             Text("کارت نمونهٔ ${(placeholderNumber++).toPersianDigits()}", color = Forest, fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -1170,7 +1170,7 @@ private fun SahlBitApp(
                             } else {
                                 rowItems.forEach { entry ->
                                     Box(Modifier.weight(1f).padding(horizontal = 3.dp)) {
-                                        Card(Modifier.fillMaxWidth().height(154.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+                                        Card(Modifier.fillMaxWidth().height(154.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                                             Column(Modifier.fillMaxSize().padding(horizontal = 5.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                                 val showName = (entry.kind == "contact" && previewShowContacts) || (entry.kind == "app" && previewShowApps)
                                                 val iconSize = if (showName) 88.dp else 104.dp
@@ -1285,7 +1285,7 @@ private fun SahlBitApp(
                         val samePageIndices = entries.indices.filter { entries[it].page == entry.page }
                         val samePagePosition = samePageIndices.indexOf(globalPosition)
                         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.width(38.dp).height(88.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFF1F5F9)), contentAlignment = Alignment.Center) {
+                            Box(Modifier.width(38.dp).height(88.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xFFF1F5F9)), contentAlignment = Alignment.Center) {
                                 Text((position + 1).toPersianDigits(), color = Teal, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             }
                             Spacer(Modifier.width(10.dp))
@@ -1343,8 +1343,8 @@ private fun SahlBitApp(
             NumberSetting("گردی گوشهٔ لوگوی برنامه‌ها: ${homeAppRadius.toPersianDigits()} dp", homeAppRadius, 0, 50) { homeAppRadius = it; prefs.edit().putInt("home_app_radius", it).apply() }
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
             listOf("cream" to "کِرِم", "white" to "سفید", "gray" to "طوسی", "blue" to "آبی ملایم", "sage" to "سبز مریم‌گلی", "lavender" to "یاسی ملایم", "mint" to "نعنایی", "sand" to "شنی روشن", "rose" to "صورتی آرام").forEach { (key, label) ->
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(when (key) { "cream" -> Color(0xFFFFF8E7); "white" -> Color.White; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); "sage" -> Color(0xFFE5EDE5); "lavender" -> Color(0xFFEDE7F6); "mint" -> Color(0xFFE2F2EC); "sand" -> Color(0xFFF3EBDD); else -> Color(0xFFF7E7E9) }).border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(9.dp)))
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(34.dp).clip(RoundedCornerShape(20.dp)).background(when (key) { "cream" -> Color(0xFFFFF8E7); "white" -> Color.White; "gray" -> Color(0xFFE6E7E8); "blue" -> Color(0xFFE8F1F5); "sage" -> Color(0xFFE5EDE5); "lavender" -> Color(0xFFEDE7F6); "mint" -> Color(0xFFE2F2EC); "sand" -> Color(0xFFF3EBDD); else -> Color(0xFFF7E7E9) }).border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(20.dp)))
                     Spacer(Modifier.width(10.dp))
                     RadioButton(selected = backgroundChoice == key, onClick = { backgroundChoice = key; prefs.edit().putString("background", key).apply() })
                     Text(label, color = Ink)
@@ -1875,7 +1875,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
             }
             Text(titles[step], color = Forest, fontSize = 25.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(descriptions[step], color = Ink, fontSize = 16.sp, lineHeight = 27.sp)
                 if (step > 0) {
@@ -2072,7 +2072,7 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
                     Spacer(Modifier.height(26.dp))
                     Button(onClick = { previewSpeakerOn = !previewSpeakerOn }, modifier = Modifier.fillMaxWidth(buttonWidthPct / 100f).height(buttonHeight.dp), shape = RoundedCornerShape(buttonRadius.dp), colors = ButtonDefaults.buttonColors(containerColor = activeSpeakerColor, contentColor = Color.White)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(12.dp)).background(Color.White), contentAlignment = Alignment.Center) {
+                            Box(Modifier.size(minOf(46.dp, (buttonHeight - 16).coerceAtLeast(36).dp)).clip(RoundedCornerShape(20.dp)).background(Color.White), contentAlignment = Alignment.Center) {
                                 Text(if (previewSpeakerOn) "☎" else "🔊", color = Color(0xFF1976D2), fontSize = 27.sp)
                             }
                             Spacer(Modifier.width(14.dp))
@@ -2198,7 +2198,7 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         Divider()
         Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         val previewImage by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, previewPhotoUri, resumeRevision) { value = previewPhotoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val previewImageValue = previewImage
                 if (previewImageValue != null) Image(previewImageValue, contentDescription = sampleContactName, modifier = Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
@@ -2222,19 +2222,19 @@ private fun CallColorPicker(title: String, selected: String, options: List<Strin
     Text(title, color = Ink, fontWeight = FontWeight.SemiBold)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.take(5).forEach { hex ->
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(10.dp)).clickable { onSelected(hex) })
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(20.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(20.dp)).clickable { onSelected(hex) })
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.drop(5).forEach { hex ->
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(10.dp)).clickable { onSelected(hex) })
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(20.dp)).background(Color(android.graphics.Color.parseColor(hex))).border(if (selected == hex) 3.dp else 1.dp, if (selected == hex) Forest else Color(0xFFCBD5E1), RoundedCornerShape(20.dp)).clickable { onSelected(hex) })
         }
     }
 }
 
 @Composable private fun DashboardScreen(listState: androidx.compose.foundation.lazy.LazyListState, onExit: () -> Unit, onPages: () -> Unit, onContacts: () -> Unit, onAllApps: () -> Unit, onAppearance: () -> Unit, onClock: () -> Unit, onSecurity: () -> Unit, onPermissions: () -> Unit, onAbout: () -> Unit, onAudio: () -> Unit, onCallCustomization: () -> Unit, onCallConfirmation: () -> Unit, onCustomContacts: () -> Unit, onDialer: () -> Unit, onRecentCalls: () -> Unit, onRecentCallsCustomization: () -> Unit, onUpdates: () -> Unit, onSelectLauncher: () -> Unit, onAndroidSettings: () -> Unit, onUninstall: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Cream).padding(18.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
+        Row(verticalAlignment = Alignment.CenterVertically) { Text("مدیریت سهل‌بیت", fontSize = 25.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, color = Forest, modifier = Modifier.weight(1f)); Spacer(Modifier.width(12.dp)); Button(onClick = onExit, shape = RoundedCornerShape(20.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)) { Icon(Icons.Default.ExitToApp, null); Spacer(Modifier.width(6.dp)); Text("بازگشت به صفحه اصلی") } }
         Spacer(Modifier.height(18.dp))
         LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { DashboardCard("صدا و زنگ‌ها", "تنظیم بلندی صدا و انتخاب زنگ‌ها", "audio", onAudio) }
@@ -2264,14 +2264,14 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         runCatching { context.startActivity(intent) }.onFailure { runCatching { context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
     }
     SettingsPage("گزینه‌های تنظیمات اندروید", "میان‌برهای کاربردی برای دسترسی به بخش‌های مختلف تنظیمات تلفن همراه. نام و محل دقیق گزینه‌ها ممکن است در دستگاه‌های مختلف متفاوت باشد.", onBack) {
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("دکمه‌های سهل‌بیت در پنل سریع اندروید", color = Ink, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text("این ۱۰ دکمه برای بازگشت سریع به صفحهٔ اصلی سهل‌بیت طراحی شده‌اند. اگر هنگام باز کردن یا ویرایش پنل سریع، دست شما به یکی از این دکمه‌ها برخورد کند، برنامهٔ سهل‌بیت باز می‌شود و به صفحهٔ اصلی آن برمی‌گردید؛ این دکمه‌ها هیچ تنظیمی را تغییر نمی‌دهند و اقدامی مانند تماس یا ارسال اطلاعات انجام نمی‌دهند. برای افزودن آن‌ها، پنل سریع اندروید را ویرایش کنید و کاشی‌های «سهل‌بیت ۱» تا «سهل‌بیت ۱۰» را به پنل اضافه کنید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
             }
         }
         @Composable fun actionCard(title: String, description: String, label: String, action: String, data: Uri? = null) {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text(title, color = Ink, fontWeight = FontWeight.Bold)
                     Text(description, color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
@@ -2288,7 +2288,7 @@ private fun AndroidSettingsPage(onBack: () -> Unit, onUninstall: () -> Unit) {
         actionCard("تاریخ و ساعت", "تنظیم منطقهٔ زمانی، تاریخ، ساعت و قالب نمایش.", "بازکردن تنظیمات تاریخ و ساعت", Settings.ACTION_DATE_SETTINGS)
         actionCard("به‌روزرسانی اندروید", "بازکردن صفحهٔ به‌روزرسانی سیستم‌عامل؛ ممکن است سازنده این گزینه را در بخش دیگری قرار داده باشد.", "بررسی به‌روزرسانی اندروید", "android.settings.SYSTEM_UPDATE_SETTINGS")
         actionCard("دربارهٔ تلفن", "نمایش مدل دستگاه، شمارهٔ ساخت و اطلاعات سیستم‌عامل.", "بازکردن دربارهٔ تلفن", Settings.ACTION_DEVICE_INFO_SETTINGS)
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text("حذف برنامهٔ سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold)
                 Text("برای رفتن به صفحهٔ اختصاصی حذف برنامه و پاک‌کردن حافظهٔ پنهان، از دکمهٔ زیر استفاده کنید.", color = Color(0xFF64748B), fontSize = 12.sp, lineHeight = 20.sp)
@@ -2313,7 +2313,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
             .onFailure { android.widget.Toast.makeText(context, "صفحهٔ اطلاعات برنامه در تنظیمات اندروید باز نشد.", android.widget.Toast.LENGTH_LONG).show() }
     }
     SettingsPage("حذف برنامه سهل‌بیت", "اگر دیگر به سهل‌بیت نیاز ندارید، حذف آن از مسیر استاندارد اندروید انجام می‌شود. پس از تأیید نهایی، خود برنامه و داده‌های آن نیز حذف خواهند شد.", onBack) {
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("پاک کردن حافظه پنهان برنامه", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر برنامه کند شده یا با خطا روبه‌رو است، فایل‌های موقت و حافظهٔ پنهان را پاک کنید. تنظیمات، پین مدیر، مخاطبان اختصاصی و کارت‌های ذخیره‌شده حذف نمی‌شوند.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
@@ -2323,7 +2323,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 }, modifier = Modifier.fillMaxWidth()) { Text("پاک کردن حافظه پنهان برنامه") }
             }
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("ارتباط با توسعه‌دهنده", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر با مشکلی روبه‌رو شدید، لطفاً با شمارهٔ ۰۹۱۴۵۸۸۰۸۱۴ تماس بگیرید یا از طریق پیام‌رسان‌های بله، ایتا، روبیکا، تلگرام و واتساپ پیام دهید. همچنین می‌توانید به ایمیل Pashae@iran.ir پیام بفرستید.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
@@ -2331,7 +2331,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                 OutlinedButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:Pashae@iran.ir"))) } }, modifier = Modifier.fillMaxWidth()) { Text("ارسال ایمیل") }
             }
         }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text("حذف برنامه سهل‌بیت", color = Ink, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Text("اگر سهل‌بیت هنوز برنامه صفحه اصلی (لانچر) پیش‌فرض است، ابتدا برنامهٔ دیگری را انتخاب کنید. پس از آن، حذف برنامه با تأیید خود اندروید انجام می‌شود.", color = Color(0xFF64748B), fontSize = 13.sp, lineHeight = 22.sp)
@@ -2389,7 +2389,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
 }
 
 @Composable private fun DashboardCard(title: String, subtitle: String, icon: String, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(18.dp)) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             val categoryIcon = when (icon) {
                 "pages" -> Icons.Default.List
@@ -2617,7 +2617,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                         val batteryMode = context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getString("battery_display_mode", if (context.getSharedPreferences("sahlbit_local", Context.MODE_PRIVATE).getBoolean("numeric_battery", false)) "numeric" else "graphic") ?: "graphic"
                         if (batteryMode == "numeric" || batteryMode == "both") Text("${battery.toPersianDigits()}٪", color = batteryColor, fontSize = 42.sp, fontWeight = FontWeight.ExtraBold)
                         if (batteryMode == "graphic" || batteryMode == "both") {
-                            Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(9.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
+                            Box(Modifier.width(128.dp).height(48.dp).border(2.dp, batteryColor, RoundedCornerShape(20.dp)).padding(4.dp), contentAlignment = Alignment.CenterStart) { Box(Modifier.fillMaxWidth(battery.coerceIn(0, 100) / 100f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(batteryColor)) }
                             Box(Modifier.padding(start = 2.dp).width(8.dp).height(20.dp).background(batteryColor, RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)))
                         }
                         if (charging) { Spacer(Modifier.width(12.dp)); Text("⚡", color = Color(0xFFFFB300), fontSize = 48.sp, fontWeight = FontWeight.Bold) }
@@ -2667,7 +2667,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
                                     Box(Modifier.weight(1f).padding(horizontal = 4.dp)) {
                             Card(onClick = { onEntryClick(entry) },
                                 modifier = Modifier.fillMaxWidth().height(responsiveCardHeight),
-                                colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(16.dp)) {
+                                colors = CardDefaults.cardColors(containerColor = if (background == "forest") Color.White.copy(alpha = .16f) else Color.White), shape = RoundedCornerShape(20.dp)) {
                                 Column(Modifier.fillMaxSize().padding(vertical = 3.dp, horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     val photo = if (entry.photoSource == "contact") entry.photoSourceUri else entry.photoUri
                                     val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, photo, permissionRevision) { value = if (photo.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(photo))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } }
