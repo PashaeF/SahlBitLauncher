@@ -1238,12 +1238,11 @@ private fun SahlBitApp(
                                                     value = if (entry.kind != "contact" || entryPhotoUri.isNullOrBlank()) null else withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(entryPhotoUri), 384)?.asImageBitmap() }.getOrNull() }
                                                 }
                                                 val appBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, entry.packageName) {
-                                                    value = if (entry.kind != "app") null else entry.packageName?.let { pkg -> withContext(Dispatchers.IO) { runCatching {
-                                                        val drawable = context.packageManager.getApplicationIcon(pkg)
-                                                        val bitmap = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
-                                                        android.graphics.Canvas(bitmap).also { canvas -> drawable.setBounds(0, 0, 96, 96); drawable.draw(canvas) }
-                                                        bitmap.asImageBitmap()
-                                                    }.getOrNull() } }
+                                                    value = if (entry.kind != "app") null else entry.packageName?.let { pkg ->
+                                                        withContext(Dispatchers.IO) {
+                                                            decodeCachedApplicationIcon(context, pkg, 96)?.asImageBitmap()
+                                                        }
+                                                    }
                                                 }
                                                 val contactBitmapValue = contactBitmap
                                                 val appBitmapValue = appBitmap
