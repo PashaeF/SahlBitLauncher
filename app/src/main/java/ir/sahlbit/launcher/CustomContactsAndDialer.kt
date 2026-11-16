@@ -628,9 +628,9 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                     RadioChoice("فقط تصویر مخاطبین اندروید", photoSource == "android") { photoSource = "android"; saveString("recent_photo_source", photoSource) }
                     RadioChoice("هر دو؛ ابتدا تصویر مخاطب اختصاصی سهل‌بیت", photoSource == "both_custom_first") { photoSource = "both_custom_first"; saveString("recent_photo_source", photoSource) }
                     RadioChoice("هر دو؛ ابتدا تصویر مخاطبین اندروید", photoSource == "both_android_first") { photoSource = "both_android_first"; saveString("recent_photo_source", photoSource) }
-                    Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Text("اندازه تصویر مخاطب: \u2066${avatarSize.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     Slider(avatarSize.toFloat(), { avatarSize = it.toInt().coerceIn(40, 112); saveInt("recent_avatar_size", avatarSize) }, valueRange = 40f..112f)
-                    Text("گردی گوشه تصویر: ${avatarRadius.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Text("گردی گوشه تصویر: \u2066${avatarRadius.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     Slider(avatarRadius.toFloat(), { avatarRadius = it.toInt().coerceIn(0, 50); saveInt("recent_avatar_radius", avatarRadius) }, valueRange = 0f..50f)
                 }
             }
@@ -645,7 +645,7 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                     RadioChoice("نام مخاطبین اندروید", nameSource == "android") { nameSource = "android"; saveString("recent_name_source", nameSource) }
                     RadioChoice("هر دو؛ ابتدا نام مخاطب اختصاصی سهل‌بیت", nameSource == "custom_first") { nameSource = "custom_first"; saveString("recent_name_source", nameSource) }
                     RadioChoice("هر دو؛ ابتدا نام مخاطبین اندروید", nameSource == "android_first") { nameSource = "android_first"; saveString("recent_name_source", nameSource) }
-                    Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                    Text("اندازه نام مخاطب: \u2066${nameSize.toPersianDigits()} sp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                     Slider(nameSize.toFloat(), { nameSize = it.toInt().coerceIn(11, 24); saveInt("recent_name_size", nameSize) }, valueRange = 11f..24f)
                 }
                 SwitchChoice("نمایش نام و تصویر مخاطبان اندروید که در مخاطبین اختصاصی سهل‌بیت ثبت نشده‌اند", showAndroidUnknown, { showAndroidUnknown = it; saveBoolean("recent_show_android_unknown", it) }, "اگر خاموش باشد، برای شماره‌هایی که در مخاطبین اختصاصی سهل‌بیت نیستند فقط شماره تماس نمایش داده می‌شود.")
@@ -658,7 +658,7 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                 Text("وضعیت تماس", color = CustomBlue, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 SwitchChoice("نمایش علامت وضعیت تماس", showStatusIcon, { showStatusIcon = it; saveBoolean("recent_show_status_icon", it) })
                 SwitchChoice("نمایش نوشتار فارسی وضعیت تماس", showStatusText, { showStatusText = it; saveBoolean("recent_show_status_text", it) })
-                Text("اندازه علامت وضعیت تماس: ${statusIconSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Text("اندازه علامت وضعیت تماس: \u2066${statusIconSize.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                 Slider(statusIconSize.toFloat(), { statusIconSize = it.toInt().coerceIn(16, 48); saveInt("recent_status_icon_size", statusIconSize) }, valueRange = 16f..48f)
             }
         }
@@ -669,11 +669,11 @@ fun RecentCallsCustomizationPage(prefs: android.content.SharedPreferences, onBac
                 RadioChoice("فقط آیکون تماس", buttonMode == "icon") { buttonMode = "icon"; saveString("recent_call_button_mode", buttonMode) }
                 RadioChoice("فقط نوشته تماس", buttonMode == "text") { buttonMode = "text"; saveString("recent_call_button_mode", buttonMode) }
                 RadioChoice("آیکون و نوشته تماس", buttonMode == "both") { buttonMode = "both"; saveString("recent_call_button_mode", buttonMode) }
-                Text("اندازه آیکون تماس: ${callIconSize.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Text("اندازه آیکون تماس: \u2066${callIconSize.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                 Slider(callIconSize.toFloat(), { callIconSize = it.toInt().coerceIn(16, 48); saveInt("recent_call_icon_size", callIconSize) }, valueRange = 16f..48f)
-                Text("اندازه نوشته تماس: ${callTextSize.toPersianDigits()} sp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Text("اندازه نوشته تماس: \u2066${callTextSize.toPersianDigits()} sp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                 Slider(callTextSize.toFloat(), { callTextSize = it.toInt().coerceIn(10, 24); saveInt("recent_call_text_size", callTextSize) }, valueRange = 10f..24f)
-                Text("فاصله بین کادرهای تماس: ${cardSpacing.toPersianDigits()} dp", color = CustomInk, fontWeight = FontWeight.SemiBold)
+                Text("فاصله بین کادرهای تماس: \u2066${cardSpacing.toPersianDigits()} dp\u2069", color = CustomInk, fontWeight = FontWeight.SemiBold)
                 Slider(cardSpacing.toFloat(), { cardSpacing = it.toInt().coerceIn(4, 30); saveInt("recent_card_spacing", cardSpacing) }, valueRange = 4f..30f)
             }
         }

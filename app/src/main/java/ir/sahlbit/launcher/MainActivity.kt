@@ -892,9 +892,9 @@ private fun SahlBitApp(
         "recentcustom" -> RecentCallsCustomizationPage(prefs = prefs, onBack = { navigateBack("dashboard") })
         "allapps" -> AllAppsScreen(onBack = { navigateBack("dashboard") }, onLaunch = { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) } } }, onDetails = { pkg -> runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$pkg"))) } })
         "clock" -> SettingsPage("سفارشی‌سازی ساعت", "اندازهٔ صفحهٔ ساعت، اندازه و زبان اعداد و نمایش ثانیه‌شمار را تنظیم کنید.", { navigateBack("dashboard") }) {
-            Text("اندازهٔ ساعت: ${clockSizeDp.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("اندازهٔ ساعت: \u2066${clockSizeDp.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
             CompactSlider(value = clockSizeDp.toFloat(), onValueChange = { v -> clockSizeDp = v.toInt(); prefs.edit().putInt("clock_size_dp", clockSizeDp).apply() }, valueRange = 180f..360f)
-            Text("اندازهٔ اعداد ساعت: ${clockDigitSizeSp.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
+            Text("اندازهٔ اعداد ساعت: \u2066${clockDigitSizeSp.toPersianDigits()} sp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
             CompactSlider(value = clockDigitSizeSp.toFloat(), onValueChange = { v -> clockDigitSizeSp = v.toInt(); prefs.edit().putInt("clock_digit_size_sp", clockDigitSizeSp).apply() }, valueRange = 20f..56f)
             Text("زبان اعداد ساعت", color = Ink, fontWeight = FontWeight.Bold)
             listOf("english" to "انگلیسی (123)", "persian" to "فارسی (۱۲۳)").forEach { (key, label) -> Row(Modifier.fillMaxWidth().clickable { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) { RadioButton(clockDigitLanguage == key, { clockDigitLanguage = key; prefs.edit().putString("clock_digit_language", key).apply() }); Text(label, color = Ink) } }
@@ -1355,8 +1355,8 @@ private fun SahlBitApp(
             val systemWriteGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.System.canWrite(context)
             var homeContactRadius by remember { mutableIntStateOf(prefs.getInt("home_contact_radius", 20).coerceIn(0, 50)) }
             var homeAppRadius by remember { mutableIntStateOf(prefs.getInt("home_app_radius", 20).coerceIn(0, 50)) }
-            NumberSetting("گردی گوشهٔ تصویر مخاطبان: ${homeContactRadius.toPersianDigits()} dp", homeContactRadius, 0, 50) { homeContactRadius = it; prefs.edit().putInt("home_contact_radius", it).apply() }
-            NumberSetting("گردی گوشهٔ لوگوی برنامه‌ها: ${homeAppRadius.toPersianDigits()} dp", homeAppRadius, 0, 50) { homeAppRadius = it; prefs.edit().putInt("home_app_radius", it).apply() }
+            NumberSetting("گردی گوشهٔ تصویر مخاطبان: \u2066${homeContactRadius.toPersianDigits()} dp\u2069", homeContactRadius, 0, 50) { homeContactRadius = it; prefs.edit().putInt("home_contact_radius", it).apply() }
+            NumberSetting("گردی گوشهٔ لوگوی برنامه‌ها: \u2066${homeAppRadius.toPersianDigits()} dp\u2069", homeAppRadius, 0, 50) { homeAppRadius = it; prefs.edit().putInt("home_app_radius", it).apply() }
             Text("پس‌زمینه", fontWeight = FontWeight.Bold, color = Ink)
             listOf("cream" to "کِرِم", "white" to "سفید", "gray" to "طوسی", "blue" to "آبی ملایم", "sage" to "سبز مریم‌گلی", "lavender" to "یاسی ملایم", "mint" to "نعنایی", "sand" to "شنی روشن", "rose" to "صورتی آرام").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).clickable { backgroundChoice = key; prefs.edit().putString("background", key).apply() }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2039,23 +2039,23 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
         PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
         OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
         OutlinedTextField(previewNumber, { previewNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
-        Text("اندازه تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink)
+        Text("اندازه تصویر مخاطب: \u2066${avatarSize.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
-        Text("گردی گوشه‌های تصویر: ${avatarRadius.toPersianDigits()} dp", color = Ink)
+        Text("گردی گوشه‌های تصویر: \u2066${avatarRadius.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(avatarRadius.toFloat(), { avatarRadius = it.toInt(); saveInt("avatar_radius", avatarRadius) }, valueRange = 0f..40f)
-        Text("اندازه نام مخاطب: ${nameSize.toPersianDigits()} sp", color = Ink)
+        Text("اندازه نام مخاطب: \u2066${nameSize.toPersianDigits()} sp\u2069", color = Ink)
         CompactSlider(nameSize.toFloat(), { nameSize = it.toInt(); saveInt("name_sp", nameSize) }, valueRange = 16f..40f)
-        Text("اندازه شماره تماس: ${numberSize.toPersianDigits()} sp", color = Ink)
+        Text("اندازه شماره تماس: \u2066${numberSize.toPersianDigits()} sp\u2069", color = Ink)
         CompactSlider(numberSize.toFloat(), { numberSize = it.toInt(); saveInt("number_sp", numberSize) }, valueRange = 12f..32f)
-        Text("ارتفاع دکمه‌ها: ${buttonHeight.toPersianDigits()} dp", color = Ink)
+        Text("ارتفاع دکمه‌ها: \u2066${buttonHeight.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(buttonHeight.toFloat(), { buttonHeight = it.toInt(); saveInt("button_height_dp", buttonHeight) }, valueRange = 56f..120f)
         Text("عرض دکمه‌ها: ${buttonWidthPct.toPersianDigits()}٪", color = Ink)
         CompactSlider(buttonWidthPct.toFloat(), { buttonWidthPct = it.toInt(); saveInt("button_width_pct", buttonWidthPct) }, valueRange = 60f..100f)
-        Text("اندازه نوشته دکمه‌ها: ${buttonTextSize.toPersianDigits()} sp", color = Ink)
+        Text("اندازه نوشته دکمه‌ها: \u2066${buttonTextSize.toPersianDigits()} sp\u2069", color = Ink)
         CompactSlider(buttonTextSize.toFloat(), { buttonTextSize = it.toInt(); saveInt("button_text_sp", buttonTextSize) }, valueRange = 14f..30f)
-        Text("گردی گوشه دکمه‌ها: ${buttonRadius.toPersianDigits()} dp", color = Ink)
+        Text("گردی گوشه دکمه‌ها: \u2066${buttonRadius.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(buttonRadius.toFloat(), { buttonRadius = it.toInt(); saveInt("button_radius", buttonRadius) }, valueRange = 0f..40f)
-        Text(if (profile == "outgoing") "فاصلهٔ دکمهٔ پایان تماس از اطلاعات تماس: ${spacing.toPersianDigits()} dp" else "فاصله عمودی بین دکمه‌ها: ${spacing.toPersianDigits()} dp", color = Ink)
+        Text(if (profile == "outgoing") "فاصلهٔ دکمهٔ پایان تماس از اطلاعات تماس: \u2066${spacing.toPersianDigits()} dp\u2069" else "فاصله عمودی بین دکمه‌ها: \u2066${spacing.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(spacing.toFloat(), { spacing = it.toInt(); saveInt("spacing_dp", spacing) }, valueRange = 8f..120f)
         CallColorPicker("رنگ پس‌زمینه صفحه", bgHex, palette) { bgHex = it; saveText("background", it) }
         if (profile == "outgoing") {
@@ -2230,27 +2230,27 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
         CallColorPicker("رنگ دکمهٔ خیر", noColor, palette) { noColor = it; saveText("no_color", it) }
         OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true)
         OutlinedTextField(noLabel, { noLabel = it; saveText("no_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ خیر") }, singleLine = true)
-        Text("ارتفاع دکمهٔ بله: ${yesButtonHeight.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("ارتفاع دکمهٔ بله: \u2066${yesButtonHeight.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(yesButtonHeight.toFloat(), { yesButtonHeight = it.toInt().coerceIn(48, 88); saveInt("yes_button_height", yesButtonHeight) }, 48f..88f)
-        Text("ارتفاع دکمهٔ خیر: ${noButtonHeight.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("ارتفاع دکمهٔ خیر: \u2066${noButtonHeight.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(noButtonHeight.toFloat(), { noButtonHeight = it.toInt().coerceIn(48, 88); saveInt("no_button_height", noButtonHeight) }, 48f..88f)
         Text("عرض دکمهٔ بله: ${yesButtonWidth.toPersianDigits()} درصد", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(yesButtonWidth.toFloat(), { yesButtonWidth = it.toInt().coerceIn(50, 100); saveInt("yes_width_pct", yesButtonWidth) }, 50f..100f)
         Text("عرض دکمهٔ خیر: ${noButtonWidth.toPersianDigits()} درصد", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(noButtonWidth.toFloat(), { noButtonWidth = it.toInt().coerceIn(50, 100); saveInt("no_width_pct", noButtonWidth) }, 50f..100f)
-        Text("اندازهٔ متن دکمهٔ بله: ${yesButtonTextSize.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("اندازهٔ متن دکمهٔ بله: \u2066${yesButtonTextSize.toPersianDigits()} sp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(yesButtonTextSize.toFloat(), { yesButtonTextSize = it.toInt().coerceIn(14, 24); saveInt("yes_text_size", yesButtonTextSize) }, 14f..24f)
-        Text("اندازهٔ متن دکمهٔ خیر: ${noButtonTextSize.toPersianDigits()} sp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("اندازهٔ متن دکمهٔ خیر: \u2066${noButtonTextSize.toPersianDigits()} sp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(noButtonTextSize.toFloat(), { noButtonTextSize = it.toInt().coerceIn(14, 24); saveInt("no_text_size", noButtonTextSize) }, 14f..24f)
-        Text("اندازهٔ تصویر مخاطب: ${avatarSize.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("اندازهٔ تصویر مخاطب: \u2066${avatarSize.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt().coerceIn(64, 160); saveInt("avatar_size", avatarSize) }, 64f..160f)
-        Text("گردی تصویر مخاطب: ${avatarRadius.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("گردی تصویر مخاطب: \u2066${avatarRadius.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(avatarRadius.toFloat(), { avatarRadius = it.toInt().coerceIn(0, 40); saveInt("avatar_radius", avatarRadius) }, 0f..40f)
-        Text("گردی گوشهٔ دکمهٔ بله: ${yesButtonRadius.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("گردی گوشهٔ دکمهٔ بله: \u2066${yesButtonRadius.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(yesButtonRadius.toFloat(), { yesButtonRadius = it.toInt().coerceIn(0, 40); saveInt("yes_button_radius", yesButtonRadius) }, 0f..40f)
-        Text("گردی گوشهٔ دکمهٔ خیر: ${noButtonRadius.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("گردی گوشهٔ دکمهٔ خیر: \u2066${noButtonRadius.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(noButtonRadius.toFloat(), { noButtonRadius = it.toInt().coerceIn(0, 40); saveInt("no_button_radius", noButtonRadius) }, 0f..40f)
-        Text("فاصلهٔ عمودی دکمه‌ها: ${buttonSpacing.toPersianDigits()} dp", color = Ink, fontWeight = FontWeight.SemiBold)
+        Text("فاصلهٔ عمودی دکمه‌ها: \u2066${buttonSpacing.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(buttonSpacing.toFloat(), { buttonSpacing = it.toInt().coerceIn(8, 100); saveInt("button_spacing", buttonSpacing) }, 8f..100f)
         Divider()
         Text("پیش‌نمایش زنده", color = Forest, fontSize = 19.sp, fontWeight = FontWeight.Bold)
