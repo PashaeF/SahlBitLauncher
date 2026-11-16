@@ -44,6 +44,7 @@ A Persian RTL Android launcher focused on simple, controlled interaction for old
 - In-call contact lookup/photo decoding and gallery/camera crop-result persistence run off the UI thread to reduce call-screen and photo-selection jank.
 - The selected default home page is remapped when pages are reordered or deleted, including when the selected default page itself is removed.
 - Persian dimension values retain left-to-right ordering with English units (for example, ۲۰ dp).
+- Force right-to-left layout for the Persian interface independently of the Android system language, while keeping number fields and the custom dialer explicitly left-to-right where needed.
 - The first app-only brightness value is captured from the current Android brightness; subsequent Quick Settings changes do not alter the SahlBit window in app-only mode.
 - Repeatable plus/minus controls support single taps and slower continuous changes while held.
 - Change contact-card photos and reorder cards from the management screen.
