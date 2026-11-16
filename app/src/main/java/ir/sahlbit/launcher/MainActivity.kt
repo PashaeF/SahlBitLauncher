@@ -987,7 +987,7 @@ private fun SahlBitApp(
             var showSettingsIconOnPage by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageFlag("page_settings_icon_enabled", selectedPage, true)) }
             var weekdayMode by remember(selectedPage, recentCallsFlagsRevision) { mutableStateOf(loadPageWeekdayMode(selectedPage)) }
             Text("نام صفحهٔ انتخاب‌شده", color = Ink, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${(selectedPage + 1).toPersianDigits()}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(value = pageNames.getOrElse(selectedPage) { "صفحه ${(selectedPage + 1).toPersianDigits()}" }, onValueChange = { value -> pageNames = pageNames.toMutableList().also { it[selectedPage] = value.take(28) }; prefs.edit().putString("page_names", org.json.JSONArray(pageNames).toString()).apply() }, modifier = Modifier.fillMaxWidth(), singleLine = true , shape = RoundedCornerShape(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     if (pageCount < Int.MAX_VALUE) {
@@ -1523,13 +1523,13 @@ private fun SahlBitApp(
                     timeoutMinutesText = value.toPersianDigitsText().filter(Char::isDigit).take(2)
                     screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + (timeoutSecondsText.toEnglishDigits().toIntOrNull() ?: 0)).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
-                }, modifier = Modifier.weight(1f).bringIntoViewRequester(minutesBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); minutesBringIntoView.bringIntoView() } }, label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }, modifier = Modifier.weight(1f).bringIntoViewRequester(minutesBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); minutesBringIntoView.bringIntoView() } }, label = { Text("دقیقه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) , shape = RoundedCornerShape(20.dp))
                 OutlinedTextField(value = timeoutSecondsText, onValueChange = { value ->
                     val seconds = value.toEnglishDigits().filter(Char::isDigit).take(2).toIntOrNull()?.coerceIn(0, 59) ?: 0
                     timeoutSecondsText = seconds.toPersianDigits()
                     screenTimeoutSeconds = ((timeoutMinutesText.toEnglishDigits().toIntOrNull() ?: 0) * 60 + seconds).coerceIn(15, 1800)
                     prefs.edit().putInt("screen_timeout_seconds", screenTimeoutSeconds).apply()
-                }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                }, modifier = Modifier.weight(1f).bringIntoViewRequester(secondsBringIntoView).onFocusChanged { state -> if (state.isFocused) timeoutScope.launch { delay(120); secondsBringIntoView.bringIntoView() } }, label = { Text("ثانیه") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) , shape = RoundedCornerShape(20.dp))
             }
             Text("زمان انتخاب‌شده: ${(screenTimeoutSeconds / 60).toPersianDigits()} دقیقه و ${(screenTimeoutSeconds % 60).toPersianDigits()} ثانیه", color = Teal)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(context)) Text("برای اعمال زمان خاموشی، دسترسی تغییر تنظیمات سیستم را از کادر پایین این صفحه فعال کنید.", color = Ink, fontSize = 13.sp, lineHeight = 22.sp)
@@ -1556,7 +1556,7 @@ private fun SahlBitApp(
         "mathrecovery" -> SettingsPage("بازیابی دسترسی مدیر", "برای بازیابی دسترسی، مسئلهٔ زیر را حل کنید.", { navigateBack("login") }) {
             val expected = if (mathOperation == "+") mathA + mathB else mathA - mathB
             Text("\u2066${mathA.toPersianDigits()} $mathOperation ${mathB.toPersianDigits()} = ؟\u2069", color = Forest, fontSize = 30.sp, fontWeight = FontWeight.Bold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3).toPersianDigitsText() }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = mathAnswer, onValueChange = { mathAnswer = it.filter(Char::isDigit).take(3).toPersianDigitsText() }, label = { Text("پاسخ") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth() , shape = RoundedCornerShape(20.dp))
             if (error.isNotBlank()) Text(error, color = Color(0xFFB3261E))
             Button(onClick = {
                 if (mathAnswer.toEnglishDigits().toIntOrNull() == expected) { failedPins = 0; lockUntil = 0L; prefs.edit().putInt("pin_failed_attempts", 0).putLong("pin_lock_until", 0L).apply(); adminAuthenticated = true; newPin = ""; confirmPin = ""; error = ""; navigateTo("pinchange") }
@@ -1695,8 +1695,8 @@ private fun SahlBitApp(
     if (editingContactId != null) {
             AlertDialog(onDismissRequest = { editingContactId = null }, title = { Text("ویرایش کارت مخاطب") }, text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = editContactName, onValueChange = { editContactName = it }, label = { Text("نام مخاطب") }, singleLine = true)
-                    OutlinedTextField(value = editContactPhone, onValueChange = { editContactPhone = it.toPersianDigitsText() }, label = { Text("شماره تلفن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone))
+                    OutlinedTextField(value = editContactName, onValueChange = { editContactName = it }, label = { Text("نام مخاطب") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+                    OutlinedTextField(value = editContactPhone, onValueChange = { editContactPhone = it.toPersianDigitsText() }, label = { Text("شماره تلفن") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone) , shape = RoundedCornerShape(20.dp))
                     Text("این تغییرات روی کارت سهل‌بیت ذخیره می‌شوند و دفترچه تلفن اندروید را تغییر نمی‌دهند.", color = Teal, fontSize = 12.sp)
                 }
             }, confirmButton = { Button(onClick = {
@@ -1981,7 +1981,7 @@ private fun SetupWizardScreen(step: Int, granted: Boolean?, onGrant: () -> Unit,
     }
 }
 @Composable private fun PinField(label: String, value: String, onValue: (String) -> Unit) {
-    OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword))
+    OutlinedTextField(value, onValue, label = { Text(label) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword) , shape = RoundedCornerShape(20.dp))
 }
 
 @Composable
@@ -2062,8 +2062,8 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
             }
         } else Text("هنوز مخاطبی در صفحهٔ اصلی ذخیره نشده است؛ نام و شمارهٔ نمونه را می‌توانید دستی وارد کنید.", color = Color(0xFF64748B), fontSize = 12.sp)
         PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
-        OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true)
-        OutlinedTextField(previewNumber, { previewNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
+        OutlinedTextField(previewName, { previewName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+        OutlinedTextField(previewNumber, { previewNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true , shape = RoundedCornerShape(20.dp))
         Text("اندازه تصویر مخاطب: \u2066${avatarSize.toPersianDigits()} dp\u2069", color = Ink)
         CompactSlider(avatarSize.toFloat(), { avatarSize = it.toInt(); saveInt("avatar_dp", avatarSize) }, valueRange = 140f..340f)
         Text("گردی گوشه‌های تصویر: \u2066${avatarRadius.toPersianDigits()} dp\u2069", color = Ink)
@@ -2094,9 +2094,9 @@ private fun CallCustomizationPage(prefs: android.content.SharedPreferences, cont
             CallColorPicker("رنگ دکمه پایینی", secondaryHex, palette) { secondaryHex = it; saveText("secondary", it) }
         }
         Text("متن دکمه‌ها", color = Ink, fontWeight = FontWeight.Bold)
-        OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن دکمه پایان تماس" else "متن تغییر به بلندگو") }, singleLine = true)
-        if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true)
-        if (profile == "active") OutlinedTextField(alternateLabel, { alternateLabel = it; saveText("alternate_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("متن تغییر به تلفن") }, singleLine = true)
+        OutlinedTextField(firstLabel, { firstLabel = it; saveText("first_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن پاسخ" else if (profile == "outgoing") "متن دکمه پایان تماس" else "متن تغییر به بلندگو") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+        if (profile != "outgoing") OutlinedTextField(secondLabel, { secondLabel = it; saveText("second_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text(if (profile == "incoming") "متن رد تماس" else "متن پایان تماس") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+        if (profile == "active") OutlinedTextField(alternateLabel, { alternateLabel = it; saveText("alternate_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("متن تغییر به تلفن") }, singleLine = true , shape = RoundedCornerShape(20.dp))
         Divider()
         Text("پیش‌نمایش زنده", color = Ink, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         val bgColor = Color(android.graphics.Color.parseColor(bgHex))
@@ -2263,12 +2263,12 @@ private fun CallConfirmationCustomizationPage(prefs: android.content.SharedPrefe
             }
         }
         PreviewPhotoPicker(previewPhotoUri) { previewPhotoUri = it }
-        OutlinedTextField(sampleContactName, { sampleContactName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب پیش‌نمایش") }, singleLine = true)
-        OutlinedTextField(sampleContactNumber, { sampleContactNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شمارهٔ تماس پیش‌نمایش") }, singleLine = true)
+        OutlinedTextField(sampleContactName, { sampleContactName = it }, modifier = Modifier.fillMaxWidth(), label = { Text("نام مخاطب پیش‌نمایش") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+        OutlinedTextField(sampleContactNumber, { sampleContactNumber = it.toPersianDigitsText() }, modifier = Modifier.fillMaxWidth(), label = { Text("شمارهٔ تماس پیش‌نمایش") }, singleLine = true , shape = RoundedCornerShape(20.dp))
         CallColorPicker("رنگ دکمهٔ بله", yesColor, palette) { yesColor = it; saveText("yes_color", it) }
         CallColorPicker("رنگ دکمهٔ خیر", noColor, palette) { noColor = it; saveText("no_color", it) }
-        OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true)
-        OutlinedTextField(noLabel, { noLabel = it; saveText("no_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ خیر") }, singleLine = true)
+        OutlinedTextField(yesLabel, { yesLabel = it; saveText("yes_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ بله") }, singleLine = true , shape = RoundedCornerShape(20.dp))
+        OutlinedTextField(noLabel, { noLabel = it; saveText("no_label", it) }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان دکمهٔ خیر") }, singleLine = true , shape = RoundedCornerShape(20.dp))
         Text("ارتفاع دکمهٔ بله: \u2066${yesButtonHeight.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
         CompactSlider(yesButtonHeight.toFloat(), { yesButtonHeight = it.toInt().coerceIn(48, 88); saveInt("yes_button_height", yesButtonHeight) }, 48f..88f)
         Text("ارتفاع دکمهٔ خیر: \u2066${noButtonHeight.toPersianDigits()} dp\u2069", color = Ink, fontWeight = FontWeight.SemiBold)
@@ -2583,7 +2583,7 @@ private fun UninstallPage(onBack: () -> Unit, onCallDeveloper: () -> Unit) {
 }
 
 @Composable private fun NumberSetting(label: String, value: Int, min: Int, max: Int, enabled: Boolean = true, onChange: (Int) -> Unit) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
         Column(Modifier.padding(14.dp).alpha(if (enabled) 1f else .45f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, color = Ink, fontWeight = FontWeight.SemiBold)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
