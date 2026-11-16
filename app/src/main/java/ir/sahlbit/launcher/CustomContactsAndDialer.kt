@@ -354,7 +354,7 @@ fun CustomContactsPage(
             Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("شمارهٔ ${(index + 1).toPersianDigits()}", color = CustomInk, fontWeight = FontWeight.SemiBold)
-                    val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
+                    val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(raw), 256)?.asImageBitmap() }.getOrNull() } } }
                     val phoneBitmapValue = phoneBitmap
                     if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر شماره", modifier = Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                     OutlinedTextField(value = phone.label, onValueChange = { value -> phones = phones.toMutableList().also { it[index] = it[index].copy(label = value.take(24)) } }, modifier = Modifier.fillMaxWidth(), label = { Text("عنوان شمارهٔ ${(index + 1).toPersianDigits()}") }, placeholder = { Text("مثلاً همراه، منزل یا محل کار") }, singleLine = true, trailingIcon = { if (phone.label.isNotEmpty()) IconButton(onClick = { phones = phones.toMutableList().also { it[index] = it[index].copy(label = "") } }) { Icon(Icons.Default.Close, "پاک‌کردن عنوان شماره", tint = CustomBlue) } })
@@ -399,7 +399,7 @@ fun CustomContactsPage(
                     Text(contact.name, color = CustomInk, fontWeight = FontWeight.Bold)
                     contact.phones.forEachIndexed { phoneIndex, phone ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { context.contentResolver.openInputStream(Uri.parse(raw))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull() } } }
+                            val phoneBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, phone.photoUri, photoRefreshRevision) { value = phone.photoUri?.let { raw -> withContext(Dispatchers.IO) { runCatching { decodeScaledBitmap(context, Uri.parse(raw), 256)?.asImageBitmap() }.getOrNull() } } }
                             val phoneBitmapValue = phoneBitmap
                             if (phoneBitmapValue != null) Image(phoneBitmapValue, contentDescription = "تصویر ${phone.number}", modifier = Modifier.size(40.dp).clip(RoundedCornerShape(20.dp)), contentScale = ContentScale.Crop)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

@@ -64,3 +64,34 @@ object LauncherEntryStore {
         prefs.edit().putString(KEY, array.toString()).apply()
     }
 }
+
+
+/**
+ * Decode a photo close to the size used by the UI instead of loading the original
+ * full-resolution camera image into memory for a small contact avatar.
+ * Call this function from a background dispatcher.
+ */
+internal fun decodeScaledBitmap(
+    context: android.content.Context,
+    uri: android.net.Uri,
+    targetSizePx: Int = 256
+): android.graphics.Bitmap? = runCatching {
+    val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use {
+        android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+    } ?: return@runCatching null
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
+
+    val target = targetSizePx.coerceAtLeast(64)
+    var sampleSize = 1
+    val longestSide = maxOf(bounds.outWidth, bounds.outHeight)
+    while (longestSide / (sampleSize * 2) >= target) sampleSize *= 2
+
+    val options = android.graphics.BitmapFactory.Options().apply {
+        inSampleSize = sampleSize
+        inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+    }
+    context.contentResolver.openInputStream(uri)?.use {
+        android.graphics.BitmapFactory.decodeStream(it, null, options)
+    }
+}.getOrNull()

@@ -119,7 +119,7 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     val showPhoto = prefs.getBoolean("recent_show_photos", true)
     val photoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, resolvedPhoto, showPhoto) {
         value = if (showPhoto && !resolvedPhoto.isNullOrBlank()) withContext(Dispatchers.IO) {
-            runCatching { context.contentResolver.openInputStream(Uri.parse(resolvedPhoto))?.use { BitmapFactory.decodeStream(it)?.asImageBitmap() } }.getOrNull()
+            runCatching { decodeScaledBitmap(context, Uri.parse(resolvedPhoto), 384)?.asImageBitmap() }.getOrNull()
         } else null
     }
     val showName = prefs.getBoolean("recent_show_names", true) && resolvedName.isNotBlank()
