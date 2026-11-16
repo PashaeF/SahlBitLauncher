@@ -195,6 +195,7 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     val showStatusText = prefs.getBoolean("recent_show_status_text", false)
     val avatarSize = prefs.getInt("recent_avatar_size", 64).coerceIn(40, 112)
     val avatarRadius = prefs.getInt("recent_avatar_radius", 20).coerceIn(0, 50)
+    val effectiveAvatarSize = minOf(avatarSize.dp, (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp - 132.dp).coerceAtLeast(40.dp))
     val nameSize = prefs.getInt("recent_name_size", 15).coerceIn(11, 24)
     val statusSize = prefs.getInt("recent_status_icon_size", 24).coerceIn(16, 48)
     val callIconSize = prefs.getInt("recent_call_icon_size", 26).coerceIn(16, 48)
@@ -217,9 +218,9 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
     Card(Modifier.fillMaxWidth().padding(bottom = spacing.dp), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp)) {
         Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (showPhoto) {
-                Box(Modifier.size(avatarSize.dp).clip(RoundedCornerShape(avatarRadius.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(effectiveAvatarSize).clip(RoundedCornerShape(avatarRadius.dp)).background(Color(0xFFE2E8F0)), contentAlignment = Alignment.Center) {
                     if (photoBitmap != null) Image(photoBitmap!!, contentDescription = resolvedName, modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(avatarRadius.dp)), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                    else Icon(Icons.Default.Person, null, tint = Color(0xFF64748B), modifier = Modifier.size((avatarSize * .62f).dp))
+                    else Icon(Icons.Default.Person, null, tint = Color(0xFF64748B), modifier = Modifier.size(effectiveAvatarSize * .62f))
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -228,7 +229,7 @@ fun RecentCallCard(call: RecentCallRecord, entries: List<LauncherEntry>, customC
                     if (showNumber) Text(displayNumber, color = Color(0xFF475569), fontSize = 13.sp, lineHeight = 18.sp)
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val compactLayout = maxWidth < 176.dp
+                    val compactLayout = maxWidth < 120.dp
                     val effectiveIconSize = minOf(callIconSize.dp, if (compactLayout) 20.dp else if (maxWidth < 220.dp) 32.dp else 48.dp)
                     val effectiveTextSize = minOf(callTextSize, if (compactLayout) 11 else if (maxWidth < 220.dp) 16 else 24).sp
 
