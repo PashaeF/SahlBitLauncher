@@ -118,12 +118,14 @@ class CallActivity : Activity(), SensorEventListener {
         Button(this).apply {
             text = label; textSize = size; typeface = ResourcesCompat.getFont(this@CallActivity, R.font.vazirmatn_bold)
             isAllCaps = false; setTextColor(Color.WHITE)
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            textDirection = View.TEXT_DIRECTION_RTL
             background = GradientDrawable().apply { setColor(color); cornerRadius = dp(20).toFloat() }
             setPadding(dp(12), dp(8), dp(12), dp(8)); setOnClickListener { onClick() }
         }
 
     private fun buildUi() {
-        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(20), dp(10), dp(20), dp(14)) }
+        root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; layoutDirection = View.LAYOUT_DIRECTION_RTL; setPadding(dp(20), dp(10), dp(20), dp(14)) }
         statusView = TextView(this).also { styleText(it, 20f, Color.WHITE, true) }
         root.addView(statusView, LinearLayout.LayoutParams(-1, dp(38)))
         avatarView = ImageView(this).apply {
